@@ -5,6 +5,43 @@ import scala.util.{Try, Success, Failure}
 /** Utilities for managing generation and accumulation of errors */
 object ParseUtils {
 
+  // Standard parsing
+
+  /** Parses out a score (double) from HTML */
+  def parse_score(el: Option[String]): Either[ParseError, Double] = el match {
+    case Some(score) =>
+      ParseUtils.build_sub_request[Double](score.toDouble)
+    case None =>
+      Left(ParseUtils.build_sub_error("value")(
+        s"Failed to locate the field"
+      ))
+  }
+
+  /** Parses out a rank from HTML */
+  def parse_rank(el: Option[String]): Either[ParseError, Int] = el match {
+    case Some(rank) =>
+      ParseUtils.build_sub_request[Int](rank.toInt)
+    case None =>
+      Left(ParseUtils.build_sub_error("rank")(
+        s"Failed to locate the field"
+      ))
+  }
+
+  /** Utility for building sub-strings */
+  def parse_string_offset(in: String, token: String, token_type: String):
+    Either[ParseError, Int] =
+      for {
+        index <- Right(in.indexOf(in)).flatMap {
+          case valid if valid >= 0 => Right(valid)
+          case invalid =>
+            Left(ParseUtils.build_sub_error(token_type)(
+              s"Failed to locate [$token] at [$token_type] in [$in]"
+            ))
+        }
+      } yield index
+
+  // Error creation
+
   /** Puts ids in []s for readability */
   def build_error_id(value: String) = if (value.nonEmpty) s"[$value]" else ""
 
@@ -13,6 +50,11 @@ object ParseUtils {
     case Success(x) => Right(x)
     case Failure(e) => Left(List(ParseError(location, build_error_id(id), s"Exception=[${e.getMessage}]")))
   }
+
+  /** Builds an either from a request that might throw, returns a list for consistency */
+  def build_sub_request[T](request: => T): Either[ParseError, T] =
+    build_request[T]("", "")(request).left.map(_.head)
+
   /** Builds an error with multiple error strings */
   def build_errors(location: String, base_id: String)(subids: String*)(errors: List[String]): ParseError = {
     ParseError(location, (base_id :: subids.toList).map(build_error_id(_)).mkString(""), errors)

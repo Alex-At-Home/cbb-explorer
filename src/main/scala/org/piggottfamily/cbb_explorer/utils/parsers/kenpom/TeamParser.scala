@@ -93,22 +93,29 @@ trait TeamParser {
 
     val root: Either[List[ParseError], Unit] = Right(())
     def single_error_enricher(field: String) = ParseUtils.enrich_sub_error("", field) _
+    def multi_error_enricher(field: String) = ParseUtils.enrich_sub_errors("", field) _
 
     for {
       _ <- root
 
-      adj_margin_rank_or_error = parse_rank(
-        (doc >?> element("div[id=title-container]") >?> element("span[class=rank]")).flatten
+      adj_margin_rank_or_error = ParseUtils.parse_rank(
+        (doc >?> element("div[id=title-container]") >?> element("span[class=rank]")).flatten.map(_.text)
       ).left.map(single_error_enricher("adj_margin_rank"))
 
-      season_stats_table_or_error = create_table(doc, "function tableStart", "function")
+      season_stats_table_or_error =
+        parse_stats_table(doc, "function tableStart", "function")
+          .left.map(single_error_enricher("season_stats"))
 
-      conf_stats_table_or_error = create_table(doc, "if (checked)", "function")
+      conf_stats_table_or_error =
+        parse_stats_table(doc, "if (checked)", "function")
+          .left.map(single_error_enricher("conf_stats"))
 
       table_tuple <- ParseUtils.lift(season_stats_table_or_error, conf_stats_table_or_error)
       (season_stats_table, conf_stats_table) = table_tuple
 
-      season_stats_or_error = parse_season_stats(season_stats_table)
+      season_stats_or_error =
+        parse_season_stats(season_stats_table)
+          .left.map(multi_error_enricher("total_stats"))
 
       metrics_tuple <- ParseUtils.lift(adj_margin_rank_or_error, season_stats_or_error)
       (adj_margin_rank, season_stats) = metrics_tuple
@@ -123,51 +130,55 @@ trait TeamParser {
   /** Gets the metric and ranking off the HTML fragment from the script */
   protected def parse_season_stats(in: Map[String, Either[ParseError, Document]]):
     Either[List[ParseError], TeamSeasonStats] =
-  for {
+  {
+    val root: Either[List[ParseError], Unit] = Right(())
+    def multi_error_enricher(field: String) = ParseUtils.enrich_sub_errors("", field) _
+    def parse_stats_map(in: Option[Either[ParseError, Document]]): Either[List[ParseError], Metric] = {
+      in.map(_.map(Some(_))).getOrElse(Right(None)) //(swap the option and either)
+        .left.map(List(_))
+        .flatMap(get_metric(_))
+    }
+    for {
+      _ <- root
 
-    adj_off_or_error = get_metric_and_rank("td#OE")
-    adj_def_or_error = get_metric_and_rank("td#DE")
+      adj_off_or_error = parse_stats_map(in.get("td#OE"))
+        .left.map(multi_error_enricher("adj_off"))
 
-    adj_off_def = ParseUtils.lift(adj_off_or_error, adj_def_or_error)
-    (adj_off, adj_def) = adj_off_def
+      adj_def_or_error = parse_stats_map(in.get("td#DE"))
+        .left.map(multi_error_enricher("adj_def"))
 
-  } yield TeamSeasonStats(adj_margin = Metric(0.0, 0), adj_off, adj_def)
+      adj_off_def <- ParseUtils.lift(adj_off_or_error, adj_def_or_error)
+      (adj_off, adj_def) = adj_off_def
 
-  protected def get_metric_and_rank(sub_doc: Option[Document]): Either[List[ParseError], Metric] = sub_doc match {
-    case Some(html) => for {
-
-      score_or_error = (html >?> element("a")).headOption { parse_score(_) }
-      rank_or_error = (html >?> element("span[class=seed]")).headOption { parse_rank(_) }
-
-      score_rank = ParseUtils.lift(score_or_error, rank_or_error)
-      (score, rank) = score_rank
-
-    } yield Metric(score, rank)
-
-    case None =>
-      Left(ParseUtils.build_sub_error("value")(
-        s"Failed to locate the field"
-      ))
+    } yield TeamSeasonStats(adj_margin = Metric(0.0, 0), adj_off, adj_def)
   }
 
-  /** Parses out a score (double) from HTML */
-  protected def parse_score(el: Option[Element]): Either[List[ParseError], Double] = el match {
-    case Some(score) =>
-      ParseUtils.build_request[Document]("", "")(score.text.toDouble)
-    case None =>
-      Left(ParseUtils.build_sub_error("value")(
-        s"Failed to locate the field"
-      ))
-  }
+  /** Pulls out the rank and score from the format consistently used in HTML fragments */
+  protected def get_metric(sub_doc: Option[Document]): Either[List[ParseError], Metric] =
+  {
+    val root: Either[List[ParseError], Unit] = Right(())
 
-  /** Parses out a rank from HTML */
-  protected def parse_rank(el: Option[Element]): Either[List[ParseError], Int] = el match {
-    case Some(rank) =>
-      ParseUtils.build_request[Document]("", "")(rank.text.toInt)
-    case None =>
-      Left(ParseUtils.build_sub_error("rank")(
-        s"Failed to locate the field"
-      ))
+    sub_doc match {
+      case Some(html) => for {
+        _ <- root
+
+        score_or_error =
+          ParseUtils.parse_score((html >?> element("a")).map(_.text))
+          .left.map(List(_))
+        rank_or_error =
+          ParseUtils.parse_rank((html >?> element("span[class=seed]")).map(_.text))
+          .left.map(List(_))
+
+        score_rank <- ParseUtils.lift(score_or_error, rank_or_error)
+        (score, rank) = score_rank
+
+      } yield Metric(score, rank)
+
+      case None =>
+        Left(List(ParseUtils.build_sub_error("value")(
+          s"Failed to locate the field"
+        )))
+    }
   }
 
   /** All the stats are created by a JS function that inserts different HTML
@@ -178,16 +189,14 @@ trait TeamParser {
   protected def parse_stats_table(doc: Document, start_token: String, end_token: String):
     Either[ParseError, Map[String, Either[ParseError, Document]]] =
   {
-    val browser = JsoupBrowser()
-
     (doc >> elementList("script")).collect {
-      case script Right script.contains(start_token) =>
+      case script if script.text.contains(start_token) =>
         script.text
     }.headOption match {
       case Some(script) => for {
-        start <- parse_string_offset(script, start_token, "start_token")
+        start <- ParseUtils.parse_string_offset(script, start_token, "start_token")
         sub_str1 = script.substring(start)
-        end <- parse_string_offset(script, end_token, "end_token")
+        end <- ParseUtils.parse_string_offset(script, end_token, "end_token")
       } yield parse_script_function(sub_str1.substring(0, end))
 
       case None =>
@@ -197,32 +206,21 @@ trait TeamParser {
     }
   }
 
-  /** Utility for building sub-strings */
-  protected def parse_string_offset(in: String, token: String, token_type: String):
-    Either[ParseError, Int] = for {
-      sub_str = Right(in.indexOf(in)).flatMap {
-        case valid if valid >= 0 => Right(valid)
-        case invalid =>
-          Left(ParseUtils.build_sub_error(token_type)(
-            s"Failed to locate [$token] at [$token_type] in [$in]"
-          ))
-      }
-    }
-
   /** Parses a script function containing all the efficiency values into
       a map of the HTML, example:
       $("td#ARate").html("<a href=\"teamstats.php?s=RankARate\">54.9</a> <span class=\"seed\">6</span>");
   */
-  protected def parse_script_function(in: String): Map[String, Either[List[ParseError], Document]] = {
+  protected def parse_script_function(in: String): Map[String, Either[ParseError, Document]] = {
+    val browser = JsoupBrowser()
     val HtmlRegex = """[^$]*[$][(]"([^"]+)"[)][.]html[(]"(.*)"[)];[^;]*""".r
     in.lines.collect {
       case HtmlRegex(element_id, html) =>
-        val map_value = parse(html).asString match {
-          case Some(html_str) =>
-            ParseUtils.build_request[Document]("", element_id)(browser.parseString(html_str))
-          case None =>
+        val map_value = parse(html).map(_.asString) match {
+          case Right(Some(html_str)) =>
+            ParseUtils.build_sub_request[Document](browser.parseString(html_str))
+          case _ =>
             Left(ParseUtils.build_sub_error(element_id)(
-              s"Failed to create HTML for [$element_id] - input was [$html_str]"
+              s"Failed to create HTML for [$element_id] - input was [$html]"
             ))
         }
         element_id -> map_value
@@ -260,5 +258,6 @@ trait TeamParser {
     // Get secondary tiers
     Left(Nil)
   }
+
 }
 object TeamParser extends TeamParser

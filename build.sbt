@@ -113,3 +113,10 @@ libraryDependencies += "com.nrinaudo" %% "kantan.csv-enumeratum" % kantanVersion
 libraryDependencies += "com.nrinaudo" %% "kantan.csv-libra" % kantanVersion
 
 libraryDependencies += "net.ruippeixotog" %% "scala-scraper" % "2.1.0"
+
+val utestVersion = "0.6.3"
+
+libraryDependencies += "com.lihaoyi" %% "utest" % utestVersion % "test"
+
+testFrameworks += new TestFramework("utest.runner.Framework")
+

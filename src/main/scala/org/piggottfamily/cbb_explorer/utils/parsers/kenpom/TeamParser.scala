@@ -167,12 +167,12 @@ trait TeamParser {
   {
     def get_substring(script: String): Either[ParseError, String] = for {
       start <- ParseUtils.parse_string_offset(script, start_token, "start_token")
-      sub_str1 = script.substring(start)
+      sub_str1 = script.substring(start + start_token.length)
       end <- ParseUtils.parse_string_offset(sub_str1, end_token, "end_token")
     } yield sub_str1.substring(0, end)
 
     val scripts = (doc >> elementList("script")).map { script_el =>
-      get_substring(script_el.text)
+      get_substring(script_el.innerHtml)
     }
     scripts.collect {
       case Right(script_fn) => script_fn
@@ -198,7 +198,7 @@ trait TeamParser {
       case HtmlRegex(element_id, html) =>
         val map_value = parse(html).map(_.asString) match {
           case Right(Some(html_str)) =>
-            ParseUtils.build_sub_request[Document](browser.parseString(html_str))
+            ParseUtils.build_sub_request[Document](element_id)(browser.parseString(html_str))
           case e @ _ =>
             Left(ParseUtils.build_sub_error(element_id)(
               s"Failed to create HTML for [$element_id] - input was [$html], result was [$e]"

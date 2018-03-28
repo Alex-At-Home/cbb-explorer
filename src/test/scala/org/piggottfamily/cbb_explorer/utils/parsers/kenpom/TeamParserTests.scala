@@ -1,6 +1,7 @@
 package org.piggottfamily.cbb_explorer.utils.parsers.kenpom
 
 import utest._
+import shapeless._
 import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.utils.parsers._
 import org.piggottfamily.cbb_explorer.utils.TestUtils
@@ -11,9 +12,12 @@ import net.ruippeixotog.scalascraper.dsl.DSL.Parse._
 import net.ruippeixotog.scalascraper.model._
 
 object TeamParserTests extends TestSuite with TeamParser {
-  def withDoc(html: String)(test: Document => Unit): Unit = {
+  def get_doc(html: String): Document = {
     val browser = JsoupBrowser()
-    val doc = browser.parseString(html)
+    browser.parseString(html)
+  }
+  def with_doc(html: String)(test: Document => Unit): Unit = {
+    val doc = get_doc(html)
     test(doc)
   }
 
@@ -34,12 +38,12 @@ object TeamParserTests extends TestSuite with TeamParser {
         }
       }
       "parse_coach" - {
-        withDoc(""" <span class="coach"><div><a>CoachName</a></div></span> """) { doc =>
+        with_doc(""" <span class="coach"><div><a>CoachName</a></div></span> """) { doc =>
           TestUtils.inside(parse_coach(doc)) {
             case Right(CoachId("CoachName")) =>
           }
         }
-        withDoc(""" <span class="team"><div><a>CoachName</a></div></span> """) { doc =>
+        with_doc(""" <span class="team"><div><a>CoachName</a></div></span> """) { doc =>
           TestUtils.inside(parse_coach(doc)) {
             case Left(ParseError("", "[coach]", _)) =>
           }
@@ -53,7 +57,7 @@ object TeamParserTests extends TestSuite with TeamParser {
         val fragment2 = """ <span class="seed">10</span> """
 
         List(fragment1, fragment2, fragment1 + fragment2, "").foreach { html =>
-          withDoc(html) { doc =>
+          with_doc(html) { doc =>
             TestUtils.inside(get_metric(Some(doc))) {
               case Left(List(ParseError("", "[value]", _), ParseError("", "[rank]", _))) if html.isEmpty  =>
               case Left(List(ParseError("", "[value]", _))) if !html.contains(fragment1) =>
@@ -73,7 +77,7 @@ object TeamParserTests extends TestSuite with TeamParser {
         """
 
         "parse_stats_table" - {
-          withDoc(s"""
+          with_doc(s"""
             <script>END START</script>
             <script>START</script>
             <script>START${html_str}END</script>
@@ -96,6 +100,51 @@ object TeamParserTests extends TestSuite with TeamParser {
                 (d_a >?> element("div[class=result]")).map(_.text) ==> Some("A1")
                 (d_b >?> element("div[class=result]")).map(_.text) ==> Some("B1")
           }
+        }
+      }
+      "parse_season_stats" - {
+        (get_doc("<a href=\"teamstats.php?s=RankARate\">11.1</a> <span class=\"seed\">1</span>")
+          :: get_doc("<a href=\"teamstats.php?s=RankARate\">22.2</a> <span class=\"seed\">2</span>")
+          :: get_doc("<bad></bad>")
+          :: HNil
+        ).tupled match {
+          case (offDoc, defDoc, badDoc) =>
+
+            TestUtils.inside(parse_season_stats(Map(
+              "td#OE" -> Right(offDoc),
+              "td#DE" -> Right(defDoc)
+            ))) {
+              case _ =>
+            }
+            TestUtils.inside(parse_season_stats(Map(
+              "td#OE" -> Right(badDoc),
+              "td#DE" -> Right(defDoc)
+            ))) {
+              case Left(List(
+                ParseError("", "[adj_off][value]", _),
+                ParseError("", "[adj_off][rank]", _)
+              )) =>
+            }
+            TestUtils.inside(parse_season_stats(Map(
+              "td#OE" -> Right(offDoc),
+              "td#DE" -> Left(ParseError("", "[doc_error]", List()))
+            ))) {
+              case Left(List(ParseError("", "[adj_def][doc_error]", _))) =>
+            }
+            TestUtils.inside(parse_season_stats(Map(
+              "td#OE" -> Right(offDoc)
+            ))) {
+              case Left(List(ParseError("", "[adj_def][value]", _))) =>
+            }
+            TestUtils.inside(parse_season_stats(Map(
+              "td#OE" -> Right(badDoc)
+            ))) {
+              case Left(List(
+                ParseError("", "[adj_off][value]", _),
+                ParseError("", "[adj_off][rank]", _),
+                ParseError("", "[adj_def][value]", _)
+              )) =>
+            }
         }
       }
     }

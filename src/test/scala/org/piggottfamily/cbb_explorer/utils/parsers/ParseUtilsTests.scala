@@ -39,6 +39,7 @@ object ParseUtilsTests extends TestSuite {
           case Left(ParseError("", "[error]", _)) =>
         }
       }
+      //(add the error building functions at some point, but not a prio since effectively tested by other suites)
     }
   }
 }

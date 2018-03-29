@@ -8,6 +8,9 @@ import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
 import net.ruippeixotog.scalascraper.dsl.DSL.Parse._
 import net.ruippeixotog.scalascraper.model._
 import io.circe._, io.circe.parser._
+import cats.implicits._
+import cats.data._
+
 
 /** Parses the team HTML */
 trait TeamParser {
@@ -42,7 +45,8 @@ trait TeamParser {
       // TODO Get games
       // TODO Get players
 
-      coach_metrics <- ParseUtils.lift(coach_or_errors, metrics_or_errors)
+      coach_metrics <- (coach_or_errors, metrics_or_errors).parMapN((_, _))
+//      coach_metrics <- ParseUtils.lift(coach_or_errors, metrics_or_errors)
       (coach, metrics) = coach_metrics //SI-5589
 
     } yield ParseResponse(TeamSeason(
@@ -114,14 +118,14 @@ trait TeamParser {
         get_stats(doc, "if (checked)", "function")
           .left.map(single_error_enricher("conf_stats"))
 
-      table_tuple <- ParseUtils.lift(season_stats_table_or_error, conf_stats_table_or_error)
+      table_tuple <- (season_stats_table_or_error, conf_stats_table_or_error).parMapN((_, _))
       (season_stats_table, conf_stats_table) = table_tuple
 
       season_stats_or_error =
         parse_season_stats(season_stats_table)
           .left.map(multi_error_enricher("total_stats"))
 
-      metrics_tuple <- ParseUtils.lift(adj_margin_rank_or_error, season_stats_or_error)
+      metrics_tuple <- (adj_margin_rank_or_error, season_stats_or_error).parMapN((_, _))
       (adj_margin_rank, season_stats) = metrics_tuple
 
       adj_margin_value = season_stats.adj_off.value - season_stats.adj_def.value
@@ -151,7 +155,7 @@ trait TeamParser {
       adj_def_or_error = parse_stats_map(in.get("td#DE"))
         .left.map(multi_error_enricher("adj_def"))
 
-      adj_off_def <- ParseUtils.lift(adj_off_or_error, adj_def_or_error)
+      adj_off_def <- (adj_off_or_error, adj_def_or_error).parMapN((_, _))
       (adj_off, adj_def) = adj_off_def
 
     } yield TeamSeasonStats(adj_margin = Metric(0.0, 0), adj_off, adj_def)
@@ -260,7 +264,7 @@ trait TeamParser {
           .left.map(add_context(html.toHtml))
           .left.map(List(_))
 
-        score_rank <- ParseUtils.lift(score_or_error, rank_or_error)
+        score_rank <- (score_or_error, rank_or_error).parMapN((_, _))
         (score, rank) = score_rank
 
       } yield Metric(score, rank)

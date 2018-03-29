@@ -75,6 +75,9 @@ version := "0.1"
 
 lazy val root = (project in file("."))
 
+// To use cats...parMapN with Either:
+scalacOptions += "-Ypartial-unification"
+
 val circeVersion = "0.9.1"
 
 libraryDependencies ++= Seq(
@@ -119,4 +122,3 @@ val utestVersion = "0.6.3"
 libraryDependencies += "com.lihaoyi" %% "utest" % utestVersion % "test"
 
 testFrameworks += new TestFramework("utest.runner.Framework")
-

@@ -81,17 +81,4 @@ object ParseUtils {
     enrich_sub_errors(location, base_id)(List(error))
   }
 
-  /** Lifts errors out of a set of possible errors (2 param) */
-  def lift[A, B](a: Either[List[ParseError], A], b: Either[List[ParseError], B]): Either[List[ParseError], (A, B)] = {
-    //TODO: tidy up using shapeless
-    (a, b) match {
-      case (Right(aa), Right(bb)) =>
-        Right((aa, bb))
-      case _ => // There are errors, so accumulate them
-        Left(List(a, b)
-          .flatMap(_.left.toOption.toList.flatten)
-        )
-    }
-  }
-
 }

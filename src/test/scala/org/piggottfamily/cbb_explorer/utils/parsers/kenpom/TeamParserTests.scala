@@ -39,7 +39,7 @@ object TeamParserTests extends TestSuite with TeamParser {
         }
       }
       "parse_coach" - {
-        with_doc(""" <span class="coach"><div><a>CoachName</a></div></span> """) { doc =>
+        with_doc(""" <span class="coach">Head coach: <a href="test">CoachName</a></span> """) { doc =>
           TestUtils.inside(parse_coach(doc)) {
             case Right(CoachId("CoachName")) =>
           }
@@ -109,39 +109,56 @@ object TeamParserTests extends TestSuite with TeamParser {
           :: get_doc("<bad></bad>")
           :: HNil
         ).tupled match {
-          case (offDoc, defDoc, badDoc) =>
+          case (off_doc, def_doc, bad_doc) =>
 
-            TestUtils.inside(parse_season_stats(Map(
-              "td#OE" -> Right(offDoc),
-              "td#DE" -> Right(defDoc)
-            ))) {
+            val filled_map: Map[String, Either[ParseError, Document]] =
+              Map(
+                "td#OE" -> Right(off_doc),
+                "td#DE" -> Right(def_doc),
+                "td#DTOPct" -> Right(def_doc)
+              )
+
+            // All good
+            TestUtils.inside(parse_season_stats(filled_map)) {
               case Right(TeamSeasonStats(
-                Metric(0.0, 0), Metric(11.1, 1), Metric(22.2, 2)
+                Metric(0.0, 0),
+                Metric(11.1, 1), Metric(22.2, 2),
+                Metric(22.2, 2)
               )) =>
             }
-            TestUtils.inside(parse_season_stats(Map(
-              "td#OE" -> Right(badDoc),
-              "td#DE" -> Right(defDoc)
-            ))) {
+            // All bad
+            TestUtils.inside(parse_season_stats(
+              filled_map.mapValues(_ => Right(bad_doc))
+            )) {
+              //TODO: generate this from a collection
               case Left(List(
                 ParseError("", "[adj_off][value]", _),
-                ParseError("", "[adj_off][rank]", _)
+                ParseError("", "[adj_off][rank]", _),
+                ParseError("", "[adj_def][value]", _),
+                ParseError("", "[adj_def][rank]", _),
+                ParseError("", "[def_to][value]", _),
+                ParseError("", "[def_to][rank]", _)
               )) =>
             }
-            TestUtils.inside(parse_season_stats(Map(
-              "td#OE" -> Right(offDoc),
-              "td#DE" -> Left(ParseError("", "[doc_error]", List()))
-            ))) {
+            // Failed to parse doc
+            TestUtils.inside(parse_season_stats(
+              filled_map +
+                ("td#DE" -> Left(ParseError("", "[doc_error]", List())))
+            )) {
               case Left(List(ParseError("", "[adj_def][doc_error]", _))) =>
             }
-            TestUtils.inside(parse_season_stats(Map(
-              "td#OE" -> Right(offDoc)
-            ))) {
+            // Missing value
+            TestUtils.inside(parse_season_stats(
+              filled_map - "td#DE"
+            )) {
               case Left(List(ParseError("", "[adj_def][value]", _))) =>
             }
-            TestUtils.inside(parse_season_stats(Map(
-              "td#OE" -> Right(badDoc)
-            ))) {
+            // Doc with missing value
+            TestUtils.inside(parse_season_stats(
+              filled_map +
+                ("td#OE" -> Right(bad_doc)) -
+                "td#DE"
+            )) {
               case Left(List(
                 ParseError("", "[adj_off][value]", _),
                 ParseError("", "[adj_off][rank]", _),
@@ -166,7 +183,9 @@ object TeamParserTests extends TestSuite with TeamParser {
 
         val expected_team_stats =
           TeamSeasonStats(
-            Metric(-1.0, 333), Metric(101.1, 101), Metric(102.1, 102)
+            adj_margin = Metric(-1.0, 333),
+            adj_off = Metric(101.1, 101), adj_def = Metric(102.1, 102),
+            def_to = Metric(18.1, 108)
           )
 
         "parse_metrics" - {
@@ -193,8 +212,9 @@ object TeamParserTests extends TestSuite with TeamParser {
           }
           "parse_team" - {
             val good_filename = "teamb2512010_TestTeam___.html"
+            val good_filename_id = s"[$good_filename]"
             val bad_filename = "bad_filename"
-            val bad_filename_id = "[bad_filename]"
+            val bad_filename_id = s"[$bad_filename]"
             val root_prefix = "kenpom.parse_team"
 
             TestUtils.inside(parse_team(good_html, good_filename)) {
@@ -206,10 +226,17 @@ object TeamParserTests extends TestSuite with TeamParser {
                 CoachId("Coach Name")
               ), Nil)) if players.isEmpty =>
             }
-            TestUtils.inside(parse_team("<invalid", good_filename)) {
-              case Left(List(
-                ParseError(`root_prefix`, `bad_filename_id`, _)
+            TestUtils.inside(parse_team("<>bad<ht>ml", good_filename)) {
+              case Left(l @ List(
+                ParseError(`root_prefix`, _, _),
+                ParseError(`root_prefix`, _, _),
+                ParseError(`root_prefix`, _, _)
               )) =>
+                l.map(_.id).zip(
+                  List("[coach]", "[season_stats]", "[conf_stats]")
+                ).foreach { case (id, sub_id) =>
+                  id ==> good_filename_id + sub_id
+                }
             }
             TestUtils.inside(parse_team(good_html, bad_filename)) {
               case Left(List(
@@ -217,14 +244,16 @@ object TeamParserTests extends TestSuite with TeamParser {
               )) =>
             }
             TestUtils.inside(parse_team(bad_format_html, good_filename)) {
-              case Left(List(
-                ParseError(`root_prefix`, id1, _),
-                ParseError(`root_prefix`, id2, _),
-                ParseError(`root_prefix`, id3, _)
+              case Left(l @ List(
+                ParseError(`root_prefix`, _, _),
+                ParseError(`root_prefix`, _, _),
+                ParseError(`root_prefix`, _, _)
               )) =>
-                id1 ==> `bad_filename` + "[coach]"
-                id2 ==> `bad_filename` + "[season_stats]"
-                id3 ==> `bad_filename` + "[conf_stats]"
+              l.map(_.id).zip(
+                List("[coach]", "[season_stats]", "[conf_stats]")
+              ).foreach { case (id, sub_id) =>
+                id ==> good_filename_id + sub_id
+              }
             }
           }
         }

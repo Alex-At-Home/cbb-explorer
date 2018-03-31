@@ -9,7 +9,8 @@ case class TeamSeasonStats( //TODO conf-only and season-wide
 	//Overall
 	adj_margin: Metric,
 	adj_off: Metric,
-	adj_def: Metric
+	adj_def: Metric,
+	def_to: Metric
 	//Components etc etc
 )
 //TODO: how to handle different sources

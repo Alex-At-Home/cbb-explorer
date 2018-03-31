@@ -46,7 +46,6 @@ trait TeamParser {
       // TODO Get players
 
       coach_metrics <- (coach_or_errors, metrics_or_errors).parMapN((_, _))
-//      coach_metrics <- ParseUtils.lift(coach_or_errors, metrics_or_errors)
       (coach, metrics) = coach_metrics //SI-5589
 
     } yield ParseResponse(TeamSeason(
@@ -149,16 +148,24 @@ trait TeamParser {
     for {
       _ <- root
 
+      //TODO: use shapeless to convert this to an HList
+
       adj_off_or_error = parse_stats_map(in.get("td#OE"))
         .left.map(multi_error_enricher("adj_off"))
 
       adj_def_or_error = parse_stats_map(in.get("td#DE"))
         .left.map(multi_error_enricher("adj_def"))
 
-      adj_off_def <- (adj_off_or_error, adj_def_or_error).parMapN((_, _))
-      (adj_off, adj_def) = adj_off_def
+      def_to_or_error = parse_stats_map(in.get("td#DTOPct"))
+        .left.map(multi_error_enricher("def_to"))
 
-    } yield TeamSeasonStats(adj_margin = Metric(0.0, 0), adj_off, adj_def)
+      all_stats <- (
+        adj_off_or_error, adj_def_or_error,
+        def_to_or_error
+      ).parMapN((_, _, _))
+      (adj_off, adj_def, def_to) = all_stats
+
+    } yield TeamSeasonStats(adj_margin = Metric(0.0, 0), adj_off, adj_def, def_to)
   }
 
   /** All the stats are created by a JS function that inserts different HTML

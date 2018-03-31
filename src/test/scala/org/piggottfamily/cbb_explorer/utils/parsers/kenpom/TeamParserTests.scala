@@ -10,6 +10,7 @@ import net.ruippeixotog.scalascraper.dsl.DSL._
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
 import net.ruippeixotog.scalascraper.dsl.DSL.Parse._
 import net.ruippeixotog.scalascraper.model._
+import scala.io.Source
 
 object TeamParserTests extends TestSuite with TeamParser {
   def get_doc(html: String): Document = {
@@ -114,7 +115,9 @@ object TeamParserTests extends TestSuite with TeamParser {
               "td#OE" -> Right(offDoc),
               "td#DE" -> Right(defDoc)
             ))) {
-              case _ =>
+              case Right(TeamSeasonStats(
+                Metric(0.0, 0), Metric(11.1, 1), Metric(22.2, 2)
+              )) =>
             }
             TestUtils.inside(parse_season_stats(Map(
               "td#OE" -> Right(badDoc),
@@ -145,6 +148,85 @@ object TeamParserTests extends TestSuite with TeamParser {
                 ParseError("", "[adj_def][value]", _)
               )) =>
             }
+        }
+      }
+      "[file_tests]" - {
+        val good_html = Source.fromURL(getClass.getResource("/teamb2512010_TestTeam___.html")).mkString
+
+        val bad_stats_html_1 = good_html
+          .replace("function tableStart", "function renamed_table_start")
+          .replace("if (checked)", "if (renamed_checked)")
+
+        val bad_stats_html_2 = good_html
+          .replace("title-container", "title-container-2")
+          .replace("td#OE", "td#renamed_OE")
+
+        val bad_format_html = bad_stats_html_1
+          .replace("coach", "rename_coach")
+
+        val expected_team_stats =
+          TeamSeasonStats(
+            Metric(-1.0, 333), Metric(101.1, 101), Metric(102.1, 102)
+          )
+
+        "parse_metrics" - {
+          with_doc(good_html) { doc =>
+            TestUtils.inside(parse_metrics(doc)) {
+              case Right(`expected_team_stats`) =>
+            }
+          }
+          with_doc(bad_stats_html_1) { doc =>
+            TestUtils.inside(parse_metrics(doc)) {
+              case Left(List(
+                ParseError("", "[season_stats]", _),
+                ParseError("", "[conf_stats]", _)
+              )) =>
+            }
+          }
+          with_doc(bad_stats_html_2) { doc =>
+            TestUtils.inside(parse_metrics(doc)) {
+              case Left(List(
+                ParseError("", "[adj_margin_rank][rank]", _),
+                ParseError("", "[total_stats][adj_off][value]", _)
+              )) =>
+            }
+          }
+          "parse_team" - {
+            val good_filename = "teamb2512010_TestTeam___.html"
+            val bad_filename = "bad_filename"
+            val bad_filename_id = "[bad_filename]"
+            val root_prefix = "kenpom.parse_team"
+
+            TestUtils.inside(parse_team(good_html, good_filename)) {
+              case Right(ParseResponse(TeamSeason(
+                TeamSeasonId(TeamId("TestTeam"), Year(2010)),
+                `expected_team_stats`,
+                Nil,
+                players,
+                CoachId("Coach Name")
+              ), Nil)) if players.isEmpty =>
+            }
+            TestUtils.inside(parse_team("<invalid", good_filename)) {
+              case Left(List(
+                ParseError(`root_prefix`, `bad_filename_id`, _)
+              )) =>
+            }
+            TestUtils.inside(parse_team(good_html, bad_filename)) {
+              case Left(List(
+                ParseError(`root_prefix`, `bad_filename_id`, _)
+              )) =>
+            }
+            TestUtils.inside(parse_team(bad_format_html, good_filename)) {
+              case Left(List(
+                ParseError(`root_prefix`, id1, _),
+                ParseError(`root_prefix`, id2, _),
+                ParseError(`root_prefix`, id3, _)
+              )) =>
+                id1 ==> `bad_filename` + "[coach]"
+                id2 ==> `bad_filename` + "[season_stats]"
+                id3 ==> `bad_filename` + "[conf_stats]"
+            }
+          }
         }
       }
     }

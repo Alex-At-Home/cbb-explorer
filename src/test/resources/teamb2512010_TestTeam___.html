@@ -303,4 +303,138 @@ Nick Name &middot; City, State<br />
 <!--TODO add the script that fills in the tables -->
 
 <script type='text/javascript'>
+$(function() {
+  $(':checkbox').attr('checked',false);
+  tableStart();
+});
+$(':checkbox').click(function() {
+  var checked = this.checked;
+  if (checked) {
+    $("td#effText").html("Efficiency");
+    $("td#tempoText").html("Tempo");
+  $("td#OE").html("<a href=\"summary.php?s=RankAdjOE\">101.2</a> <span class=\"seed\">1</span>");
+  $("td#OE").css("background-color",getColor(3,11));
+  $("td#DE").html("<a href=\"summary.php?s=RankAdjDE\">102.2</a> <span class=\"seed\">2</span>");
+  $("td#DE").css("background-color",getColor(2,11));
+  $("td#Tempo").html("<span style=\"background-color:#dfebfd; padding:3px 8px\"><a href=\"summary.php?s=RankAdjTempo\">92.1</a> <span class=\"seed\">12</span></span>");
+  $("td#APLO").html("<a href=\"summary.php?s=RankAPL_Off\">12.2</a> <span class=\"seed\">3</span>");
+  $("td#APLO").css("background-color",getTempoColor(5,11));
+  $("td#APLD").html("<a href=\"summary.php?s=RankAPL_Def\">14.2</a> <span class=\"seed\">4</span>");
+  $("td#APLD").css("background-color",getTempoColor(11,11));
+  $("td#eFG").html("<a href=\"stats.php?s=RankeFG_Pct\">55.2</a> <span class=\"seed\">5</span>");
+  $("td#eFG").css("background-color",getColor(6,11));
+  $("td#DeFG").html("<a href=\"stats.php?s=RankDeFG_Pct\">66.2</a> <span class=\"seed\">6</span>");
+  $("td#DeFG").css("background-color",getColor(4,11));
+  $("td#TOPct").html("<a href=\"stats.php?s=RankTO_Pct\">17.2</a> <span class=\"seed\">7</span>");
+  $("td#TOPct").css("background-color",getColor(2,11));
+  $("td#DTOPct").html("<a href=\"stats.php?s=RankDTO_Pct\">18.2</a> <span class=\"seed\">8</span>");
+  $("td#DTOPct").css("background-color",getColor(4,11));
+  $("td#ORPct").html("<a href=\"stats.php?s=RankOR_Pct\">39.2</a> <span class=\"seed\">9</span>");
+  $("td#ORPct").css("background-color",getColor(1,11));
+  $("td#DORPct").html("<a href=\"stats.php?s=RankDOR_Pct\">30.2</a> <span class=\"seed\">10</span>");
+  $("td#DORPct").css("background-color",getColor(4,11));
+  $("td#FTR").html("<a href=\"stats.php?s=RankFT_Rate\">21.2</a> <span class=\"seed\">11</span>");
+  $("td#FTR").css("background-color",getColor(10,11));
+  $("td#DFTR").html("<a href=\"stats.php?s=RankDFT_Rate\">42.2</a> <span class=\"seed\">12</span>");
+  $("td#DFTR").css("background-color",getColor(4,11));
+    $("td#3Pct").html("<a href=\"teamstats.php?s=RankFG3Pct\">43.2</a> <span class=\"seed\">13</span>");
+    $("td#3Pct").css("background-color",getColor(7,11));
+    $("td#D3Pct").html("<a href=\"teamstats.php?s=RankFG3Pct&od=d\">34.2</a> <span class=\"seed\">14</span>");
+    $("td#D3Pct").css("background-color",getColor(4,11));
+    $("td#2Pct").html("<a href=\"teamstats.php?s=RankFG2Pct\">55.2</a> <span class=\"seed\">15</span>");
+    $("td#2Pct").css("background-color",getColor(6,11));
+    $("td#D2Pct").html("<a href=\"teamstats.php?s=RankFG2Pct&od=d\">56.2</a> <span class=\"seed\">16</span>");
+    $("td#D2Pct").css("background-color",getColor(4,11));
+    $("td#FTPct").html("<a href=\"teamstats.php?s=RankFTPct\">67.2</a> <span class=\"seed\">17</span>");
+    $("td#FTPct").css("background-color",getColor(9,11));
+    $("td#DFTPct").html("<a href=\"teamstats.php?s=RankFTPct&od=d\">78.2</a> <span class=\"seed\">18</span>");
+    $("td#DFTPct").css("background-color",getColor(3,11));
+    $("td#BlockPct").html("<a href=\"teamstats.php?s=RankBlockPct\">9.2</a> <span class=\"seed\">19</span>");
+    $("td#BlockPct").css("background-color",getColor(7,11));
+    $("td#DBlockPct").html("<a href=\"teamstats.php?s=RankBlockPct&od=d\">10.2</a> <span class=\"seed\">20</span>");
+    $("td#DBlockPct").css("background-color",getColor(3,11));
+    $("td#StlRate").html("<a href=\"teamstats.php?s=RankStlRate\">11.2</a> <span class=\"seed\">21</span>");
+    $("td#StlRate").css("background-color",getColor(5,11));
+    $("td#DStlRate").html("<a href=\"teamstats.php?s=RankStlRate&od=d\">12.2</a> <span class=\"seed\">22</span>");
+    $("td#DStlRate").css("background-color",getColor(3,11));
+    $("td#3PARate").html("<a href=\"teamstats.php?s=RankF3GRate\">33.2</a> <span class=\"seed\">23</span>");
+    $("td#D3PARate").html("<a href=\"teamstats.php?s=RankF3GRate&od=d\">44.2</a> <span class=\"seed\">24</span>");
+    $("td#ARate").html("<a href=\"teamstats.php?s=RankARate\">55.2</a> <span class=\"seed\">25</span>");
+    $("td#DARate").html("<a href=\"teamstats.php?s=RankARate&od=d\">66.2</a> <span class=\"seed\">26</span>");
+    $("td#PD3").html("<a href=\"pointdist.php?s=RankOff_3\">37.2</a> <span class=\"seed\">27</span>");
+    $("td#DPD3").html("<a href=\"pointdist.php?s=RankDef_3\">38.2</a> <span class=\"seed\">28</span>");
+    $("td#PD2").html("<a href=\"pointdist.php?s=RankOff_2\">49.2</a> <span class=\"seed\">29</span>");
+    $("td#DPD2").html("<a href=\"pointdist.php?s=RankDef_2\">50.2</a> <span class=\"seed\">30</span>");
+    $("td#PD1").html("<a href=\"pointdist.php?s=RankOff_1\">51.2</a> <span class=\"seed\">31</span>");
+    $("td#DPD1").html("<a href=\"pointdist.php?s=RankDef_1\">52.2</a> <span class=\"seed\">32</span>");
+
+  }
+  else {
+    tableStart();
+  }
+
+});
+function tableStart() {
+  $("td#effText").html("Efficiency");
+  $("td#tempoText").html("Tempo");
+$("td#OE").html("<a href=\"summary.php?s=RankAdjOE\">101.1</a> <span class=\"seed\">101</span>");
+$("td#OE").css("background-color",getColor(3,11));
+$("td#DE").html("<a href=\"summary.php?s=RankAdjDE\">102.1</a> <span class=\"seed\">102</span>");
+$("td#DE").css("background-color",getColor(2,11));
+$("td#Tempo").html("<span style=\"background-color:#dfebfd; padding:3px 8px\"><a href=\"summary.php?s=RankAdjTempo\">92.1</a> <span class=\"seed\">120</span></span>");
+$("td#APLO").html("<a href=\"summary.php?s=RankAPL_Off\">12.1</a> <span class=\"seed\">103</span>");
+$("td#APLO").css("background-color",getTempoColor(5,11));
+$("td#APLD").html("<a href=\"summary.php?s=RankAPL_Def\">14.1</a> <span class=\"seed\">104</span>");
+$("td#APLD").css("background-color",getTempoColor(11,11));
+$("td#eFG").html("<a href=\"stats.php?s=RankeFG_Pct\">55.1</a> <span class=\"seed\">105</span>");
+$("td#eFG").css("background-color",getColor(6,11));
+$("td#DeFG").html("<a href=\"stats.php?s=RankDeFG_Pct\">66.1</a> <span class=\"seed\">106</span>");
+$("td#DeFG").css("background-color",getColor(4,11));
+$("td#TOPct").html("<a href=\"stats.php?s=RankTO_Pct\">17.1</a> <span class=\"seed\">107</span>");
+$("td#TOPct").css("background-color",getColor(2,11));
+$("td#DTOPct").html("<a href=\"stats.php?s=RankDTO_Pct\">18.1</a> <span class=\"seed\">108</span>");
+$("td#DTOPct").css("background-color",getColor(4,11));
+$("td#ORPct").html("<a href=\"stats.php?s=RankOR_Pct\">39.1</a> <span class=\"seed\">109</span>");
+$("td#ORPct").css("background-color",getColor(1,11));
+$("td#DORPct").html("<a href=\"stats.php?s=RankDOR_Pct\">30.1</a> <span class=\"seed\">110</span>");
+$("td#DORPct").css("background-color",getColor(4,11));
+$("td#FTR").html("<a href=\"stats.php?s=RankFT_Rate\">21.1</a> <span class=\"seed\">111</span>");
+$("td#FTR").css("background-color",getColor(10,11));
+$("td#DFTR").html("<a href=\"stats.php?s=RankDFT_Rate\">42.1</a> <span class=\"seed\">112</span>");
+$("td#DFTR").css("background-color",getColor(4,11));
+  $("td#3Pct").html("<a href=\"teamstats.php?s=RankFG3Pct\">43.1</a> <span class=\"seed\">113</span>");
+  $("td#3Pct").css("background-color",getColor(7,11));
+  $("td#D3Pct").html("<a href=\"teamstats.php?s=RankFG3Pct&od=d\">34.1</a> <span class=\"seed\">114</span>");
+  $("td#D3Pct").css("background-color",getColor(4,11));
+  $("td#2Pct").html("<a href=\"teamstats.php?s=RankFG2Pct\">55.1</a> <span class=\"seed\">115</span>");
+  $("td#2Pct").css("background-color",getColor(6,11));
+  $("td#D2Pct").html("<a href=\"teamstats.php?s=RankFG2Pct&od=d\">56.1</a> <span class=\"seed\">116</span>");
+  $("td#D2Pct").css("background-color",getColor(4,11));
+  $("td#FTPct").html("<a href=\"teamstats.php?s=RankFTPct\">67.1</a> <span class=\"seed\">117</span>");
+  $("td#FTPct").css("background-color",getColor(9,11));
+  $("td#DFTPct").html("<a href=\"teamstats.php?s=RankFTPct&od=d\">78.1</a> <span class=\"seed\">118</span>");
+  $("td#DFTPct").css("background-color",getColor(3,11));
+  $("td#BlockPct").html("<a href=\"teamstats.php?s=RankBlockPct\">9.1</a> <span class=\"seed\">119</span>");
+  $("td#BlockPct").css("background-color",getColor(7,11));
+  $("td#DBlockPct").html("<a href=\"teamstats.php?s=RankBlockPct&od=d\">10.1</a> <span class=\"seed\">120</span>");
+  $("td#DBlockPct").css("background-color",getColor(3,11));
+  $("td#StlRate").html("<a href=\"teamstats.php?s=RankStlRate\">11.1</a> <span class=\"seed\">121</span>");
+  $("td#StlRate").css("background-color",getColor(5,11));
+  $("td#DStlRate").html("<a href=\"teamstats.php?s=RankStlRate&od=d\">12.1</a> <span class=\"seed\">122</span>");
+  $("td#DStlRate").css("background-color",getColor(3,11));
+  $("td#3PARate").html("<a href=\"teamstats.php?s=RankF3GRate\">33.1</a> <span class=\"seed\">123</span>");
+  $("td#D3PARate").html("<a href=\"teamstats.php?s=RankF3GRate&od=d\">44.1</a> <span class=\"seed\">124</span>");
+  $("td#ARate").html("<a href=\"teamstats.php?s=RankARate\">55.1</a> <span class=\"seed\">125</span>");
+  $("td#DARate").html("<a href=\"teamstats.php?s=RankARate&od=d\">66.1</a> <span class=\"seed\">126</span>");
+  $("td#PD3").html("<a href=\"pointdist.php?s=RankOff_3\">37.1</a> <span class=\"seed\">127</span>");
+  $("td#DPD3").html("<a href=\"pointdist.php?s=RankDef_3\">38.1</a> <span class=\"seed\">128</span>");
+  $("td#PD2").html("<a href=\"pointdist.php?s=RankOff_2\">49.1</a> <span class=\"seed\">129</span>");
+  $("td#DPD2").html("<a href=\"pointdist.php?s=RankDef_2\">50.1</a> <span class=\"seed\">130</span>");
+  $("td#PD1").html("<a href=\"pointdist.php?s=RankOff_1\">51.1</a> <span class=\"seed\">131</span>");
+  $("td#DPD1").html("<a href=\"pointdist.php?s=RankDef_1\">52.1</a> <span class=\"seed\">132</span>");
+)
+function otherStuff() {}
+
+}
+</script>
 </html>

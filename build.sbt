@@ -122,3 +122,9 @@ val utestVersion = "0.6.3"
 libraryDependencies += "com.lihaoyi" %% "utest" % utestVersion % "test"
 
 testFrameworks += new TestFramework("utest.runner.Framework")
+
+val ammoniteVersion = "1.1.0"
+
+libraryDependencies += "com.lihaoyi" %% "ammonite-ops" % ammoniteVersion
+
+libraryDependencies += "com.lihaoyi" % "ammonite" % ammoniteVersion cross CrossVersion.full

@@ -1,18 +1,20 @@
 package org.piggottfamily.cbb_explorer
 
-object Main extends App {
+object Main {
 
-  override def main(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit = {
     println("Starting cbb-explorer:")
 
-    ammonite.Main(
-      predefCode = """
-        import org.piggottfamily.cbb_explorer.models._
-        import ammonite.ops._
-        import org.piggottfamily.cbb_explorer.parsers._
+    val startup = """
+      |import ammonite.ops._
+      |import org.piggottfamily.cbb_explorer.models._
+      |import org.piggottfamily.cbb_explorer.controllers._
+      |
+      |val parser_controller = new ParserController() 
+    """.stripMargin
 
-        val parser_controller = new ParserContoller()
-      """
+    ammonite.Main(
+      predefCode = startup
     ).run()
   }
 }

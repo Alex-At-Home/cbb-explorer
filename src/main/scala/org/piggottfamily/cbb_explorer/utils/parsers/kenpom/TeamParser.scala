@@ -21,8 +21,9 @@ trait TeamParser {
   /**
    * Parses HTML representing a team's season
    */
-  def parse_team(in: String, filename: String): Either[List[ParseError], ParseResponse[TeamSeason]] = {
-
+  def parse_team(in: String, filename: String, default_year: Year)
+    : Either[List[ParseError], ParseResponse[TeamSeason]] =
+  {
     val browser = JsoupBrowser()
 
     // Error reporters:
@@ -34,7 +35,7 @@ trait TeamParser {
       doc <- doc_request_builder(browser.parseString(in))
 
       // Get team name and year
-      team_season <- parse_filename(filename).left.map(multi_error_enricher)
+      team_season <- parse_filename(filename, default_year).left.map(multi_error_enricher)
 
       // Get coach
       coach_or_errors = parse_coach(doc).left.map(single_error_enricher)
@@ -54,12 +55,15 @@ trait TeamParser {
   }
 
   /** Extracts the team name and year from the filename */
-  protected def parse_filename(filename: String): Either[List[ParseError], TeamSeasonId] = {
+  protected def parse_filename(filename: String, default_year: Year)
+    : Either[List[ParseError], TeamSeasonId] =
+  {
     /** The filename spat out by webhttrack */
     val FilenameRegex = "team[0-9a-f]{4}(20[0-9]{2})?_([^_]+)?.*[.]html".r
 
     filename match {
-      case FilenameRegex(year, team_name) =>
+      case FilenameRegex(maybe_year, team_name) =>
+        val year = Option(maybe_year).map(_.toInt).getOrElse(default_year.value)
         val errors = List("year" -> year, "team_name" -> team_name).collect {
           case (fieldname, value) if Option(value).isEmpty =>
             ParseUtils.build_sub_error(fieldname)(
@@ -67,7 +71,7 @@ trait TeamParser {
             )
         }
         errors match {
-          case Nil => Right(TeamSeasonId(TeamId(team_name), Year(year.toInt)))
+          case Nil => Right(TeamSeasonId(TeamId(team_name), Year(year)))
           case _ => Left(errors)
         }
       case _ =>

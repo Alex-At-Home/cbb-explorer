@@ -25,15 +25,17 @@ object TeamParserTests extends TestSuite with TeamParser {
   val tests = Tests {
     "TeamParser" - {
       "parse_filename" - {
-        TestUtils.inside(parse_filename("team00002010_rabbit.html")) {
+        TestUtils.inside(parse_filename("team00002010_rabbit.html", Year(1066))) {
           case Right(TeamSeasonId(TeamId("rabbit"), Year(2010))) =>
         }
-        TestUtils.inside(parse_filename("complete_failure")) {
+        TestUtils.inside(parse_filename("team0000_rabbit.html", Year(1066))) {
+          case Right(TeamSeasonId(TeamId("rabbit"), Year(1066))) =>
+        }
+        TestUtils.inside(parse_filename("complete_failure", Year(1066))) {
           case Left(List(ParseError("", "", _))) =>
         }
-        TestUtils.inside(parse_filename("teamaaaa_.html")) {
+        TestUtils.inside(parse_filename("teamaaaa_.html", Year(1066))) {
           case Left(List(
-            ParseError("", "[year]", _),
             ParseError("", "[team_name]", _)
           )) =>
         }
@@ -217,7 +219,7 @@ object TeamParserTests extends TestSuite with TeamParser {
             val bad_filename_id = s"[$bad_filename]"
             val root_prefix = "kenpom.parse_team"
 
-            TestUtils.inside(parse_team(good_html, good_filename)) {
+            TestUtils.inside(parse_team(good_html, good_filename, Year(2000))) {
               case Right(ParseResponse(TeamSeason(
                 TeamSeasonId(TeamId("TestTeam"), Year(2010)),
                 `expected_team_stats`,
@@ -226,7 +228,7 @@ object TeamParserTests extends TestSuite with TeamParser {
                 CoachId("Coach Name")
               ), Nil)) if players.isEmpty =>
             }
-            TestUtils.inside(parse_team("<>bad<ht>ml", good_filename)) {
+            TestUtils.inside(parse_team("<>bad<ht>ml", good_filename, Year(2000))) {
               case Left(l @ List(
                 ParseError(`root_prefix`, _, _),
                 ParseError(`root_prefix`, _, _),
@@ -238,12 +240,12 @@ object TeamParserTests extends TestSuite with TeamParser {
                   id ==> good_filename_id + sub_id
                 }
             }
-            TestUtils.inside(parse_team(good_html, bad_filename)) {
+            TestUtils.inside(parse_team(good_html, bad_filename, Year(2000))) {
               case Left(List(
                 ParseError(`root_prefix`, `bad_filename_id`, _)
               )) =>
             }
-            TestUtils.inside(parse_team(bad_format_html, good_filename)) {
+            TestUtils.inside(parse_team(bad_format_html, good_filename, Year(2000))) {
               case Left(l @ List(
                 ParseError(`root_prefix`, _, _),
                 ParseError(`root_prefix`, _, _),

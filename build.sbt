@@ -1,3 +1,4 @@
+
 // The simplest possible sbt build file is just one line:
 
 scalaVersion := "2.12.3"
@@ -12,7 +13,7 @@ scalaVersion := "2.12.3"
 
 // It's possible to define many kinds of settings, such as:
 
-name := "cbb-expolorer"
+name := "cbb-explorer"
 organization := "org.piggottfamily"
 version := "0.1"
 
@@ -128,3 +129,13 @@ val ammoniteVersion = "1.1.0"
 libraryDependencies += "com.lihaoyi" %% "ammonite-ops" % ammoniteVersion
 
 libraryDependencies += "com.lihaoyi" % "ammonite" % ammoniteVersion cross CrossVersion.full
+
+// Assembly for shell:
+
+assemblyMergeStrategy in assembly := {
+  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+  case x => MergeStrategy.first
+}
+
+assemblyJarName in assembly := "cbb-explorer.jar"
+mainClass in assembly := Some("org.piggottfamily.cbb_explorer.Main")

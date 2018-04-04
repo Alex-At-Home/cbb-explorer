@@ -22,11 +22,8 @@ class ParserController(d: Dependencies = Dependencies())
       _ = display_vars.num_files += 1
       _ = Logger.info(s"Reading [$filename]")
       team_or_error = {
-        // val source = scala.io.Source.fromFile(file.toString)
-        // val html = source.mkString
-        // source.close
         //(keep this out of the top level or its memory is stored for the lifetime of the loop)
-        val html = read! file 
+        val html = read! file
         d.team_parser.parse_team(html, filename, default_year)
       }
       _ = team_or_error match {

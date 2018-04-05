@@ -131,6 +131,8 @@ libraryDependencies += "com.lihaoyi" %% "ammonite-ops" % ammoniteVersion
 libraryDependencies += "com.lihaoyi" % "ammonite" % ammoniteVersion cross CrossVersion.full
 
 // Assembly for shell:
+// sbt assembly
+// java -jar ,/target/scala-2.12/cbb-explorer.jar
 
 assemblyMergeStrategy in assembly := {
   case PathList("META-INF", xs @ _*) => MergeStrategy.discard
@@ -139,3 +141,9 @@ assemblyMergeStrategy in assembly := {
 
 assemblyJarName in assembly := "cbb-explorer.jar"
 mainClass in assembly := Some("org.piggottfamily.cbb_explorer.Main")
+
+// Or for faster code-compile cycles (can't get 'sbt run' to work):
+// sbt assemblyPackageDependency
+// (edit code as long as no new libs are imported)
+// sbt compile
+// java -cp './target/scala-2.12/cbb-explorer-assembly-0.1-deps.jar:target/scala-2.12/cbb-explorer_2.12-0.1.jar' org.piggottfamily.cbb_explorer.Main

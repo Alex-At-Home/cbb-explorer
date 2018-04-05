@@ -1,11 +1,13 @@
 package org.piggottfamily.cbb_explorer.controllers
 
 import org.piggottfamily.cbb_explorer.models._
+import org.piggottfamily.cbb_explorer.utils._
 import org.piggottfamily.cbb_explorer.utils.parsers._
 import org.piggottfamily.cbb_explorer.utils.parsers.kenpom._
-import ammonite.ops._
 
 import ParserController._
+
+import ammonite.ops.Path
 
 /** Top level business logic for parsing the different datasets */
 class ParserController(d: Dependencies = Dependencies())
@@ -17,30 +19,30 @@ class ParserController(d: Dependencies = Dependencies())
       var num_files = 0
     }
     val teams_or_errors = for {
-      file <- ls! root_team_path |? (_.ext == "html")
+      file <- d.file_manager.list_files(root_team_path, Some("html"))
       filename = file.last
       _ = display_vars.num_files += 1
-      _ = Logger.info(s"Reading [$filename]")
+      _ = d.logger.info(s"Reading [$filename]")
       team_or_error = {
         //(keep this out of the top level or its memory is stored for the lifetime of the loop)
-        val html = read! file
+        val html = d.file_manager.read_file(file)
         d.team_parser.parse_team(html, filename, default_year)
       }
       _ = team_or_error match {
         case Left(errors) =>
           val errors_as_str = errors.mkString(";")
           display_vars.approx_mem_in_use += errors_as_str.size
-          Logger.info(s"Failed to parse [$filename]: [$errors_as_str]")
+          d.logger.info(s"Failed to parse [$filename]: [$errors_as_str]")
         case Right(ParseResponse(team, warnings)) =>
           display_vars.approx_mem_in_use += team.toString.size
-          Logger.info(s"Successfully parsed [${team.team_season}]")
+          d.logger.info(s"Successfully parsed [${team.team_season}]")
           if (warnings.nonEmpty) {
             val warnings_as_str = warnings.mkString(";")
             display_vars.approx_mem_in_use += warnings_as_str.size
-            Logger.info(s"Warnings: [$warnings_as_str]")
+            d.logger.info(s"Warnings: [$warnings_as_str]")
           }
       }
-      _ = Logger.info(s"(approx mem in use (KB) = [${display_vars.approx_mem_in_use/1024}], files = [${display_vars.num_files}])")
+      _ = d.logger.info(s"(approx mem in use (KB) = [${display_vars.approx_mem_in_use/1024}], files = [${display_vars.num_files}])")
     } yield team_or_error
 
     val team_responses = teams_or_errors.collect { case Right(team_response) => team_response }
@@ -48,7 +50,7 @@ class ParserController(d: Dependencies = Dependencies())
     val warnings = team_responses.flatMap(_.warnings)
     val teams = team_responses.map(_.response)
 
-    Logger.info(
+    d.logger.info(
       s"Finished parsing: successful = [${teams.size}], warnings = [${warnings.size}], errors = [${errors.size}]"
     )
     teams
@@ -61,13 +63,10 @@ class ParserController(d: Dependencies = Dependencies())
 }
 
 object ParserController {
-  /** Logging utils */
-  object Logger {
-    def info(s: String): Unit = println(s"[INFO] $s")
-  }
-
   /** Dependency injection */
   case class Dependencies(
-    team_parser: TeamParser = TeamParser
+    team_parser: TeamParser = TeamParser,
+    logger: LogUtils = LogUtils,
+    file_manager: FileUtils = FileUtils
   )
 }

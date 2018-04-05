@@ -40,17 +40,22 @@ trait TeamParser {
       // Get coach
       coach_or_errors = parse_coach(doc).left.map(single_error_enricher)
 
+      // Get conference
+      conf_or_errors = parse_conf(doc).left.map(single_error_enricher)
+
       // Get basic ranking and metrics
       metrics_or_errors = parse_metrics(doc).left.map(multi_error_enricher)
 
       // TODO Get games
       // TODO Get players
 
-      coach_metrics <- (coach_or_errors, metrics_or_errors).parMapN((_, _))
-      (coach, metrics) = coach_metrics //SI-5589
+      various_fields <- (
+        coach_or_errors, conf_or_errors, metrics_or_errors
+      ).parMapN((_, _, _))
+      (coach, conf, metrics) = various_fields //SI-5589
 
     } yield ParseResponse(TeamSeason(
-      team_season, metrics, games = Nil, players = Map.empty, coach
+      team_season, metrics, games = Nil, players = Map.empty, coach, conf
     ))
   }
 
@@ -89,6 +94,18 @@ trait TeamParser {
       case None =>
         Left(ParseUtils.build_sub_error("coach")(
           s"Failed to parse HTML - couldn't extract [coach]"
+        ))
+    }
+  }
+
+  /** Parses out the coach id from the top level HTML */
+  protected def parse_conf(doc: Document): Either[ParseError, ConferenceId] = {
+    (doc >?> element("span[class=otherinfo]") >?> element("a")).flatten match {
+      case Some(conference) =>
+        Right(ConferenceId(conference.text))
+      case None =>
+        Left(ParseUtils.build_sub_error("conference")(
+          s"Failed to parse HTML - couldn't extract [conference]"
         ))
     }
   }

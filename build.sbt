@@ -145,5 +145,5 @@ mainClass in assembly := Some("org.piggottfamily.cbb_explorer.Main")
 // Or for faster code-compile cycles (can't get 'sbt run' to work):
 // sbt assemblyPackageDependency
 // (edit code as long as no new libs are imported)
-// sbt compile
+// sbt compile package
 // java -cp './target/scala-2.12/cbb-explorer-assembly-0.1-deps.jar:target/scala-2.12/cbb-explorer_2.12-0.1.jar' org.piggottfamily.cbb_explorer.Main

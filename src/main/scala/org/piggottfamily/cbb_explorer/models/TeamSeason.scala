@@ -9,7 +9,8 @@ case class TeamSeason(
 	stats: TeamSeasonStats,
 	games: List[Game],
 	players: Map[PlayerId, PlayerSeason],
-	coach: CoachId
+	coach: CoachId,
+	conf: ConferenceId
 ) {
 	// Games views
 	//TODO: do I want these, or just "games.filter(_.is_conf)"

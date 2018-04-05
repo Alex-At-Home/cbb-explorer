@@ -52,6 +52,18 @@ object TeamParserTests extends TestSuite with TeamParser {
           }
         }
       }
+      "parse_conf" - {
+        with_doc(""" <span class="otherinfo">The Conference: <a href="test">ConferenceName</a></span> """) { doc =>
+          TestUtils.inside(parse_conf(doc)) {
+            case Right(ConferenceId("ConferenceName")) =>
+          }
+        }
+        with_doc(""" <span class="wrong_field"><div><a>ConferenceName</a></div></span> """) { doc =>
+          TestUtils.inside(parse_conf(doc)) {
+            case Left(ParseError("", "[conference]", _)) =>
+          }
+        }
+      }
       "get_metric" - {
         TestUtils.inside(get_metric(None)) {
           case Left(List(ParseError("", "[value]", _))) =>
@@ -212,50 +224,52 @@ object TeamParserTests extends TestSuite with TeamParser {
               )) =>
             }
           }
-          "parse_team" - {
-            val good_filename = "teamb2512010_TestTeam___.html"
-            val good_filename_id = s"[$good_filename]"
-            val bad_filename = "bad_filename"
-            val bad_filename_id = s"[$bad_filename]"
-            val root_prefix = "kenpom.parse_team"
+        }
+        "parse_team" - {
+          val good_filename = "teamb2512010_TestTeam___.html"
+          val good_filename_id = s"[$good_filename]"
+          val bad_filename = "bad_filename"
+          val bad_filename_id = s"[$bad_filename]"
+          val root_prefix = "kenpom.parse_team"
 
-            TestUtils.inside(parse_team(good_html, good_filename, Year(2000))) {
-              case Right(ParseResponse(TeamSeason(
-                TeamSeasonId(TeamId("TestTeam"), Year(2010)),
-                `expected_team_stats`,
-                Nil,
-                players,
-                CoachId("Coach Name")
-              ), Nil)) if players.isEmpty =>
-            }
-            TestUtils.inside(parse_team("<>bad<ht>ml", good_filename, Year(2000))) {
-              case Left(l @ List(
-                ParseError(`root_prefix`, _, _),
-                ParseError(`root_prefix`, _, _),
-                ParseError(`root_prefix`, _, _)
-              )) =>
-                l.map(_.id).zip(
-                  List("[coach]", "[season_stats]", "[conf_stats]")
-                ).foreach { case (id, sub_id) =>
-                  id ==> good_filename_id + sub_id
-                }
-            }
-            TestUtils.inside(parse_team(good_html, bad_filename, Year(2000))) {
-              case Left(List(
-                ParseError(`root_prefix`, `bad_filename_id`, _)
-              )) =>
-            }
-            TestUtils.inside(parse_team(bad_format_html, good_filename, Year(2000))) {
-              case Left(l @ List(
-                ParseError(`root_prefix`, _, _),
-                ParseError(`root_prefix`, _, _),
-                ParseError(`root_prefix`, _, _)
-              )) =>
+          TestUtils.inside(parse_team(good_html, good_filename, Year(2000))) {
+            case Right(ParseResponse(TeamSeason(
+              TeamSeasonId(TeamId("TestTeam"), Year(2010)),
+              `expected_team_stats`,
+              Nil,
+              players,
+              CoachId("Coach Name"),
+              ConferenceId("Atlantic Coast Conference")
+            ), Nil)) if players.isEmpty =>
+          }
+          TestUtils.inside(parse_team("<>bad<ht>ml", good_filename, Year(2000))) {
+            case Left(l @ List(
+              ParseError(`root_prefix`, _, _),
+              ParseError(`root_prefix`, _, _),
+              ParseError(`root_prefix`, _, _),
+              ParseError(`root_prefix`, _, _)
+            )) =>
               l.map(_.id).zip(
-                List("[coach]", "[season_stats]", "[conf_stats]")
+                List("[coach]", "[conference]", "[season_stats]", "[conf_stats]")
               ).foreach { case (id, sub_id) =>
                 id ==> good_filename_id + sub_id
               }
+          }
+          TestUtils.inside(parse_team(good_html, bad_filename, Year(2000))) {
+            case Left(List(
+              ParseError(`root_prefix`, `bad_filename_id`, _)
+            )) =>
+          }
+          TestUtils.inside(parse_team(bad_format_html, good_filename, Year(2000))) {
+            case Left(l @ List(
+              ParseError(`root_prefix`, _, _),
+              ParseError(`root_prefix`, _, _),
+              ParseError(`root_prefix`, _, _)
+            )) =>
+            l.map(_.id).zip(
+              List("[coach]", "[season_stats]", "[conf_stats]")
+            ).foreach { case (id, sub_id) =>
+              id ==> good_filename_id + sub_id
             }
           }
         }

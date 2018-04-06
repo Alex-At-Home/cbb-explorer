@@ -8,7 +8,7 @@ case class TeamSeason(
 	team_season: TeamSeasonId,
 	stats: TeamSeasonStats,
 	games: List[Game],
-	players: Map[PlayerId, PlayerSeason],
+	players: Map[PlayerId, PlayerSeasonSummaryStats],
 	coach: CoachId,
 	conf: ConferenceId
 ) {

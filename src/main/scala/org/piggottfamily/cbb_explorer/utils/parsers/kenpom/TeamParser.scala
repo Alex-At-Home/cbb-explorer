@@ -180,13 +180,18 @@ trait TeamParser {
       def_to_or_error = parse_stats_map(in.get("td#DTOPct"))
         .left.map(multi_error_enricher("def_to"))
 
+      def_stl_or_error = parse_stats_map(in.get("td#DStlRate"))
+        .left.map(multi_error_enricher("def_stl"))
+
       all_stats <- (
         adj_off_or_error, adj_def_or_error,
-        def_to_or_error
-      ).parMapN((_, _, _))
-      (adj_off, adj_def, def_to) = all_stats
+        def_to_or_error, def_stl_or_error
+      ).parMapN((_, _, _, _))
+      (adj_off, adj_def, def_to, def_stl) = all_stats
 
-    } yield TeamSeasonStats(adj_margin = Metric(0.0, 0), adj_off, adj_def, def_to)
+    } yield TeamSeasonStats(adj_margin = Metric(0.0, 0),
+        adj_off, adj_def, def_to, def_stl
+      )
   }
 
   /** All the stats are created by a JS function that inserts different HTML

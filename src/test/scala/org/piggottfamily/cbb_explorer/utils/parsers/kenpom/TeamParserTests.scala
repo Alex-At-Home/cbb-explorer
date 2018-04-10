@@ -129,7 +129,8 @@ object TeamParserTests extends TestSuite with TeamParser {
               Map(
                 "td#OE" -> Right(off_doc),
                 "td#DE" -> Right(def_doc),
-                "td#DTOPct" -> Right(def_doc)
+                "td#DTOPct" -> Right(def_doc),
+                "td#DStlRate" -> Right(def_doc)
               )
 
             // All good
@@ -137,7 +138,7 @@ object TeamParserTests extends TestSuite with TeamParser {
               case Right(TeamSeasonStats(
                 Metric(0.0, 0),
                 Metric(11.1, 1), Metric(22.2, 2),
-                Metric(22.2, 2)
+                Metric(22.2, 2), Metric(22.2, 2)
               )) =>
             }
             // All bad
@@ -151,7 +152,9 @@ object TeamParserTests extends TestSuite with TeamParser {
                 ParseError("", "[adj_def][value]", _),
                 ParseError("", "[adj_def][rank]", _),
                 ParseError("", "[def_to][value]", _),
-                ParseError("", "[def_to][rank]", _)
+                ParseError("", "[def_to][rank]", _),
+                ParseError("", "[def_stl][value]", _),
+                ParseError("", "[def_stl][rank]", _)
               )) =>
             }
             // Failed to parse doc
@@ -199,7 +202,7 @@ object TeamParserTests extends TestSuite with TeamParser {
           TeamSeasonStats(
             adj_margin = Metric(-1.0, 333),
             adj_off = Metric(101.1, 101), adj_def = Metric(102.1, 102),
-            def_to = Metric(18.1, 108)
+            def_to = Metric(18.1, 108), def_stl = Metric(12.1, 122)
           )
 
         "parse_metrics" - {

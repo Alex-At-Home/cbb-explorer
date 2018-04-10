@@ -1,6 +1,11 @@
 package org.piggottfamily.cbb_explorer.utils.parsers
 
 import scala.util.{Try, Success, Failure}
+import com.github.dwickern.macros.NameOf._
+import shapeless._
+import ops.hlist._
+import  org.piggottfamily.cbb_explorer.models.Metric
+
 
 /** Utilities for managing generation and accumulation of errors */
 object ParseUtils {
@@ -10,9 +15,9 @@ object ParseUtils {
   /** Parses out a score (double) from HTML */
   def parse_score(el: Option[String]): Either[ParseError, Double] = el match {
     case Some(score) =>
-      ParseUtils.build_sub_request[Double]("value")(score.toDouble)
+      ParseUtils.build_sub_request[Double](nameOf[Metric](_.value))(score.toDouble)
     case None =>
-      Left(ParseUtils.build_sub_error("value")(
+      Left(ParseUtils.build_sub_error(nameOf[Metric](_.value))(
         s"Failed to locate the field"
       ))
   }
@@ -20,9 +25,9 @@ object ParseUtils {
   /** Parses out a rank from HTML */
   def parse_rank(el: Option[String]): Either[ParseError, Int] = el match {
     case Some(rank) =>
-      ParseUtils.build_sub_request[Int]("rank")(rank.toInt)
+      ParseUtils.build_sub_request[Int](nameOf[Metric](_.rank))(rank.toInt)
     case None =>
-      Left(ParseUtils.build_sub_error("rank")(
+      Left(ParseUtils.build_sub_error(nameOf[Metric](_.rank))(
         s"Failed to locate the field"
       ))
   }
@@ -81,4 +86,44 @@ object ParseUtils {
     enrich_sub_errors(location, base_id)(List(error))
   }
 
+  // Shapeless error accumulation
+
+  private type EitherError[T] = Either[ParseError, T]
+  private type EitherMultiError[T] = Either[List[ParseError], T]
+
+  private object right_only extends Poly1 {
+    private def handler[T](x: Either[_, T]): T = x match {
+      case Right(t) => t
+      case _        => throw new Exception("Internal Logic Error")
+    }
+    implicit def either[T] = at[EitherError[T]](handler[T] _)
+    implicit def either_multi[T] = at[EitherMultiError[T]](handler[T] _)
+  }
+  private object left_or_filter_right extends Poly1 {
+    implicit def either[T] = at[EitherError[T]] {
+      case Right(_) => Nil
+      case Left(s)  => List(s)
+    }
+    implicit def either_multi[T] = at[EitherMultiError[T]] {
+      case Right(_) => Nil
+      case Left(ls)  => ls
+    }
+  }
+
+  /** Sequences an HList of Either[ParseError, _] or Either[List[ParseError], _]
+      and returns either an HList of the boxed values or an aggregation of all
+      the ParseErrors
+  */
+  def sequence_results[I <: HList, R <: HList, M <: HList](in: I)(
+      implicit
+      right_only_mapper: Mapper.Aux[right_only.type, I, R],
+      left_or_filter_right_mapper: Mapper.Aux[left_or_filter_right.type, I, M],
+      to_list: ToTraversable.Aux[M, List, List[ParseError]])
+    : Either[List[ParseError], R] =
+  {
+    (in map left_or_filter_right).toList.flatten match {
+      case Nil => Right(in map right_only)
+      case l   => Left(l)
+    }
+  }
 }

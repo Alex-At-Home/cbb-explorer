@@ -36,7 +36,7 @@ object TeamParserTests extends TestSuite with TeamParser {
         }
         TestUtils.inside(parse_filename("teamaaaa_.html", Year(1066))) {
           case Left(List(
-            ParseError("", "[team_name]", _)
+            ParseError("", "[team]", _)
           )) =>
         }
       }
@@ -60,7 +60,7 @@ object TeamParserTests extends TestSuite with TeamParser {
         }
         with_doc(""" <span class="wrong_field"><div><a>ConferenceName</a></div></span> """) { doc =>
           TestUtils.inside(parse_conf(doc)) {
-            case Left(ParseError("", "[conference]", _)) =>
+            case Left(ParseError("", "[conf]", _)) =>
           }
         }
       }
@@ -214,16 +214,16 @@ object TeamParserTests extends TestSuite with TeamParser {
           with_doc(bad_stats_html_1) { doc =>
             TestUtils.inside(parse_metrics(doc)) {
               case Left(List(
-                ParseError("", "[season_stats]", _),
-                ParseError("", "[conf_stats]", _)
+                ParseError("", "[stats]", _),
+                ParseError("", "[stats.conf_stats]", _)
               )) =>
             }
           }
           with_doc(bad_stats_html_2) { doc =>
             TestUtils.inside(parse_metrics(doc)) {
               case Left(List(
-                ParseError("", "[adj_margin_rank][rank]", _),
-                ParseError("", "[total_stats][adj_off][value]", _)
+                ParseError("", "[adj_margin][rank]", _),
+                ParseError("", "[stats][adj_off][value]", _)
               )) =>
             }
           }
@@ -253,7 +253,7 @@ object TeamParserTests extends TestSuite with TeamParser {
               ParseError(`root_prefix`, _, _)
             )) =>
               l.map(_.id).zip(
-                List("[coach]", "[conference]", "[season_stats]", "[conf_stats]")
+                List("[coach]", "[conf]", "[stats]", "[stats.conf_stats]")
               ).foreach { case (id, sub_id) =>
                 id ==> good_filename_id + sub_id
               }
@@ -270,7 +270,7 @@ object TeamParserTests extends TestSuite with TeamParser {
               ParseError(`root_prefix`, _, _)
             )) =>
             l.map(_.id).zip(
-              List("[coach]", "[season_stats]", "[conf_stats]")
+              List("[coach]", "[stats]", "[stats.conf_stats]")
             ).foreach { case (id, sub_id) =>
               id ==> good_filename_id + sub_id
             }

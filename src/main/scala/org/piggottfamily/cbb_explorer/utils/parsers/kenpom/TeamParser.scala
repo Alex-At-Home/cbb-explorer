@@ -10,13 +10,31 @@ import net.ruippeixotog.scalascraper.model._
 import io.circe._, io.circe.parser._
 import cats.implicits._
 import cats.data._
-
+import com.github.dwickern.macros.NameOf._
+import shapeless._
+import ops.hlist._
 
 /** Parses the team HTML */
 trait TeamParser {
 
   protected val `kenpom.parse_team` = "kenpom.parse_team"
   protected val `kenpom.parse_team.parse_game` = "kenpom.parse_team.parse_game"
+
+  /** This should be the only object that is edited as stats are added to TeamSeasonStats */
+  object season_stats_builder {
+
+    //TODO: I think I can do even better with Labefield_namelledGeneric
+    // https://github.com/milessabin/shapeless/blob/master/examples/src/main/scala/shapeless/examples/labelledgeneric.scala
+    // https://gist.github.com/milessabin/9042788
+
+    // Note this list currently has to be in order of parameters in TeamSeasonStats:
+    val fields =
+      "td#OE" -> nameOf[TeamSeasonStats](_.adj_off) ::
+      "td#DE" -> nameOf[TeamSeasonStats](_.adj_def) ::
+      "td#DTOPct" -> nameOf[TeamSeasonStats](_.def_to) ::
+      "td#DStlRate" -> nameOf[TeamSeasonStats](_.def_stl) ::
+      HNil
+  }
 
   /**
    * Parses HTML representing a team's season
@@ -69,7 +87,10 @@ trait TeamParser {
     filename match {
       case FilenameRegex(maybe_year, team_name) =>
         val year = Option(maybe_year).map(_.toInt).getOrElse(default_year.value)
-        val errors = List("year" -> year, "team_name" -> team_name).collect {
+        val errors = List(
+          nameOf[TeamSeasonId](_.year) -> year,
+          nameOf[TeamSeasonId](_.team) -> team_name
+        ).collect {
           case (fieldname, value) if Option(value).isEmpty =>
             ParseUtils.build_sub_error(fieldname)(
               s"Failed to parse [$filename] - couldn't extract [$fieldname]"
@@ -92,8 +113,9 @@ trait TeamParser {
       case Some(coach) =>
         Right(CoachId(coach.text))
       case None =>
-        Left(ParseUtils.build_sub_error("coach")(
-          s"Failed to parse HTML - couldn't extract [coach]"
+        val `coach` = nameOf[TeamSeason](_.coach)
+        Left(ParseUtils.build_sub_error(`coach`)(
+          s"Failed to parse HTML - couldn't extract [${`coach`}]"
         ))
     }
   }
@@ -104,8 +126,9 @@ trait TeamParser {
       case Some(conference) =>
         Right(ConferenceId(conference.text))
       case None =>
-        Left(ParseUtils.build_sub_error("conference")(
-          s"Failed to parse HTML - couldn't extract [conference]"
+        val `conf` = nameOf[TeamSeason](_.conf)
+        Left(ParseUtils.build_sub_error(`conf`)(
+          s"Failed to parse HTML - couldn't extract [${`conf`}}]"
         ))
     }
   }
@@ -128,22 +151,26 @@ trait TeamParser {
 
       adj_margin_rank_or_error = ParseUtils.parse_rank(
         (doc >?> element("div[id=title-container]") >?> element("span[class=rank]")).flatten.map(_.text)
-      ).left.map(single_error_enricher("adj_margin_rank"))
+      ).left.map(single_error_enricher(nameOf[TeamSeasonStats](_.adj_margin)))
 
       season_stats_table_or_error =
         get_stats(doc, "function tableStart", "function")
-          .left.map(single_error_enricher("season_stats"))
+          .left.map(single_error_enricher(nameOf[TeamSeason](_.stats)))
 
       conf_stats_table_or_error =
         get_stats(doc, "if (checked)", "function")
-          .left.map(single_error_enricher("conf_stats"))
+          .left.map(single_error_enricher{
+            val `stats` = nameOf[TeamSeason](_.stats)
+            val `conf_stats` = "conf_stats" //TODO: not yet used
+            s"${`stats`}.${`conf_stats`}"
+          })
 
       table_tuple <- (season_stats_table_or_error, conf_stats_table_or_error).parMapN((_, _))
       (season_stats_table, conf_stats_table) = table_tuple
 
       season_stats_or_error =
         parse_season_stats(season_stats_table)
-          .left.map(multi_error_enricher("total_stats"))
+          .left.map(multi_error_enricher(nameOf[TeamSeason](_.stats)))
 
       metrics_tuple <- (adj_margin_rank_or_error, season_stats_or_error).parMapN((_, _))
       (adj_margin_rank, season_stats) = metrics_tuple
@@ -159,39 +186,26 @@ trait TeamParser {
   protected def parse_season_stats(in: Map[String, Either[ParseError, Document]]):
     Either[List[ParseError], TeamSeasonStats] =
   {
-    val root: Either[List[ParseError], Unit] = Right(())
     def multi_error_enricher(field: String) = ParseUtils.enrich_sub_errors("", field) _
     def parse_stats_map(in: Option[Either[ParseError, Document]]): Either[List[ParseError], Metric] = {
       in.map(_.map(Some(_))).getOrElse(Right(None)) //(swap the option and either)
         .left.map(List(_))
         .flatMap(get_metric(_))
     }
+    object extractor extends Poly1 {
+      implicit def fields = at[(String, String)] { case (key, fieldname) =>
+         parse_stats_map(in.get(key))
+          .left.map(multi_error_enricher(fieldname))
+      }
+    }
+    val team_season_stats_model_builder = Generic[TeamSeasonStats]
     for {
-      _ <- root
-
-      //TODO: use shapeless to convert this to an HList
-
-      adj_off_or_error = parse_stats_map(in.get("td#OE"))
-        .left.map(multi_error_enricher("adj_off"))
-
-      adj_def_or_error = parse_stats_map(in.get("td#DE"))
-        .left.map(multi_error_enricher("adj_def"))
-
-      def_to_or_error = parse_stats_map(in.get("td#DTOPct"))
-        .left.map(multi_error_enricher("def_to"))
-
-      def_stl_or_error = parse_stats_map(in.get("td#DStlRate"))
-        .left.map(multi_error_enricher("def_stl"))
-
-      all_stats <- (
-        adj_off_or_error, adj_def_or_error,
-        def_to_or_error, def_stl_or_error
-      ).parMapN((_, _, _, _))
-      (adj_off, adj_def, def_to, def_stl) = all_stats
-
-    } yield TeamSeasonStats(adj_margin = Metric(0.0, 0),
-        adj_off, adj_def, def_to, def_stl
+      all_stats <- ParseUtils.sequence_results(
+        season_stats_builder.fields.map(extractor)
       )
+    } yield team_season_stats_model_builder.from( //(adj_margin is filled in later)
+      Metric(0.0, 0) :: all_stats
+    )
   }
 
   /** All the stats are created by a JS function that inserts different HTML
@@ -303,7 +317,7 @@ trait TeamParser {
       } yield Metric(score, rank)
 
       case None =>
-        Left(List(ParseUtils.build_sub_error("value")(
+        Left(List(ParseUtils.build_sub_error(nameOf[Metric](_.value))(
           s"Failed to locate the field"
         )))
     }

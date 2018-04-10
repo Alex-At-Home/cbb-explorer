@@ -130,6 +130,10 @@ libraryDependencies += "com.lihaoyi" %% "ammonite-ops" % ammoniteVersion
 
 libraryDependencies += "com.lihaoyi" % "ammonite" % ammoniteVersion cross CrossVersion.full
 
+val nameOfVersion = "1.0.3"
+
+libraryDependencies += "com.github.dwickern" %% "scala-nameof" % nameOfVersion % "provided"
+
 // Assembly for shell:
 // sbt assembly
 // java -jar ,/target/scala-2.12/cbb-explorer.jar

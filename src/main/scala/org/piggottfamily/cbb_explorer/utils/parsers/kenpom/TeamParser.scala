@@ -7,33 +7,66 @@ import net.ruippeixotog.scalascraper.dsl.DSL._
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
 import net.ruippeixotog.scalascraper.dsl.DSL.Parse._
 import net.ruippeixotog.scalascraper.model._
-import io.circe._, io.circe.parser._
 import cats.implicits._
 import cats.data._
 import com.github.dwickern.macros.NameOf._
 import shapeless._
 import ops.hlist._
+import shapeless.labelled._
+import record._
+import ops.record._
+import syntax.singleton._
 
 /** Parses the team HTML */
 trait TeamParser {
 
   protected val `kenpom.parse_team` = "kenpom.parse_team"
   protected val `kenpom.parse_team.parse_game` = "kenpom.parse_team.parse_game"
+  protected val `parent_fills_in` = ""
 
   /** This should be the only object that is edited as stats are added to TeamSeasonStats */
-  object season_stats_builder {
+  object builders {
+    // Extractor types - note these are tightly coupled to specific case classes/parser fns
+    // (see comments below)
 
-    //TODO: I think I can do even better with Labefield_namelledGeneric
-    // https://github.com/milessabin/shapeless/blob/master/examples/src/main/scala/shapeless/examples/labelledgeneric.scala
-    // https://gist.github.com/milessabin/9042788
+    /** (TeamSeaonStats/parse_season_stats) */
+    case class ScriptMetricExtractor(path: String)
+    /** (TeamSeason/parse_team) */
+    case class HtmlExtractor[T](
+      extractor: Document => Option[Element],
+      builder: String => T
+    )
 
-    // Note this list currently has to be in order of parameters in TeamSeasonStats:
-    val fields =
-      "td#OE" -> nameOf[TeamSeasonStats](_.adj_off) ::
-      "td#DE" -> nameOf[TeamSeasonStats](_.adj_def) ::
-      "td#DTOPct" -> nameOf[TeamSeasonStats](_.def_to) ::
-      "td#DStlRate" -> nameOf[TeamSeasonStats](_.def_stl) ::
+    // Models and extraction instruction subsets for the case classes
+
+//TODO
+    // val team_model = LabelledGeneric[TeamSeason]
+    // val team = {
+    //   var f: TeamSeason = null // (just used to infer type in "nameOf")
+    //   // Note this list has to be in order of parameters in TeamSeasonStats
+    //   // (compile error otherwise)
+    //   Symbol(nameOf(f.coach)) ->> HtmlExtractor(
+    //     (_ >?> element("span[class=coach]") >?> element("a")).flatten,
+    //     CoachId(_)
+    //   ) ::
+    //   Symbol(nameOf(f.conf)) ->> HtmlExtractor(
+    //     (_ >?> element("span[class=otherinfo]") >?> element("a")).flatten,
+    //     ConferenceId(_)
+    //   ) ::
+    //   HNil
+    // }
+
+    val season_stats_model = LabelledGeneric[TeamSeasonStats]
+    val season_stats = {
+      var f: TeamSeasonStats = null // (just used to infer type in "nameOf")
+      // Note this list has to be in order of parameters in TeamSeasonStats
+      // (compile error otherwise)
+      Symbol(nameOf(f.adj_off)) ->> ScriptMetricExtractor("td#OE") ::
+      Symbol(nameOf(f.adj_def)) ->> ScriptMetricExtractor("td#DE") ::
+      Symbol(nameOf(f.def_to)) ->> ScriptMetricExtractor("td#DTOPct") ::
+      Symbol(nameOf(f.def_stl)) ->> ScriptMetricExtractor("td#DStlRate") ::
       HNil
+    }
   }
 
   /**
@@ -81,7 +114,8 @@ trait TeamParser {
   protected def parse_filename(filename: String, default_year: Year)
     : Either[List[ParseError], TeamSeasonId] =
   {
-    /** The filename spat out by webhttrack */
+    /** The filename spat out by webhttrack           //.left.map(multi_error_enricher(ParseUtils.show_key(kv).name)
+*/
     val FilenameRegex = "team[0-9a-f]{4}(20[0-9]{2})?_([^_]+)?.*[.]html".r
 
     filename match {
@@ -101,7 +135,7 @@ trait TeamParser {
           case _ => Left(errors)
         }
       case _ =>
-        Left(List(ParseUtils.build_sub_error("")(
+        Left(List(ParseUtils.build_sub_error(`parent_fills_in`)(
           s"Completely failed to parse [$filename] to extract year and team"
         )))
     }
@@ -115,7 +149,7 @@ trait TeamParser {
       case None =>
         val `coach` = nameOf[TeamSeason](_.coach)
         Left(ParseUtils.build_sub_error(`coach`)(
-          s"Failed to parse HTML - couldn't extract [${`coach`}]"
+          s"Failed to parse HTML - couldn't eScriptExtractorxtract [${`coach`}]"
         ))
     }
   }
@@ -139,8 +173,8 @@ trait TeamParser {
   protected def parse_metrics(doc: Document): Either[List[ParseError], TeamSeasonStats] = {
 
     val root: Either[List[ParseError], Unit] = Right(())
-    def single_error_enricher(field: String) = ParseUtils.enrich_sub_error("", field) _
-    def multi_error_enricher(field: String) = ParseUtils.enrich_sub_errors("", field) _
+    def single_error_enricher(field: String) = ParseUtils.enrich_sub_error(`parent_fills_in`, field) _
+    def multi_error_enricher(field: String) = ParseUtils.enrich_sub_errors(`parent_fills_in`, field) _
 
     def get_stats(doc: Document, start_token: String, end_token: String) = {
       parse_stats_table(doc, start_token, end_token).map(parse_script_function)
@@ -186,25 +220,32 @@ trait TeamParser {
   protected def parse_season_stats(in: Map[String, Either[ParseError, Document]]):
     Either[List[ParseError], TeamSeasonStats] =
   {
-    def multi_error_enricher(field: String) = ParseUtils.enrich_sub_errors("", field) _
+    def multi_error_enricher(field: String) = ParseUtils.enrich_sub_errors(`parent_fills_in`, field) _
     def parse_stats_map(in: Option[Either[ParseError, Document]]): Either[List[ParseError], Metric] = {
       in.map(_.map(Some(_))).getOrElse(Right(None)) //(swap the option and either)
         .left.map(List(_))
         .flatMap(get_metric(_))
     }
     object extractor extends Poly1 {
-      implicit def fields = at[(String, String)] { case (key, fieldname) =>
-         parse_stats_map(in.get(key))
-          .left.map(multi_error_enricher(fieldname))
-      }
+      implicit def fields[K <: Symbol] = at[FieldType[K, builders.ScriptMetricExtractor]](kv => {
+        val extractor: builders.ScriptMetricExtractor = kv
+        field[K](
+          parse_stats_map(in.get(extractor.path))
+          //TODO
+          //org.piggottfamily.cbb_explorer.models.Metric] with shapeless.labelled.KeyTag[Symbol with shapeless.tag.Tagged[String("adj_off")]
+          //.left.map(multi_error_enricher(ParseUtils.show_key(kv).name)
+            .left.map(multi_error_enricher("todo")
+          )
+        ) //(returns FieldType[K, Either[List[ParseError], Metric])
+      })
     }
-    val team_season_stats_model_builder = Generic[TeamSeasonStats]
     for {
-      all_stats <- ParseUtils.sequence_results(
-        season_stats_builder.fields.map(extractor)
+      all_stats <- ParseUtils.sequence_kv_results(
+        builders.season_stats.map(extractor)
       )
-    } yield team_season_stats_model_builder.from( //(adj_margin is filled in later)
-      Metric(0.0, 0) :: all_stats
+    } yield builders.season_stats_model.from( //(adj_margin is filled in later)
+      Symbol(nameOf[TeamSeasonStats](_.adj_margin)) ->> Metric(0.0, 0) ::
+      all_stats
     )
   }
 
@@ -232,7 +273,7 @@ trait TeamParser {
         Right(script_fn)
 
       case None =>
-        Left(ParseUtils.build_sub_error("")(
+        Left(ParseUtils.build_sub_error(`parent_fills_in`)(
           s"Failed to locate script containing token [$start_token] then [$end_token] in list [$scripts]"
         ))
     }
@@ -247,7 +288,7 @@ trait TeamParser {
     val HtmlRegex = """^[^$]*[$][(]"([^"]+)"[)][.]html[(](".*")[)];[^;]*""".r
     in.lines.collect {
       case HtmlRegex(element_id, html) =>
-        val map_value = parse(html).map(_.asString) match {
+        val map_value = io.circe.parser.parse(html).map(_.asString) match {
           case Right(Some(html_str)) =>
             ParseUtils.build_sub_request[Document](element_id)(browser.parseString(html_str))
           case e @ _ =>

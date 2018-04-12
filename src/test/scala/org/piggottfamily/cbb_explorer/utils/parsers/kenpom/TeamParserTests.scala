@@ -11,6 +11,13 @@ import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
 import net.ruippeixotog.scalascraper.dsl.DSL.Parse._
 import net.ruippeixotog.scalascraper.model._
 import scala.io.Source
+import com.github.dwickern.macros.NameOf._
+import shapeless._
+import ops.hlist._
+import shapeless.labelled._
+import record._
+import ops.record._
+import syntax.singleton._
 
 object TeamParserTests extends TestSuite with TeamParser {
   def get_doc(html: String): Document = {
@@ -73,7 +80,6 @@ object TeamParserTests extends TestSuite with TeamParser {
             }
           }
         }
-
       }
       "[script_functions]" - {
         val html_str = """
@@ -110,70 +116,102 @@ object TeamParserTests extends TestSuite with TeamParser {
         }
       }
       "parse_season_stats" - {
-        (get_doc("<a href=\"teamstats.php?s=RankARate\">11.1</a> <span class=\"seed\">1</span>")
-          :: get_doc("<a href=\"teamstats.php?s=RankARate\">22.2</a> <span class=\"seed\">2</span>")
-          :: get_doc("<bad></bad>")
+        object generate_doc extends Poly1 {
+          implicit def doc = at[String](s => get_doc(s))
+        }
+        ("<a href=\"teamstats.php?s=RankARate\">11.1</a> <span class=\"seed\">1</span>"
+          :: "<a href=\"teamstats.php?s=RankARate\">22.2</a> <span class=\"seed\">2</span>"
+          :: "<bad></bad>"
           :: HNil
-        ).tupled match {
-          case (off_doc, def_doc, bad_doc) =>
+        ).map(generate_doc).tupled match { case (off_doc, def_doc, bad_doc) =>
 
-            val filled_map: Map[String, Either[ParseError, Document]] =
-              Map(
-                "td#OE" -> Right(off_doc),
-                "td#DE" -> Right(def_doc),
-                "td#DTOPct" -> Right(def_doc),
-                "td#DStlRate" -> Right(def_doc)
-              )
+          // Each stat field should generate 2 errors: one for its value and one for its rank
+          val expected_error_list = {
+            object generate_error_fields extends Poly1 {
+              implicit def field[K <: Symbol](implicit key: Witness.Aux[K]) =
+                at[FieldType[K, builders.ScriptMetricExtractor]](_ => {
+                  val keyname = key.value.name
+                  List(s"[$keyname][value]", s"[$keyname][rank]")
+                })
+            }
+            (builders.season_stats map generate_error_fields).toList.flatten.map(
+              field => ParseError("", field, Nil)
+            )
+          }
 
-            // All good
-            TestUtils.inside(parse_season_stats(filled_map)) {
-              case Right(TeamSeasonStats(
-                Metric(0.0, 0),
-                Metric(11.1, 1), Metric(22.2, 2),
-                Metric(22.2, 2), Metric(22.2, 2)
-              )) =>
+          // Assigns a given doc/metric based on whether a metric is offensive of defensive
+          object generate_doc_metric extends Poly1 {
+            implicit def doc_metric[K <: Symbol](implicit key: Witness.Aux[K]) =
+              at[FieldType[K, builders.ScriptMetricExtractor]](kv => {
+                val extractor: builders.ScriptMetricExtractor = kv
+                field[K] {
+                  extractor.path match {
+                    case path if path.startsWith("td#D") =>
+                      path -> (Metric(22.2, 2), def_doc)
+                    case path =>
+                      path -> (Metric(11.1, 1), off_doc)
+                  }
+                }
+              })
+          }
+          // Generate a map filled with default valid values for each stat:
+          val filled_map: Map[String, Either[ParseError, Document]] = {
+            (builders.season_stats map generate_doc_metric).toList.toMap.mapValues {
+              case (_, doc) => Right(doc)
             }
-            // All bad
-            TestUtils.inside(parse_season_stats(
-              filled_map.mapValues(_ => Right(bad_doc))
-            )) {
-              //TODO: generate this from a collection
-              case Left(List(
-                ParseError("", "[adj_off][value]", _),
-                ParseError("", "[adj_off][rank]", _),
-                ParseError("", "[adj_def][value]", _),
-                ParseError("", "[adj_def][rank]", _),
-                ParseError("", "[def_to][value]", _),
-                ParseError("", "[def_to][rank]", _),
-                ParseError("", "[def_stl][value]", _),
-                ParseError("", "[def_stl][rank]", _)
-              )) =>
+          }
+          // The expected results - just pick out the metric from generate_doc_metric
+          val expected_result = {
+            object select_metric extends Poly1 {
+              implicit def metric[K <: Symbol](implicit key: Witness.Aux[K]) =
+                at[FieldType[K, (String, (Metric, Document))]](kv => {
+                  //path -> (metric, doc) ... hence:
+                  field[K](kv._2._1)
+                })
             }
-            // Failed to parse doc
-            TestUtils.inside(parse_season_stats(
-              filled_map +
-                ("td#DE" -> Left(ParseError("", "[doc_error]", List())))
-            )) {
-              case Left(List(ParseError("", "[adj_def][doc_error]", _))) =>
-            }
-            // Missing value
-            TestUtils.inside(parse_season_stats(
-              filled_map - "td#DE"
-            )) {
-              case Left(List(ParseError("", "[adj_def][value]", _))) =>
-            }
-            // Doc with missing value
-            TestUtils.inside(parse_season_stats(
-              filled_map +
-                ("td#OE" -> Right(bad_doc)) -
-                "td#DE"
-            )) {
-              case Left(List(
-                ParseError("", "[adj_off][value]", _),
-                ParseError("", "[adj_off][rank]", _),
-                ParseError("", "[adj_def][value]", _)
-              )) =>
-            }
+            builders.season_stats_model.from(
+              Symbol(nameOf[TeamSeasonStats](_.adj_margin)) ->> Metric(0.0, 0) ::
+              (builders.season_stats map generate_doc_metric map select_metric)
+            )
+          }
+
+          // All good
+          TestUtils.inside(parse_season_stats(filled_map)) {
+            case Right(t) =>
+              t ==> expected_result
+          }
+          // All bad
+          TestUtils.inside(parse_season_stats(
+            filled_map.mapValues(_ => Right(bad_doc))
+          )) {
+            case Left(l) =>
+              l.map(_.copy(messages = Nil)) ==> expected_error_list
+          }
+          // Failed to parse doc
+          TestUtils.inside(parse_season_stats(
+            filled_map +
+              ("td#DE" -> Left(ParseError("", "[doc_error]", List())))
+          )) {
+            case Left(List(ParseError("", "[adj_def][doc_error]", _))) =>
+          }
+          // Missing value
+          TestUtils.inside(parse_season_stats(
+            filled_map - "td#DE"
+          )) {
+            case Left(List(ParseError("", "[adj_def][value]", _))) =>
+          }
+          // Doc with missing value
+          TestUtils.inside(parse_season_stats(
+            filled_map +
+              ("td#OE" -> Right(bad_doc)) -
+              "td#DE"
+          )) {
+            case Left(List(
+              ParseError("", "[adj_off][value]", _),
+              ParseError("", "[adj_off][rank]", _),
+              ParseError("", "[adj_def][value]", _)
+            )) =>
+          }
         }
       }
       "[file_tests]" - {

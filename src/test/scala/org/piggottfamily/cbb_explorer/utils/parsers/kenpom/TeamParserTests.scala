@@ -40,27 +40,19 @@ object TeamParserTests extends TestSuite with TeamParser {
           )) =>
         }
       }
-      "parse_coach" - {
+      "parse_html" - {
+        val extractor = builders.HtmlExtractor(
+          d => (d >?> element("span[class=coach]") >?> element("a")).flatten,
+          CoachId(_)
+        )
         with_doc(""" <span class="coach">Head coach: <a href="test">CoachName</a></span> """) { doc =>
-          TestUtils.inside(parse_coach(doc)) {
+          TestUtils.inside(parse_html(doc, extractor, "coach")) {
             case Right(CoachId("CoachName")) =>
           }
         }
         with_doc(""" <span class="team"><div><a>CoachName</a></div></span> """) { doc =>
-          TestUtils.inside(parse_coach(doc)) {
+          TestUtils.inside(parse_html(doc, extractor, "coach")) {
             case Left(ParseError("", "[coach]", _)) =>
-          }
-        }
-      }
-      "parse_conf" - {
-        with_doc(""" <span class="otherinfo">The Conference: <a href="test">ConferenceName</a></span> """) { doc =>
-          TestUtils.inside(parse_conf(doc)) {
-            case Right(ConferenceId("ConferenceName")) =>
-          }
-        }
-        with_doc(""" <span class="wrong_field"><div><a>ConferenceName</a></div></span> """) { doc =>
-          TestUtils.inside(parse_conf(doc)) {
-            case Left(ParseError("", "[conf]", _)) =>
           }
         }
       }

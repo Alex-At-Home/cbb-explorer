@@ -25,7 +25,7 @@ trait TeamParser {
   protected val `parent_fills_in` = ""
 
   /** This should be the only object that is edited as stats are added to TeamSeasonStats */
-  object builders {
+  protected object builders {
     // Extractor types - note these are tightly coupled to specific case classes/parser fns
     // (see comments below)
 
@@ -33,28 +33,27 @@ trait TeamParser {
     case class ScriptMetricExtractor(path: String)
     /** (TeamSeason/parse_team) */
     case class HtmlExtractor[T](
-      extractor: Document => Option[Element],
-      builder: String => T
+      extract: Document => Option[Element],
+      build: String => T
     )
 
     // Models and extraction instruction subsets for the case classes
 
-//TODO
-    // val team_model = LabelledGeneric[TeamSeason]
-    // val team = {
-    //   var f: TeamSeason = null // (just used to infer type in "nameOf")
-    //   // Note this list has to be in order of parameters in TeamSeasonStats
-    //   // (compile error otherwise)
-    //   Symbol(nameOf(f.coach)) ->> HtmlExtractor(
-    //     (_ >?> element("span[class=coach]") >?> element("a")).flatten,
-    //     CoachId(_)
-    //   ) ::
-    //   Symbol(nameOf(f.conf)) ->> HtmlExtractor(
-    //     (_ >?> element("span[class=otherinfo]") >?> element("a")).flatten,
-    //     ConferenceId(_)
-    //   ) ::
-    //   HNil
-    // }
+    val team_model = LabelledGeneric[TeamSeason]
+    val team = {
+      var f: TeamSeason = null // (just used to infer type in "nameOf")
+      // Note this list has to be in order of parameters in TeamSeasonStats
+      // (compile error otherwise)
+      Symbol(nameOf(f.coach)) ->> HtmlExtractor(
+        d => (d >?> element("span[class=coach]") >?> element("a")).flatten,
+        CoachId(_)
+      ) ::
+      Symbol(nameOf(f.conf)) ->> HtmlExtractor(
+        d => (d >?> element("span[class=otherinfo]") >?> element("a")).flatten,
+        ConferenceId(_)
+      ) ::
+      HNil
+    }
 
     val season_stats_model = LabelledGeneric[TeamSeasonStats]
     val season_stats = {
@@ -82,17 +81,28 @@ trait TeamParser {
     val single_error_enricher = ParseUtils.enrich_sub_error(`kenpom.parse_team`, filename) _
     val multi_error_enricher = ParseUtils.enrich_sub_errors(`kenpom.parse_team`, filename) _
 
+    class extractor(doc: Document) extends Poly1 {
+      implicit def fields[K <: Symbol, T](implicit key: Witness.Aux[K]) =
+        at[FieldType[K, builders.HtmlExtractor[T]]](kv => {
+          val extractor: builders.HtmlExtractor[T] = kv
+          field[K](
+            parse_html(doc, extractor, key.value.name)
+              .left.map(single_error_enricher)
+          ) //(returns FieldType[K, Either[List[ParseError], T])
+        })
+    }
+
     for {
       doc <- doc_request_builder(browser.parseString(in))
 
       // Get team name and year
       team_season <- parse_filename(filename, default_year).left.map(multi_error_enricher)
 
-      // Get coach
-      coach_or_errors = parse_coach(doc).left.map(single_error_enricher)
-
-      // Get conference
-      conf_or_errors = parse_conf(doc).left.map(single_error_enricher)
+      // Misc fields (Eg coach, conference)
+      other_fields_or_errors = ParseUtils.sequence_kv_results {
+        object doc_extractor extends extractor(doc)
+        builders.team map doc_extractor
+      }
 
       // Get basic ranking and metrics
       metrics_or_errors = parse_metrics(doc).left.map(multi_error_enricher)
@@ -101,21 +111,27 @@ trait TeamParser {
       // TODO Get players
 
       various_fields <- (
-        coach_or_errors, conf_or_errors, metrics_or_errors
-      ).parMapN((_, _, _))
-      (coach, conf, metrics) = various_fields //SI-5589
+        other_fields_or_errors, metrics_or_errors
+      ).parMapN((_, _))
+      (other_fields, metrics) = various_fields //SI-5589
 
-    } yield ParseResponse(TeamSeason(
-      team_season, metrics, games = Nil, players = Map.empty, coach, conf
-    ))
+    } yield ParseResponse({
+      var f: TeamSeason = null // (just used to infer type in "nameOf")
+      builders.team_model.from(
+        Symbol(nameOf(f.team_season)) ->> team_season ::
+        Symbol(nameOf(f.stats)) ->> metrics ::
+        Symbol(nameOf(f.games)) ->> List[Game]() ::
+        Symbol(nameOf(f.players)) ->> Map[PlayerId, PlayerSeasonSummaryStats]() ::
+        other_fields
+      )
+    })
   }
 
   /** Extracts the team name and year from the filename */
   protected def parse_filename(filename: String, default_year: Year)
     : Either[List[ParseError], TeamSeasonId] =
   {
-    /** The filename spat out by webhttrack           //.left.map(multi_error_enricher(ParseUtils.show_key(kv).name)
-*/
+    /** The filename spat out by webhttrack */
     val FilenameRegex = "team[0-9a-f]{4}(20[0-9]{2})?_([^_]+)?.*[.]html".r
 
     filename match {
@@ -141,28 +157,16 @@ trait TeamParser {
     }
   }
 
-  /** Parses out the coach id from the top level HTML */
-  protected def parse_coach(doc: Document): Either[ParseError, CoachId] = {
-    (doc >?> element("span[class=coach]") >?> element("a")).flatten match {
-      case Some(coach) =>
-        Right(CoachId(coach.text))
+  /** Invokes and HTML extractor and AnyVal/case class buider and wraps with errors */
+  protected def parse_html[T](doc: Document, extractor: builders.HtmlExtractor[T], fieldname: String)
+  : Either[ParseError, T] =
+  {
+    extractor.extract(doc) match {
+      case Some(result) =>
+        Right(extractor.build(result.text))
       case None =>
-        val `coach` = nameOf[TeamSeason](_.coach)
-        Left(ParseUtils.build_sub_error(`coach`)(
-          s"Failed to parse HTML - couldn't eScriptExtractorxtract [${`coach`}]"
-        ))
-    }
-  }
-
-  /** Parses out the coach id from the top level HTML */
-  protected def parse_conf(doc: Document): Either[ParseError, ConferenceId] = {
-    (doc >?> element("span[class=otherinfo]") >?> element("a")).flatten match {
-      case Some(conference) =>
-        Right(ConferenceId(conference.text))
-      case None =>
-        val `conf` = nameOf[TeamSeason](_.conf)
-        Left(ParseUtils.build_sub_error(`conf`)(
-          s"Failed to parse HTML - couldn't extract [${`conf`}}]"
+        Left(ParseUtils.build_sub_error(fieldname)(
+          s"Failed to parse HTML - couldn't extract [$fieldname]"
         ))
     }
   }
@@ -227,17 +231,14 @@ trait TeamParser {
         .flatMap(get_metric(_))
     }
     object extractor extends Poly1 {
-      implicit def fields[K <: Symbol] = at[FieldType[K, builders.ScriptMetricExtractor]](kv => {
-        val extractor: builders.ScriptMetricExtractor = kv
-        field[K](
-          parse_stats_map(in.get(extractor.path))
-          //TODO
-          //org.piggottfamily.cbb_explorer.models.Metric] with shapeless.labelled.KeyTag[Symbol with shapeless.tag.Tagged[String("adj_off")]
-          //.left.map(multi_error_enricher(ParseUtils.show_key(kv).name)
-            .left.map(multi_error_enricher("todo")
-          )
-        ) //(returns FieldType[K, Either[List[ParseError], Metric])
-      })
+      implicit def fields[K <: Symbol](implicit key: Witness.Aux[K]) =
+        at[FieldType[K, builders.ScriptMetricExtractor]](kv => {
+          val extractor: builders.ScriptMetricExtractor = kv
+          field[K](
+            parse_stats_map(in.get(extractor.path))
+              .left.map(multi_error_enricher(key.value.name))
+          ) //(returns FieldType[K, Either[List[ParseError], Metric])
+        })
     }
     for {
       all_stats <- ParseUtils.sequence_kv_results(

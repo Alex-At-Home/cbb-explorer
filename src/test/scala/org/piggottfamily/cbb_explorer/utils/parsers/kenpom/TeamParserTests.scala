@@ -128,7 +128,7 @@ object TeamParserTests extends TestSuite with TeamParser {
           // Each stat field should generate 2 errors: one for its value and one for its rank
           val expected_error_list = {
             object generate_error_fields extends Poly1 {
-              implicit def field[K <: Symbol](implicit key: Witness.Aux[K]) =
+              implicit def get_field[K <: Symbol](implicit key: Witness.Aux[K]) =
                 at[FieldType[K, builders.ScriptMetricExtractor]](_ => {
                   val keyname = key.value.name
                   List(s"[$keyname][value]", s"[$keyname][rank]")
@@ -141,7 +141,7 @@ object TeamParserTests extends TestSuite with TeamParser {
 
           // Assigns a given doc/metric based on whether a metric is offensive of defensive
           object generate_doc_metric extends Poly1 {
-            implicit def doc_metric[K <: Symbol](implicit key: Witness.Aux[K]) =
+            implicit def doc_metric[K <: Symbol] =
               at[FieldType[K, builders.ScriptMetricExtractor]](kv => {
                 val extractor: builders.ScriptMetricExtractor = kv
                 field[K] {
@@ -163,7 +163,7 @@ object TeamParserTests extends TestSuite with TeamParser {
           // The expected results - just pick out the metric from generate_doc_metric
           val expected_result = {
             object select_metric extends Poly1 {
-              implicit def metric[K <: Symbol](implicit key: Witness.Aux[K]) =
+              implicit def metric[K <: Symbol] =
                 at[FieldType[K, (String, (Metric, Document))]](kv => {
                   //path -> (metric, doc) ... hence:
                   field[K](kv._2._1)
@@ -228,11 +228,38 @@ object TeamParserTests extends TestSuite with TeamParser {
         val bad_format_html = bad_stats_html_1
           .replace("coach", "rename_coach")
 
+        // Sample line:
+        //$("td#OE").html("<a href=\"summary.php?s=RankAdjOE\">101.2</a> <span class=\"seed\">1</span>");
+        val expected_season_stats_map = good_html.lines.flatMap { line =>
+          val regex =
+            """.*[$][(]"(td#[^"]+)"[)][.]html[(]"<a[^>]+>([0-9.]+)<.*<span.*>([0-9]+)<.*""".r
+          line match {
+            case regex(path, value_str, rank_str) if value_str.endsWith(".1") =>
+              // (if it doesn't end with .1 then it must be conf-only stats)
+              List(path -> Metric(value_str.toDouble, rank_str.toInt))
+            case _ =>
+              Nil
+          }
+        }.toMap
+
+        // Iterate over the fields and match up with the strings pulled
+        val expected_season_metrics = {
+          object generate_expected_results extends Poly1 {
+            implicit def get_field[K <: Symbol] =
+              at[FieldType[K, builders.ScriptMetricExtractor]](kv => {
+                val extractor: builders.ScriptMetricExtractor = kv
+                field[K] {
+                  expected_season_stats_map(extractor.path) //(throws if not present)
+                }
+              })
+          }
+          (builders.season_stats map generate_expected_results)
+        }
+
         val expected_team_stats =
-          TeamSeasonStats(
-            adj_margin = Metric(-1.0, 333),
-            adj_off = Metric(101.1, 101), adj_def = Metric(102.1, 102),
-            def_to = Metric(18.1, 108), def_stl = Metric(12.1, 122)
+          builders.season_stats_model.from(
+            Symbol(nameOf[TeamSeasonStats](_.adj_margin)) ->> Metric(-1.0, 333) ::
+            expected_season_metrics
           )
 
         "parse_metrics" - {

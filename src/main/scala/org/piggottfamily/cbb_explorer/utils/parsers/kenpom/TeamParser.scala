@@ -158,8 +158,7 @@ trait TeamParser {
     val multi_error_enricher = ParseUtils.enrich_sub_errors(`kenpom.parse_team`, filename) _
 
     for {
-      doc <- doc_request_builder(browser.parseString(in))$("td#Tempo").html("<span style=\"background-color:#dfebfd; padding:3px 8px\"><a href=\"summary.php?s=RankAdjTempo\">92.1</a> <span class=\"seed\">120</span></span>");
-
+      doc <- doc_request_builder(browser.parseString(in))
 
       // Get team name and year
       team_season <- parse_filename(filename, default_year).left.map(multi_error_enricher)

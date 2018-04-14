@@ -29,6 +29,8 @@ object TeamParserTests extends TestSuite with TeamParser {
     test(doc)
   }
 
+  //TODO add tests for the 2 extractors (and don't forget sequence_kv_results in ParseUtilsTests)
+
   val tests = Tests {
     "TeamParser" - {
       "parse_filename" - {
@@ -125,6 +127,8 @@ object TeamParserTests extends TestSuite with TeamParser {
         val bad_stats_html_2 = good_html
           .replace("title-container", "title-container-2")
           .replace("td#OE", "td#renamed_OE")
+          .replace("td#eFG", "td#renamed_eFG")
+          .replace("td#DeFG", "td#renamed_DeFG")
 
         val bad_format_html = bad_stats_html_1
           .replace("coach", "rename_coach")
@@ -197,7 +201,9 @@ object TeamParserTests extends TestSuite with TeamParser {
             TestUtils.inside(parse_metrics(doc)) {
               case Left(List(
                 ParseError("", "[adj_margin][rank]", _),
-                ParseError("", "[stats][adj_off][value]", _)
+                ParseError("", "[stats][adj_off][value]", _),
+                ParseError("", "[stats][off][eff_fg][value]", _),
+                ParseError("", "[stats][_def][eff_fg][value]", _)
               )) =>
             }
           }

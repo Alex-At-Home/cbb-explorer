@@ -7,4 +7,8 @@ package org.piggottfamily.cbb_explorer.models
  */
 case class Metric(value: Double, rank: Int) //TODO can this be AnyVal
 
+object Metric {
+  val empty = Metric(-1.0, -1)
+  def is_empty(m: Metric): Boolean = m == empty
+}
 //TODO: things like adj_off have conference value so this doesn't work

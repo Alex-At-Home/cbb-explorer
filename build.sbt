@@ -74,6 +74,11 @@ version := "0.1"
 // To learn more about multi-project builds, head over to the official sbt
 // documentation at http://www.scala-sbt.org/documentation.html
 
+// DEBUG OPTIONS
+//scalacOptions += "-verbose"
+// scalacOptions += "-Ylog:all"
+// scalacOptions += "-Ytyper-debug"
+
 lazy val root = (project in file("."))
 
 // To use cats...parMapN with Either:

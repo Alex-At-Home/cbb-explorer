@@ -34,7 +34,16 @@ trait TeamParser {
     /** (TeamSeason/parse_team) */
     case class HtmlExtractor[T](
       extract: Document => Option[Element],
-      build: String => T
+      build: String => Either[ParseError, T]
+    )
+    /** (TeamSeasonStats/parse_metrics) */
+    case class HtmlMetricExtractor(
+      extract: Document => Option[Element]
+    )
+    /** (TeamSeasonStats/parse_metrics) */
+    case class ChildExtractor[I <: HList, T](
+      fields: I,
+      model_builder: LabelledGeneric[T] //(unused except to provide the type T)
     )
 
     // Models and extraction instruction subsets for the case classes
@@ -46,84 +55,121 @@ trait TeamParser {
       // (compile error otherwise)
       Symbol(nameOf(f.coach)) ->> HtmlExtractor(
         d => (d >?> element("span[class=coach]") >?> element("a")).flatten,
-        CoachId(_)
+        t => Right(CoachId(t))
       ) ::
       Symbol(nameOf(f.conf)) ->> HtmlExtractor(
         d => (d >?> element("span[class=otherinfo]") >?> element("a")).flatten,
-        ConferenceId(_)
+        t => Right(ConferenceId(t))
       ) ::
       HNil
     }
 
     val season_stats_model = LabelledGeneric[TeamSeasonStats]
     val season_stats_off_def_model = LabelledGeneric[TeamSeasonStats.OffenseDefenseStats]
+    val season_stats_sos_model = LabelledGeneric[TeamSeasonStats.StrengthOfSchedule]
+    val season_stats_personnel_model = LabelledGeneric[TeamSeasonStats.Personnel]
+    private def season_stats_off_def(off_not_def: Boolean) = {
+      val prefix = if (off_not_def) "" else "D" //(most parameters differ like this)
+      val suffix = if (off_not_def) "O" else "D" //(odd case)
+      var f: TeamSeasonStats.OffenseDefenseStats = null // (just used to infer type in "nameOf")
+      // Note this list has to be in order of parameters in TeamSeasonStats
+      // (compile error otherwise)
+      Symbol(nameOf(f.avg_poss_len)) ->> ScriptMetricExtractor(s"td#APL${suffix}") ::
+      Symbol(nameOf(f.eff_fg)) ->> ScriptMetricExtractor(s"td#${prefix}eFG") ::
+      Symbol(nameOf(f.to_pct)) ->> ScriptMetricExtractor(s"td#${prefix}TOPct") ::
+      Symbol(nameOf(f.orb_pct)) ->> ScriptMetricExtractor(s"td#${prefix}ORPct") ::
+      Symbol(nameOf(f.ft_rate)) ->> ScriptMetricExtractor(s"td#${prefix}FTR") ::
+      Symbol(nameOf(f._3p_pct)) ->> ScriptMetricExtractor(s"td#${prefix}3Pct") ::
+      Symbol(nameOf(f._2p_pct)) ->> ScriptMetricExtractor(s"td#${prefix}2Pct") ::
+      Symbol(nameOf(f.ft_pct)) ->> ScriptMetricExtractor(s"td#${prefix}FTPct") ::
+      Symbol(nameOf(f.blk_pct)) ->> ScriptMetricExtractor(s"td#${prefix}BlockPct") ::
+      Symbol(nameOf(f.stl_pct)) ->> ScriptMetricExtractor(s"td#${prefix}StlRate") ::
+      Symbol(nameOf(f._3pa_rate)) ->> ScriptMetricExtractor(s"td#${prefix}3PARate") ::
+      Symbol(nameOf(f.afgm_rate)) ->> ScriptMetricExtractor(s"td#${prefix}ARate") ::
+      Symbol(nameOf(f._3p_pt_dist)) ->> ScriptMetricExtractor(s"td#${prefix}PD3") ::
+      Symbol(nameOf(f._2p_pt_dist)) ->> ScriptMetricExtractor(s"td#${prefix}PD2") ::
+      Symbol(nameOf(f.ft_pt_dist)) ->> ScriptMetricExtractor(s"td#${prefix}PD1") ::
+      HNil
+      //(note this is too long to be nested in other HLists)
+    }
+    val season_stats_off = season_stats_off_def(off_not_def = true)
+    val season_stats_def = season_stats_off_def(off_not_def = false)
+    val season_stats_sos = {
+      var f: TeamSeasonStats.StrengthOfSchedule = null // (just used to infer type in "nameOf")
+      def common_extractor(title: String, d: Document) = {
+        (d >?> element("tr") >?> element("td[TODO='title:']")).flatten
+      }
+      Symbol(nameOf(f.off)) ->> HtmlMetricExtractor(
+        d => (common_extractor("Components:", d) >?> element("td")).flatten
+      ) ::
+      Symbol(nameOf(f._def)) ->> HtmlMetricExtractor(
+        d => (common_extractor("Components:", d) >?> element("td")).flatten
+        //d => (common_extractor("Components:", d) >> element("td")).skip(1).headOption
+      ) ::
+      Symbol(nameOf(f.total)) ->> HtmlMetricExtractor(
+        d => (common_extractor("Overall:", d) >?> element("td")).flatten
+      ) ::
+      Symbol(nameOf(f.non_conf)) ->> HtmlMetricExtractor(
+        d => (common_extractor("Non-conference:", d) >?> element("td")).flatten
+      ) ::
+      HNil
+    }
+    val season_stats_personnel = {
+      var f: TeamSeasonStats.Personnel = null // (just used to infer type in "nameOf")
+      def common_extractor(title: String, d: Document) = {
+        (d >?> element("tr") >?> element("td[TODO='title:']")).flatten
+      }
+      Symbol(nameOf(f.bench_mins_pct)) ->> HtmlMetricExtractor(
+        d => (common_extractor("Bench Minutes:", d) >?> element("td")).flatten
+      ) ::
+      Symbol(nameOf(f.experience_yrs)) ->> HtmlMetricExtractor(
+        d => (common_extractor("Experience:", d) >?> element("td")).flatten
+      ) ::
+      Symbol(nameOf(f.continuity_pct)) ->> HtmlMetricExtractor(
+        d => (common_extractor("Experience:", d) >?> element("td")).flatten
+        //d => (common_extractor("Experience:", d) >> element("td")).skip(1).headOption
+      ) ::
+      Symbol(nameOf(f.avg_height_inches)) ->> HtmlMetricExtractor(
+        d => (common_extractor("Average Height:", d) >?> element("td")).flatten
+      ) ::
+      HNil
+    }
     val season_stats = {
       var f: TeamSeasonStats = null // (just used to infer type in "nameOf")
       // Note this list has to be in order of parameters in TeamSeasonStats
       // (compile error otherwise)
+      Symbol(nameOf(f.adj_margin)) ->> HtmlExtractor(
+        d => (d >?> element("div[id=title-container]") >?> element("span[class=rank]")).flatten,
+        rank => ParseUtils.parse_rank(Some(rank)).map(Metric(Metric.no_value, _))
+      ) ::
       Symbol(nameOf(f.adj_off)) ->> ScriptMetricExtractor("td#OE") ::
       Symbol(nameOf(f.adj_def)) ->> ScriptMetricExtractor("td#DE") ::
       Symbol(nameOf(f.adj_tempo)) ->> ScriptMetricExtractor("td#Tempo") ::
-      HNil
-    }
-    val season_stats_off = {
-      var f: TeamSeasonStats.OffenseDefenseStats = null // (just used to infer type in "nameOf")
-      // Note this list has to be in order of parameters in TeamSeasonStats
-      // (compile error otherwise)
-      Symbol(nameOf(f.avg_poss_len)) ->> ScriptMetricExtractor("td#APLO") ::
-      Symbol(nameOf(f.eff_fg)) ->> ScriptMetricExtractor("td#eFG") ::
-      Symbol(nameOf(f.to_pct)) ->> ScriptMetricExtractor("td#TOPct") ::
-      Symbol(nameOf(f.orb_pct)) ->> ScriptMetricExtractor("td#ORPct") ::
-      Symbol(nameOf(f.ft_rate)) ->> ScriptMetricExtractor("td#FTR") ::
-      Symbol(nameOf(f._3p_pct)) ->> ScriptMetricExtractor("td#3Pct") ::
-      Symbol(nameOf(f._2p_pct)) ->> ScriptMetricExtractor("td#2Pct") ::
-      Symbol(nameOf(f.ft_pct)) ->> ScriptMetricExtractor("td#FTPct") ::
-      Symbol(nameOf(f.blk_pct)) ->> ScriptMetricExtractor("td#BlockPct") ::
-      Symbol(nameOf(f.stl_pct)) ->> ScriptMetricExtractor("td#StlRate") ::
-      Symbol(nameOf(f._3pa_rate)) ->> ScriptMetricExtractor("td#3PARate") ::
-      Symbol(nameOf(f.afgm_rate)) ->> ScriptMetricExtractor("td#ARate") ::
-      Symbol(nameOf(f._3p_pt_dist)) ->> ScriptMetricExtractor("td#PD3") ::
-      Symbol(nameOf(f._2p_pt_dist)) ->> ScriptMetricExtractor("td#PD2") ::
-      Symbol(nameOf(f.ft_pt_dist)) ->> ScriptMetricExtractor("td#PD1") ::
-      HNil
-    }
-    val season_stats_def = {
-      var f: TeamSeasonStats.OffenseDefenseStats = null // (just used to infer type in "nameOf")
-      // Note this list has to be in order of parameters in TeamSeasonStats
-      // (compile error otherwise)
-      Symbol(nameOf(f.avg_poss_len)) ->> ScriptMetricExtractor("td#APLD") ::
-      Symbol(nameOf(f.eff_fg)) ->> ScriptMetricExtractor("td#DeFG") ::
-      Symbol(nameOf(f.to_pct)) ->> ScriptMetricExtractor("td#DTOPct") ::
-      Symbol(nameOf(f.orb_pct)) ->> ScriptMetricExtractor("td#DORPct") ::
-      Symbol(nameOf(f.ft_rate)) ->> ScriptMetricExtractor("td#DFTR") ::
-      Symbol(nameOf(f._3p_pct)) ->> ScriptMetricExtractor("td#D3Pct") ::
-      Symbol(nameOf(f._2p_pct)) ->> ScriptMetricExtractor("td#D2Pct") ::
-      Symbol(nameOf(f.ft_pct)) ->> ScriptMetricExtractor("td#DFTPct") ::
-      Symbol(nameOf(f.blk_pct)) ->> ScriptMetricExtractor("td#DBlockPct") ::
-      Symbol(nameOf(f.stl_pct)) ->> ScriptMetricExtractor("td#DStlRate") ::
-      Symbol(nameOf(f._3pa_rate)) ->> ScriptMetricExtractor("td#D3PARate") ::
-      Symbol(nameOf(f.afgm_rate)) ->> ScriptMetricExtractor("td#DARate") ::
-      Symbol(nameOf(f._3p_pt_dist)) ->> ScriptMetricExtractor("td#DPD3") ::
-      Symbol(nameOf(f._2p_pt_dist)) ->> ScriptMetricExtractor("td#DPD2") ::
-      Symbol(nameOf(f.ft_pt_dist)) ->> ScriptMetricExtractor("td#DPD1") ::
+      Symbol(nameOf(f.sos)) ->> ChildExtractor(
+        season_stats_sos, season_stats_sos_model
+      ) ::
+      Symbol(nameOf(f.personnel)) ->> ChildExtractor(
+        season_stats_personnel, season_stats_personnel_model
+      ) ::
+      //(can't do off and _def as part of HList because the nesting breaks the compiler)
       HNil
     }
   }
   /** Enriches errors generated by child functions (single error) */
-  def single_error_enricher(field: String) = ParseUtils.enrich_sub_error(`parent_fills_in`, field) _
+  private def single_error_enricher(field: String) = ParseUtils.enrich_sub_error(`parent_fills_in`, field) _
   /** Enriches errors generated by child functions (multiple errors) */
-  def multi_error_enricher(field: String) = ParseUtils.enrich_sub_errors(`parent_fills_in`, field) _
+  private def multi_error_enricher(field: String) = ParseUtils.enrich_sub_errors(`parent_fills_in`, field) _
 
   /** HList mapper for converting semi-pre-parsed script metric fields */
-  class ScriptMetricExtractorMapper(
-    map: Map[String, Either[ParseError, Document]]
-  ) extends Poly1 {
+  protected trait ScriptMetricExtractorMapper extends Poly1 {
+    val map: Map[String, Either[ParseError, Document]]
+
     private def parse_stats_map(in: Option[Either[ParseError, Document]]): Either[List[ParseError], Metric] = {
       in.map(_.map(Some(_))).getOrElse(Right(None)) //(swap the option and either)
         .left.map(List(_))
         .flatMap(get_metric(_))
     }
-    implicit def fields[K <: Symbol](implicit key: Witness.Aux[K]) =
+    implicit def script_metric_fields[K <: Symbol](implicit key: Witness.Aux[K]) =
       at[FieldType[K, builders.ScriptMetricExtractor]](kv => {
         val extractor: builders.ScriptMetricExtractor = kv
         field[K](
@@ -133,18 +179,74 @@ trait TeamParser {
       })
   }
   /** HList mapper for converting HTML fields */
-  class HtmlExtractorMapper(
-    doc: Document
-  ) extends Poly1 {
-    implicit def fields[K <: Symbol, T](implicit key: Witness.Aux[K]) =
+  protected trait HtmlExtractorMapper extends Poly1 {
+    val _doc: Document
+
+    implicit def html_fields[K <: Symbol, T](implicit key: Witness.Aux[K]) =
       at[FieldType[K, builders.HtmlExtractor[T]]](kv => {
         val extractor: builders.HtmlExtractor[T] = kv
         field[K](
-          parse_html(doc, extractor, key.value.name)
+          parse_html(_doc, extractor, key.value.name)
         ) //(returns FieldType[K, Either[List[ParseError], T])
       })
   }
+  /** HList mapper for converting HTML fields */
+  protected trait HtmlMetricExtractorMapper extends Poly1 {
+    val _doc: Document
 
+    implicit def html_metric_fields[K <: Symbol, T](implicit key: Witness.Aux[K]) =
+      at[FieldType[K, builders.HtmlMetricExtractor]](kv => {
+        val extractor: builders.HtmlMetricExtractor = kv
+        //TODO
+        def right[O](o: O): Either[List[ParseError], O] = Right(o)
+        field[K](
+          //TODO: should be metric
+          right(Metric(0.0, 0))
+          //parse_html(doc, extractor, key.value.name)
+        ) //(returns FieldType[K, Either[List[ParseError], Metric])
+      })
+  }
+
+  /** Internal component for HList mapper that maps over nested HLists */
+  protected trait NonRecursiveChildExtractorMapper
+    extends Poly1
+    with ScriptMetricExtractorMapper
+    with HtmlExtractorMapper
+    with HtmlMetricExtractorMapper
+
+  /** HList mapper that maps over nested HLists */
+  protected trait ChildExtractorMapper
+    extends Poly1
+    with NonRecursiveChildExtractorMapper
+  {
+    val myself = this
+    object child_extractor extends NonRecursiveChildExtractorMapper {
+      //(in theory should be able to use "this". but can't get it working in practice)
+      override val map = myself.map
+      override val _doc = myself._doc
+    }
+
+    implicit def children_fields
+      [K <: Symbol, I <: HList, M1 <: HList, M2 <: HList, R <: HList, O]
+      (implicit
+        key: Witness.Aux[K],
+        ogen: LabelledGeneric.Aux[O, R],
+        child_mapper: Mapper.Aux[child_extractor.type, I, M1],
+        // (need to bring in all the impplicits from ParseUtils.sequence_kv_results):
+        right_only_mapper: Mapper.Aux[ParseUtils.right_only_kv.type, M1, R],
+        left_or_filter_right_mapper: Mapper.Aux[ParseUtils.left_or_filter_right_kv.type, M1, M2],
+        to_list: ToTraversable.Aux[M2, List, List[ParseError]]
+      ) = at[FieldType[K, builders.ChildExtractor[I, O]]](kv => {
+        val extractor: builders.ChildExtractor[I, O] = kv
+
+        field[K](
+          ParseUtils.sequence_kv_results(
+            extractor.fields map child_extractor
+          ).left.map(multi_error_enricher(key.value.name))
+          .right.map(ogen.from(_))
+        )//returns Either[List[ParseError], O]
+      })
+  }
   /**
    * Parses HTML representing a team's season
    */
@@ -166,8 +268,10 @@ trait TeamParser {
 
       // Misc fields (Eg coach, conference)
       other_fields_or_errors = ParseUtils.sequence_kv_results {
-        object doc_extractor extends HtmlExtractorMapper(doc)
-        (builders.team map doc_extractor)
+        object doc_extractor extends HtmlExtractorMapper {
+          override val _doc = doc
+        }
+        builders.team map doc_extractor
       }.left.map(multi_error_completer)
 
       // Get basic ranking and metrics
@@ -229,7 +333,7 @@ trait TeamParser {
   {
     extractor.extract(doc) match {
       case Some(result) =>
-        Right(extractor.build(result.text))
+        extractor.build(result.text)
       case None =>
         Left(ParseUtils.build_sub_error(fieldname)(
           s"Failed to parse HTML - couldn't extract [$fieldname]"
@@ -269,20 +373,19 @@ trait TeamParser {
       // Season stats is split into top level, offense, defense
 
       metrics_tuple <- {
-        object extractor extends ScriptMetricExtractorMapper(season_stats_table)
+        object extractor extends ChildExtractorMapper {
+          override val _doc = doc
+          override val map = season_stats_table
+        }
 
         (
-          //TODO: would be nice if we could map over the second 3 results
-
-          // (first bit of adj margin, the second bit is calculated below)
-          ParseUtils.parse_rank(
-            (doc >?> element("div[id=title-container]") >?> element("span[class=rank]")).flatten.map(_.text)
-          ).left.map(single_error_enricher(nameOf[TeamSeasonStats](_.adj_margin)))
-          ,
           // Season stats is split into top level, offense, defense
-          ParseUtils.sequence_kv_results(builders.season_stats map extractor)
-            .left.map(multi_error_enricher(nameOf[TeamSeason](_.stats)))
+          ParseUtils.sequence_kv_results(
+            builders.season_stats map extractor
+          ).left.map(multi_error_enricher(nameOf[TeamSeason](_.stats)))
           ,
+          // (For performance reasons, we write these 2 as code ... the compiler
+          //  can't handle nested these large HLists)
           ParseUtils.sequence_kv_results(builders.season_stats_off map extractor)
             .left.map(multi_error_enricher(nameOf[TeamSeasonStats](_.off)))
             .left.map(multi_error_enricher(nameOf[TeamSeason](_.stats)))
@@ -290,18 +393,15 @@ trait TeamParser {
           ParseUtils.sequence_kv_results(builders.season_stats_def map extractor)
             .left.map(multi_error_enricher(nameOf[TeamSeasonStats](_._def)))
             .left.map(multi_error_enricher(nameOf[TeamSeason](_.stats)))
-        ).parMapN((_, _, _, _))
+        ).parMapN((_, _, _))
       }
 
       (
-        adj_margin_rank,
-        stats_misc,
-        stats_off, stats_def
+        stats_misc, stats_off, stats_def
       ) = metrics_tuple
 
       result = builders.season_stats_model.from({
         val f: TeamSeasonStats = null //(just for nameOf type inference)
-        Symbol(nameOf(f.adj_margin)) ->> Metric.empty ::
         stats_misc ::: //(stats_misc is a list of records)
         Symbol(nameOf(f.off)) ->> builders.season_stats_off_def_model.from(
           stats_off
@@ -314,7 +414,9 @@ trait TeamParser {
       // (final bit of adj margin)
       adj_margin_value = result.adj_off.value - result.adj_def.value
 
-    } yield result.copy(adj_margin = Metric(adj_margin_value, adj_margin_rank))
+    } yield result.copy(
+      adj_margin = result.adj_margin.copy(value = adj_margin_value)
+    )
   }
 
   /** All the stats are created by a JS function that inserts different HTML

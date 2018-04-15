@@ -94,7 +94,7 @@ object ParseUtils {
   private type EitherError[T] = Either[ParseError, T]
   private type EitherMultiError[T] = Either[List[ParseError], T]
 
-  private object right_only_kv extends Poly1 {
+  object right_only_kv extends Poly1 {
     private def handler[T](x: Either[_, T]): T = x match {
       case Right(t) => t
       case _        => throw new Exception("Internal Logic Error")
@@ -104,7 +104,7 @@ object ParseUtils {
     implicit def either_multi[K, T] =
       at[FieldType[K, EitherMultiError[T]]](kv => field[K](handler[T](kv)))
   }
-  private object left_or_filter_right_kv extends Poly1 {
+  object left_or_filter_right_kv extends Poly1 {
     implicit def either[K, T] = at[FieldType[K, EitherError[T]]](kv => {
       val either_val: EitherError[T] = kv
       either_val match {

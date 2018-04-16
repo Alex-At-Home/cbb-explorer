@@ -52,7 +52,7 @@ object TeamParserTests extends TestSuite with TeamParser {
       "parse_html" - {
         val extractor = builders.HtmlExtractor(
           d => (d >?> element("span[class=coach]") >?> element("a")).flatten,
-          CoachId(_)
+          t => Right(CoachId(t))
         )
         with_doc(""" <span class="coach">Head coach: <a href="test">CoachName</a></span> """) { doc =>
           TestUtils.inside(parse_html(doc, extractor, "coach")) {
@@ -170,12 +170,18 @@ object TeamParserTests extends TestSuite with TeamParser {
           builders.season_stats_model.from({
             val t: TeamSeasonStats = null //(just for nameOf type inference)
             Symbol(nameOf(t.adj_margin)) ->> Metric(-1.0, 333) ::
-            (builders.season_stats map generate_expected_results) ::: //(this is list)
+            (builders.season_stats collect generate_expected_results) ::: //(this is list)
+            Symbol(nameOf(t.sos)) ->> TeamSeasonStats.StrengthOfSchedule(
+              Metric.empty, Metric.empty, Metric.empty, Metric.empty,
+            ) ::
+            Symbol(nameOf(t.personnel)) ->> TeamSeasonStats.Personnel(
+              Metric.empty, Metric.empty, Metric.empty, Metric.empty,
+            ) ::
             Symbol(nameOf(t.off)) ->> builders.season_stats_off_def_model.from(
-              (builders.season_stats_off map generate_expected_results)
+              (builders.season_stats_off.head.fields map generate_expected_results)
             ) ::
             Symbol(nameOf(t._def)) ->> builders.season_stats_off_def_model.from(
-              (builders.season_stats_def map generate_expected_results)
+              (builders.season_stats_def.head.fields map generate_expected_results)
             ) ::
             HNil
           })

@@ -20,6 +20,8 @@ import ops.record._
 import syntax.singleton._
 
 object TeamParserTests extends TestSuite with TeamParser {
+  import ExtractorUtils._
+
   def get_doc(html: String): Document = {
     val browser = JsoupBrowser()
     browser.parseString(html)
@@ -47,40 +49,6 @@ object TeamParserTests extends TestSuite with TeamParser {
           case Left(List(
             ParseError("", "[team]", _)
           )) =>
-        }
-      }
-      "parse_html" - {
-        val extractor = builders.HtmlExtractor(
-          d => (d >?> element("span[class=coach]") >?> element("a")).flatten,
-          t => Right(CoachId(t))
-        )
-        with_doc(""" <span class="coach">Head coach: <a href="test">CoachName</a></span> """) { doc =>
-          TestUtils.inside(parse_html(doc, extractor, "coach")) {
-            case Right(CoachId("CoachName")) =>
-          }
-        }
-        with_doc(""" <span class="team"><div><a>CoachName</a></div></span> """) { doc =>
-          TestUtils.inside(parse_html(doc, extractor, "coach")) {
-            case Left(ParseError("", "[coach]", _)) =>
-          }
-        }
-      }
-      "get_metric" - {
-        TestUtils.inside(get_metric(None)) {
-          case Left(List(ParseError("", "[value]", _))) =>
-        }
-        val fragment1 = """ <a href="teamstats.php?s=RankARate">100.0</a> """
-        val fragment2 = """ <span class="seed">10</span> """
-
-        List(fragment1, fragment2, fragment1 + fragment2, "").foreach { html =>
-          with_doc(html) { doc =>
-            TestUtils.inside(get_metric(Some(doc.body))) {
-              case Left(List(ParseError("", "[value]", _), ParseError("", "[rank]", _))) if html.isEmpty  =>
-              case Left(List(ParseError("", "[value]", _))) if !html.contains(fragment1) =>
-              case Left(List(ParseError("", "[rank]", _))) if !html.contains(fragment2) =>
-              case Right(Metric(100.0, 10)) =>
-            }
-          }
         }
       }
       "[script_functions]" - {
@@ -155,8 +123,8 @@ object TeamParserTests extends TestSuite with TeamParser {
         val expected_team_stats = {
           object generate_expected_results extends Poly1 {
             implicit def get_field[K <: Symbol] =
-              at[FieldType[K, builders.ScriptMetricExtractor]](kv => {
-                val extractor: builders.ScriptMetricExtractor = kv
+              at[FieldType[K, ScriptMetricExtractor]](kv => {
+                val extractor: ScriptMetricExtractor = kv
                 field[K] {
                   //(throws if not present)
                   mutable_expected_season_stats_map.remove(extractor.path).getOrElse {

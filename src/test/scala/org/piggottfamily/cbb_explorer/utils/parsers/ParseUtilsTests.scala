@@ -10,6 +10,14 @@ object ParseUtilsTests extends TestSuite {
         TestUtils.inside(ParseUtils.parse_score(Some("1.1"))) {
           case Right(1.1) =>
         }
+        // (Also check can handle symbols)
+        TestUtils.inside(ParseUtils.parse_score(Some(" +1.1%"))) {
+          case Right(1.1) =>
+        }
+        TestUtils.inside(ParseUtils.parse_score(Some("-1yrs"))) {
+          case Right(-1.0) =>
+        }
+        // Errors
         TestUtils.inside(ParseUtils.parse_score(None)) {
           case Left(ParseError("", "[value]", _)) =>
         }

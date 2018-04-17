@@ -15,13 +15,16 @@ object ParseUtils {
 
   // Standard parsing
 
+  /** Allow anything after the number, only whitespace before */
+  private val ScoreRegex = "^ *([+-]?[0-9]+(?:[.][0-9]+)?).*".r
+
   /** Parses out a score (double) from HTML */
   def parse_score(el: Option[String]): Either[ParseError, Double] = el match {
-    case Some(score) =>
+    case Some(ScoreRegex(score)) =>
       ParseUtils.build_sub_request[Double](nameOf[Metric](_.value))(score.toDouble)
-    case None =>
+    case _ =>
       Left(ParseUtils.build_sub_error(nameOf[Metric](_.value))(
-        s"Failed to locate the field"
+        s"Failed to locate a numeric field (context=[$el])"
       ))
   }
 

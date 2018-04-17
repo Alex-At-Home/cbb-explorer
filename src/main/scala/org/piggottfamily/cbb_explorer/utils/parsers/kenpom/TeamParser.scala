@@ -128,7 +128,7 @@ trait TeamParser {
         d => (common_extractor("experience:", d).drop(0).headOption)
       ) ::
       Symbol(nameOf(f.continuity_pct)) ->> HtmlMetricExtractor(
-        d => (common_extractor("experience:", d).drop(1).headOption)
+        d => (common_extractor("minutes continuity", d).drop(0).headOption)
       ) ::
       Symbol(nameOf(f.avg_height_inches)) ->> HtmlMetricExtractor(
         d => (common_extractor("average height:", d).drop(0).headOption)
@@ -178,7 +178,7 @@ trait TeamParser {
     private def parse_stats_map(in: Option[Either[ParseError, Document]]): Either[List[ParseError], Metric] = {
       in.map(_.map(Some(_))).getOrElse(Right(None)) //(swap the option and either)
         .left.map(List(_))
-        .flatMap(get_metric(_))
+        .flatMap(d => get_metric(d.map(_.body)))
     }
     implicit def script_metric_fields[K <: Symbol](implicit key: Witness.Aux[K]) =
       at[FieldType[K, builders.ScriptMetricExtractor]](kv => {
@@ -208,12 +208,9 @@ trait TeamParser {
     implicit def html_metric_fields[K <: Symbol, T](implicit key: Witness.Aux[K]) =
       at[FieldType[K, builders.HtmlMetricExtractor]](kv => {
         val extractor: builders.HtmlMetricExtractor = kv
-        //TODO
-        def right[O](o: O): Either[List[ParseError], O] = Right(o)
         field[K](
-          //TODO: should be metric
-          right(Metric(0.0, 0))
-          //parse_html(doc, extractor, key.value.name)
+          get_metric(extractor.extract(_doc))
+            .left.map(multi_error_enricher(key.value.name))
         ) //(returns FieldType[K, Either[List[ParseError], Metric])
       })
   }
@@ -512,7 +509,7 @@ trait TeamParser {
   }
 
   /** Pulls out the rank and score from the format consistently used in HTML fragments */
-  protected def get_metric(sub_doc: Option[Document]): Either[List[ParseError], Metric] =
+  protected def get_metric(sub_doc: Option[Element]): Either[List[ParseError], Metric] =
   {
     def add_context(context: String)(error: ParseError): ParseError = {
       error.copy(messages = error.messages.map(_ + s" context=[$context]"))
@@ -524,11 +521,11 @@ trait TeamParser {
 
         score_or_error =
           ParseUtils.parse_score((html >?> element("a")).map(_.text))
-          .left.map(add_context(html.toHtml))
+          .left.map(add_context(html.outerHtml))
           .left.map(List(_))
         rank_or_error =
           ParseUtils.parse_rank((html >?> element("span[class=seed]")).map(_.text))
-          .left.map(add_context(html.toHtml))
+          .left.map(add_context(html.outerHtml))
           .left.map(List(_))
 
         score_rank <- (score_or_error, rank_or_error).parMapN((_, _))

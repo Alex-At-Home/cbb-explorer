@@ -74,7 +74,7 @@ object TeamParserTests extends TestSuite with TeamParser {
 
         List(fragment1, fragment2, fragment1 + fragment2, "").foreach { html =>
           with_doc(html) { doc =>
-            TestUtils.inside(get_metric(Some(doc))) {
+            TestUtils.inside(get_metric(Some(doc.body))) {
               case Left(List(ParseError("", "[value]", _), ParseError("", "[rank]", _))) if html.isEmpty  =>
               case Left(List(ParseError("", "[value]", _))) if !html.contains(fragment1) =>
               case Left(List(ParseError("", "[rank]", _))) if !html.contains(fragment2) =>
@@ -172,10 +172,12 @@ object TeamParserTests extends TestSuite with TeamParser {
             Symbol(nameOf(t.adj_margin)) ->> Metric(-1.0, 333) ::
             (builders.season_stats collect generate_expected_results) ::: //(this is list)
             Symbol(nameOf(t.sos)) ->> TeamSeasonStats.StrengthOfSchedule(
-              Metric.empty, Metric.empty, Metric.empty, Metric.empty,
+              off = Metric(100.1, 111), _def = Metric(100.2, 88),
+              total = Metric(4.44, 77), non_conf = Metric(-1.66, 222),
             ) ::
             Symbol(nameOf(t.personnel)) ->> TeamSeasonStats.Personnel(
-              Metric.empty, Metric.empty, Metric.empty, Metric.empty,
+              bench_mins_pct = Metric(22.2, 199), experience_yrs = Metric(1.11, 198),
+              continuity_pct = Metric(33.3, 333), avg_height_inches = Metric(77.0, 99)
             ) ::
             Symbol(nameOf(t.off)) ->> builders.season_stats_off_def_model.from(
               (builders.season_stats_off.head.fields map generate_expected_results)
@@ -206,7 +208,7 @@ object TeamParserTests extends TestSuite with TeamParser {
           with_doc(bad_stats_html_2) { doc =>
             TestUtils.inside(parse_metrics(doc)) {
               case Left(List(
-                ParseError("", "[adj_margin][rank]", _),
+                ParseError("", "[stats][adj_margin]", _),
                 ParseError("", "[stats][adj_off][value]", _),
                 ParseError("", "[stats][off][eff_fg][value]", _),
                 ParseError("", "[stats][_def][eff_fg][value]", _)

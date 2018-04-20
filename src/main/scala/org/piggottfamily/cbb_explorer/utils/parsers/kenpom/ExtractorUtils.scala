@@ -35,13 +35,14 @@ object ExtractorUtils {
 
   /** Pulls fields out from any HTML doc and builds into an object or error */
   case class HtmlExtractor[T](
-    extract: Document => Option[Element],
-    build: String => Either[ParseError, T]
+    extract: Element => Option[Element],
+    build: Element => Either[ParseError, T],
+    fallback: Option[T] = None
   )
 
   /** Pulls "metrics elements" into metrics from HTML */
   case class HtmlMetricExtractor(
-    extract: Document => Option[Element]
+    extract: Element => Option[Element]
   )
   /** Performs non-recursive extraction of child fields that can be any of the above extractors */
   case class ChildExtractor[I <: HList, T](
@@ -71,25 +72,25 @@ object ExtractorUtils {
   }
   /** HList mapper for converting HTML fields */
   trait HtmlExtractorMapper extends Poly1 {
-    val _doc: Document
+    val root: Element
 
     implicit def html_fields[K <: Symbol, T](implicit key: Witness.Aux[K]) =
       at[FieldType[K, HtmlExtractor[T]]](kv => {
         val extractor: HtmlExtractor[T] = kv
         field[K](
-          parse_html(_doc, extractor, key.value.name)
+          parse_html(root, extractor, key.value.name)
         ) //(returns FieldType[K, Either[List[ParseError], T])
       })
   }
   /** HList mapper for converting HTML fields */
   trait HtmlMetricExtractorMapper extends Poly1 {
-    val _doc: Document
+    val root: Element
 
     implicit def html_metric_fields[K <: Symbol, T](implicit key: Witness.Aux[K]) =
       at[FieldType[K, HtmlMetricExtractor]](kv => {
         val extractor: HtmlMetricExtractor = kv
         field[K](
-          get_metric(extractor.extract(_doc))
+          get_metric(extractor.extract(root))
             .left.map(multi_error_enricher(key.value.name))
         ) //(returns FieldType[K, Either[List[ParseError], Metric])
       })
@@ -111,7 +112,7 @@ object ExtractorUtils {
     object child_extractor extends NonRecursiveChildExtractorMapper {
       //(in theory should be able to use "this". but can't get it working in practice)
       override val map = myself.map
-      override val _doc = myself._doc
+      override val root = myself.root
     }
 
     implicit def children_fields
@@ -139,15 +140,17 @@ object ExtractorUtils {
   // Utility methods required by the mappers
 
   /** Invokes and HTML extractor and AnyVal/case class buider and wraps with errors */
-  def parse_html[T](doc: Document, extractor: HtmlExtractor[T], fieldname: String)
+  def parse_html[T](el: Element, extractor: HtmlExtractor[T], fieldname: String)
   : Either[ParseError, T] =
   {
-    extractor.extract(doc) match {
+    extractor.extract(el) match {
       case Some(result) =>
-        extractor.build(result.text)
+        extractor.build(result)
+      case None if extractor.fallback.isDefined =>
+        Right(extractor.fallback.get)      
       case None =>
         Left(ParseUtils.build_sub_error(fieldname)(
-          s"Failed to parse HTML - couldn't extract [$fieldname]"
+          s"Failed to parse HTML - couldn't extract [$fieldname] context [$el]"
         ))
     }
   }

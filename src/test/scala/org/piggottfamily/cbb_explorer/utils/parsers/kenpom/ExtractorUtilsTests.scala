@@ -48,8 +48,8 @@ object ExtractorUtilsTests extends TestSuite {
       "[generic html extraction]" - {
 
         val extractor = HtmlExtractor(
-          d => (d >?> element("span[class=coach]") >?> element("a")).flatten,
-          t => Right(CoachId(t))
+          e => (e >?> element("span[class=coach]") >?> element("a")).flatten,
+          e => Right(CoachId(e.text))
         )
         val good_doc = """ <span class="coach">Head coach: <a href="test">CoachName</a></span> """
         val bad_doc = """ <span class="team"><div><a>CoachName</a></div></span> """
@@ -57,7 +57,7 @@ object ExtractorUtilsTests extends TestSuite {
         "HtmlExtractorMapper" - {
           with_doc(good_doc) { doc =>
             object mapper extends HtmlExtractorMapper {
-              val _doc = doc
+              val root = doc.root
             }
             TestUtils.inside(
               'coach ->> extractor :: HNil map mapper
@@ -69,7 +69,7 @@ object ExtractorUtilsTests extends TestSuite {
           }
           with_doc(bad_doc) { doc =>
             object mapper extends HtmlExtractorMapper {
-              val _doc = doc
+              val root = doc.root
             }
             TestUtils.inside(
               'coach ->> extractor :: HNil map mapper
@@ -83,12 +83,12 @@ object ExtractorUtilsTests extends TestSuite {
         }
         "parse_html" - {
           with_doc(good_doc) { doc =>
-            TestUtils.inside(parse_html(doc, extractor, "coach")) {
+            TestUtils.inside(parse_html(doc.root, extractor, "coach")) {
               case Right(CoachId("CoachName")) =>
             }
           }
           with_doc(bad_doc) { doc =>
-            TestUtils.inside(parse_html(doc, extractor, "coach")) {
+            TestUtils.inside(parse_html(doc.root, extractor, "coach")) {
               case Left(ParseError("", "[coach]", _)) =>
             }
           }
@@ -102,14 +102,14 @@ object ExtractorUtilsTests extends TestSuite {
           val full_html = s"<body><p>$fragment1 $fragment2</p></body>"
 
           val good_extractor = HtmlMetricExtractor(
-            d => d >?> element("p")
+            e => e >?> element("p")
           )
           val bad_extractor = HtmlMetricExtractor(
-            d => d >?> element("xxx")
+            e => e >?> element("xxx")
           )
           with_doc(full_html) { doc =>
             object mapper extends HtmlMetricExtractorMapper {
-              val _doc = doc
+              val root = doc.root
             }
             TestUtils.inside(
               'test1 ->> good_extractor ::

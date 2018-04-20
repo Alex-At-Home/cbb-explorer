@@ -156,3 +156,5 @@ mainClass in assembly := Some("org.piggottfamily.cbb_explorer.Main")
 // (edit code as long as no new libs are imported)
 // sbt compile package
 // java -cp './target/scala-2.12/cbb-explorer-assembly-0.1-deps.jar:target/scala-2.12/cbb-explorer_2.12-0.1.jar' org.piggottfamily.cbb_explorer.Main
+
+libraryDependencies += "com.github.nscala-time" %% "nscala-time" % "2.18.0"

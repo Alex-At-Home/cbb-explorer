@@ -25,6 +25,9 @@ trait TeamParser {
   protected val `kenpom.parse_team` = "kenpom.parse_team"
   protected val `kenpom.parse_team.parse_game` = "kenpom.parse_team.parse_game"
 
+  /** Injected dependency of parsing game info */
+  protected val game_parser = GameParser
+
   /** This should be the only object that is edited as stats are added to TeamSeasonStats */
   protected object builders {
 
@@ -39,12 +42,12 @@ trait TeamParser {
       // Note this list has to be in order of parameters in TeamSeasonStats
       // (compile error otherwise)
       Symbol(nameOf(f.coach)) ->> HtmlExtractor(
-        d => (d >?> element("span[class=coach]") >?> element("a")).flatten,
-        t => Right(CoachId(t))
+        e => (e >?> element("span[class=coach]") >?> element("a")).flatten,
+        e => Right(CoachId(e.text))
       ) ::
       Symbol(nameOf(f.conf)) ->> HtmlExtractor(
-        d => (d >?> element("span[class=otherinfo]") >?> element("a")).flatten,
-        t => Right(ConferenceId(t))
+        e => (e >?> element("span[class=otherinfo]") >?> element("a")).flatten,
+        e => Right(ConferenceId(e.text))
       ) ::
       HNil
     }
@@ -79,41 +82,41 @@ trait TeamParser {
     }
     val season_stats_sos = {
       var f: TeamSeasonStats.StrengthOfSchedule = null // (just used to infer type in "nameOf")
-      def common_extractor(title: String, d: Document): List[Element] = {
-        (d >?> element(s"tr:contains($title)") >?> elementList("td"))
-          .flatten.getOrElse(Nil).drop(1)
+      def common_extractor(title: String, e: Element, skip: Int = 0): Option[Element] = {
+        (e >?> element(s"tr:contains($title)") >?> elementList("td"))
+          .flatten.getOrElse(Nil).drop(1 + skip).headOption
       }
       Symbol(nameOf(f.off)) ->> HtmlMetricExtractor(
-        d => (common_extractor("components:", d).drop(0).headOption)
+        e => common_extractor("components:", e)
       ) ::
       Symbol(nameOf(f._def)) ->> HtmlMetricExtractor(
-        d => (common_extractor("components:", d).drop(1).headOption)
+        e => common_extractor("components:", e, skip = 1)
       ) ::
       Symbol(nameOf(f.total)) ->> HtmlMetricExtractor(
-        d => (common_extractor("overall:", d).drop(0).headOption)
+        e => common_extractor("overall:", e)
       ) ::
       Symbol(nameOf(f.non_conf)) ->> HtmlMetricExtractor(
-        d => (common_extractor("non-conference:", d).drop(0).headOption)
+        e => common_extractor("non-conference:", e)
       ) ::
       HNil
     }
     val season_stats_personnel = {
       var f: TeamSeasonStats.Personnel = null // (just used to infer type in "nameOf")
-      def common_extractor(title: String, d: Document): List[Element] = {
-        (d >?> element(s"tr:contains($title)") >?> elementList("td"))
-          .flatten.getOrElse(Nil).drop(1)
+      def common_extractor(title: String, e: Element): Option[Element] = {
+        (e >?> element(s"tr:contains($title)") >?> elementList("td"))
+          .flatten.getOrElse(Nil).drop(1).headOption
       }
       Symbol(nameOf(f.bench_mins_pct)) ->> HtmlMetricExtractor(
-        d => (common_extractor("bench minutes:", d).drop(0).headOption)
+        e => common_extractor("bench minutes:", e)
       ) ::
       Symbol(nameOf(f.experience_yrs)) ->> HtmlMetricExtractor(
-        d => (common_extractor("experience:", d).drop(0).headOption)
+        e => common_extractor("experience:", e)
       ) ::
       Symbol(nameOf(f.continuity_pct)) ->> HtmlMetricExtractor(
-        d => (common_extractor("minutes continuity", d).drop(0).headOption)
+        e => common_extractor("minutes continuity", e)
       ) ::
       Symbol(nameOf(f.avg_height_inches)) ->> HtmlMetricExtractor(
-        d => (common_extractor("average height:", d).drop(0).headOption)
+        e => common_extractor("average height:", e)
       ) ::
       HNil
     }
@@ -122,8 +125,8 @@ trait TeamParser {
       // Note this list has to be in order of parameters in TeamSeasonStats
       // (compile error otherwise)
       Symbol(nameOf(f.adj_margin)) ->> HtmlExtractor(
-        d => (d >?> element("div[id=title-container]") >?> element("span[class=rank]")).flatten,
-        rank => ParseUtils.parse_rank(Some(rank)).map(Metric(Metric.no_value, _))
+        e => (e >?> element("div[id=title-container]") >?> element("span[class=rank]")).flatten,
+        e => ParseUtils.parse_rank(Some(e.text)).map(Metric(Metric.no_value, _))
       ) ::
       Symbol(nameOf(f.adj_off)) ->> ScriptMetricExtractor("td#OE") ::
       Symbol(nameOf(f.adj_def)) ->> ScriptMetricExtractor("td#DE") ::
@@ -171,7 +174,7 @@ trait TeamParser {
       // Misc fields (Eg coach, conference)
       other_fields_or_errors = ParseUtils.sequence_kv_results {
         object doc_extractor extends HtmlExtractorMapper {
-          override val _doc = doc
+          override val root = doc.root
         }
         builders.team map doc_extractor
       }.left.map(multi_error_completer)
@@ -262,7 +265,7 @@ trait TeamParser {
 
       metrics_tuple <- {
         object extractor extends ChildExtractorMapper {
-          override val _doc = doc
+          override val root = doc.root
           override val map = season_stats_table
         }
         object enricher extends Poly1 {
@@ -354,38 +357,6 @@ trait TeamParser {
         }
         element_id -> map_value
     }.toMap
-  }
-
-  /**
-   * Parses HTML fragment representing a team's games
-   */
-  protected def parse_games(): Either[List[ParseError], ParseResponse[List[Game]]] = {
-    Left(Nil) //TODO
-  }
-  /**
-   * Parses HTML fragment representing a single game
-   */
-  protected def parse_game(): Either[List[ParseError], Game] = {
-    //   case class Game(
-    //     opponent: TeamSeasonId,
-    //     won: Boolean,
-    //     rank: Int,
-    //     opp_rank: Int,
-    //     location_type: Game.LocationType.Value,
-    //     tier: Game.PrimaryTier.Value,
-    //     secondary_tiers: Set[Game.SecondaryTier.Value]
-    //   )
-    //
-
-    // TODO
-    // Get opponent
-    // Get result
-    // Get my ranking
-    // Get opponent ranking
-    // Get location type
-    // Get primary tier
-    // Get secondary tiers
-    Left(Nil) //TODO
   }
 
   //TODO: parse_players

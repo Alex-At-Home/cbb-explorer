@@ -26,7 +26,7 @@ trait TeamParser {
   protected val `kenpom.parse_team.parse_game` = "kenpom.parse_team.parse_game"
 
   /** Injected dependency of parsing game info */
-  protected val game_parser = GameParser
+  protected def game_parser = GameParser
 
   /** This should be the only object that is edited as stats are added to TeamSeasonStats */
   protected object builders {
@@ -182,7 +182,6 @@ trait TeamParser {
       // Get basic ranking and metrics
       metrics_or_errors = parse_metrics(doc).left.map(multi_error_completer)
 
-      // TODO Get games
       // TODO Get players
 
       various_fields <- (
@@ -190,12 +189,17 @@ trait TeamParser {
       ).parMapN((_, _))
       (other_fields, metrics) = various_fields //SI-5589
 
+      // (Games depends on metrics + year)
+      games <- game_parser.parse_games(
+        doc, team_season.year, metrics.adj_margin.rank
+      )
+
     } yield ParseResponse({
       var f: TeamSeason = null // (just used to infer type in "nameOf")
       builders.team_model.from(
         Symbol(nameOf(f.team_season)) ->> team_season ::
         Symbol(nameOf(f.stats)) ->> metrics ::
-        Symbol(nameOf(f.games)) ->> List[Game]() ::
+        Symbol(nameOf(f.games)) ->> games ::
         Symbol(nameOf(f.players)) ->> Map[PlayerId, PlayerSeasonSummaryStats]() ::
         other_fields
       )

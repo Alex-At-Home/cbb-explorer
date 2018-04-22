@@ -18,6 +18,8 @@ import ops.record._
 import syntax.singleton._
 import com.github.nscala_time.time.Imports._
 import org.joda.time.DateTime
+import org.joda.time.format.DateTimeFormat
+import scala.util.Try
 
 /** Parses the game HTML (or game subsets of the team HTML) */
 trait GameParser {
@@ -32,6 +34,8 @@ trait GameParser {
 
     def table_finder(doc: Document): Option[List[Element]] =
       doc >?> elementList("table[id=schedule-table] > tbody > tl")
+
+    val game_model = LabelledGeneric[Game]
 
     def fields(current_year: Year, eoy_rank: Int) = {
       var f: Game = null  // (just used to infer type in "nameOf")
@@ -78,18 +82,38 @@ trait GameParser {
     }
   }
 
+  private val formatter = DateTimeFormat.forPattern("EEE MMM dd yyyy")
+
   /** Parse Kenpom format dates eg "Mon Nov 16" into date times */
   protected def parse_date(date_str: String, current_year: Year):
     Either[ParseError, DateTime] =
   {
-    Left(null)
+    Try(formatter.parseDateTime(s"$date_str ${current_year.value}"))
+      .map(Right(_))
+      .getOrElse(
+        Left(ParseUtils.build_sub_error(nameOf[Game](_.date))(
+          s"Unexpected date format: [$date_str]"
+        ))
+      )
   }
+
+  private val ScoreRegex = "[^WL]*([WL])[^0-9]*([0-9]+)[-]([0-9]+).*".r
 
   /** Kenpom scores are in the format eg "<b>L</b>, 63-55" */
   protected def parse_score(score_str: String):
-    Either[ParseError, Game.Score] =
+    Either[ParseError, Game.Score] = score_str match
   {
-    Left(null)
+    case ScoreRegex(won_str, first_str, second_str) => //(strs are ints by regex construction)
+      Right((first_str.toInt, second_str.toInt))
+        .right.map { case (a, b) => (Math.max(a, b), Math.min(a, b)) }
+        .right.map {
+          case (a, b) if won_str == "W" => Game.Score(a, b)
+          case (a, b) => Game.Score(b, a)
+        }
+      case _ =>
+        Left(ParseUtils.build_sub_error(nameOf[Game](_.score))(
+          s"Unrecognized score, expecting '[WL], ptsW-ptsL', got: [$score_str]"
+        ))
   }
 
   /** Converts from one of the support locations to the model */
@@ -101,7 +125,7 @@ trait GameParser {
       case "Semi-Home" => Right(Game.LocationType.SemiHome)
       case "Semi-Away" => Right(Game.LocationType.SemiAway)
       case _ =>
-        Left(ParseUtils.build_sub_error(`parent_fills_in`)(
+        Left(ParseUtils.build_sub_error(nameOf[Game](_.location_type))(
           s"Unrecognized location type: [$location_str]"
         ))
     }
@@ -116,7 +140,7 @@ trait GameParser {
       case Some("https://kenpom.com/assets/b.gif") =>
         Right(Game.TierType.B)
       case _ =>
-      Left(ParseUtils.build_sub_error(`parent_fills_in`)(
+      Left(ParseUtils.build_sub_error(nameOf[Game](_.tier))(
         s"Unrecognized tier element: [${element.outerHtml}]"
       ))
     }
@@ -124,28 +148,29 @@ trait GameParser {
 
   /**
    * Parses HTML fragment representing a team's games
+   * //TODO parse with warnings instead of error'ing out?!
    */
-  def parse_games(): Either[List[ParseError], ParseResponse[List[Game]]] = {
-    Left(Nil) //TODO
-  }
-  /**
-   * Parses HTML fragment representing a single game
-   */
-  protected def parse_game(table_row: Element): Either[List[ParseError], Game] = {
-    // case class Game(
-    //   opponent: TeamSeasonId,
-    //   date: DateTime,
-    //   won: Boolean,
-    //   score: Game.Score,
-    //   pace: Int,
-    //   rank: Int,
-    //   opp_rank: Int,
-    //   location_type: Game.LocationType.Value,
-    //   tier: Game.TierType.Value
-    // ) {
-    // }
-    Left(Nil) //TODO
-  }
+  def parse_games(doc: Document, current_year: Year, eoy_rank: Int):
+    Either[List[ParseError], List[Game]] =
+  {
+    game_summary_builders.table_finder(doc).map { rows =>
+      val fields = game_summary_builders.fields(current_year, eoy_rank)
+      val games_or_errors = rows.map { row =>
+        object games_extractor extends HtmlExtractorMapper {
+          override val root = row
+        }
+        ParseUtils.sequence_kv_results(fields map games_extractor).right.map(
+          game_summary_builders.game_model.from(_)
+        )
+      } //returns List[Either[List[ParseError, Game]]]
 
+      ParseUtils.sequence_results(games_or_errors)
+
+    }.getOrElse(
+      Left(List(ParseUtils.build_sub_error(`parent_fills_in`)(
+        s"Could not find game table"
+      )))
+    )
+  }
 }
 object GameParser extends GameParser

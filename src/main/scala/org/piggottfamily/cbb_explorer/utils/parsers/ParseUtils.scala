@@ -140,16 +140,4 @@ object ParseUtils {
       case l   => Left(l)
     }
   }
-
-  /**TODO Can't find the right variant of cats traverse for this */
-  def sequence_results[A](in: List[Either[List[ParseError], A]]):
-    Either[List[ParseError], List[A]] = {
-      val init: Either[List[ParseError], List[A]] = Right(Nil)
-      in.foldLeft(init) {
-        case (Right(la), Right(a)) => Right(a :: la)
-        case (Right(_), Left(new_le)) => Left(new_le)
-        case (Left(old_le), Right(_)) => Left(old_le)
-        case (Left(old_le), Left(new_le)) => Left(new_le ::: old_le)
-      }
-    }
 }

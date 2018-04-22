@@ -103,12 +103,13 @@ trait GameParser {
   protected def parse_score(score_str: String):
     Either[ParseError, Game.Score] = score_str match
   {
-    case ScoreRegex(won_str, first_str, second_str) => //(strs are ints by regex construction)
-      Right((first_str.toInt, second_str.toInt))
-        .right.map { case (a, b) => (Math.max(a, b), Math.min(a, b)) }
+    case ScoreRegex(won_str, high_str, low_str) => //(strs are ints by regex construction)
+      Right((high_str.toInt, low_str.toInt))
         .right.map {
-          case (a, b) if won_str == "W" => Game.Score(a, b)
-          case (a, b) => Game.Score(b, a)
+          case high_low if won_str == "W" => high_low
+          case high_low => high_low.swap
+        }.right.map {
+          (Game.Score.apply _).tupled(_)
         }
       case _ =>
         Left(ParseUtils.build_sub_error(nameOf[Game](_.score))(
@@ -164,7 +165,7 @@ trait GameParser {
         )
       } //returns List[Either[List[ParseError, Game]]]
 
-      ParseUtils.sequence_results(games_or_errors)
+      games_or_errors.parSequence // returns Either[List[ParseError], List[Game]]
 
     }.getOrElse(
       Left(List(ParseUtils.build_sub_error(`parent_fills_in`)(

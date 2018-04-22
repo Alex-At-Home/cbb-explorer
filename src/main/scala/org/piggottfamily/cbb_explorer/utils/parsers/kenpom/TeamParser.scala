@@ -23,7 +23,8 @@ trait TeamParser {
   import ExtractorUtils._
 
   protected val `kenpom.parse_team` = "kenpom.parse_team"
-  protected val `kenpom.parse_team.parse_game` = "kenpom.parse_team.parse_game"
+  protected val `kenpom.parse_team.parse_games` = "kenpom.parse_team.parse_games"
+  protected val `kenpom.parse_team.parse_players` = "kenpom.parse_team.parse_players"
 
   /** Injected dependency of parsing game info */
   protected def game_parser = GameParser
@@ -164,6 +165,7 @@ trait TeamParser {
     val doc_request_builder = ParseUtils.build_request[Document](`kenpom.parse_team`, filename) _
     val single_error_completer = ParseUtils.enrich_sub_error(`kenpom.parse_team`, filename) _
     val multi_error_completer = ParseUtils.enrich_sub_errors(`kenpom.parse_team`, filename) _
+    val game_completer = ParseUtils.enrich_sub_errors(`kenpom.parse_team.parse_games`, filename) _
 
     for {
       doc <- doc_request_builder(browser.parseString(in))
@@ -192,7 +194,7 @@ trait TeamParser {
       // (Games depends on metrics + year)
       games <- game_parser.parse_games(
         doc, team_season.year, metrics.adj_margin.rank
-      )
+      ).left.map(game_completer)
 
     } yield ParseResponse({
       var f: TeamSeason = null // (just used to infer type in "nameOf")
@@ -263,7 +265,7 @@ trait TeamParser {
           })
 
       table_tuple <- (season_stats_table_or_error, conf_stats_table_or_error).parMapN((_, _))
-      (season_stats_table, conf_stats_table) = table_tuple
+      (season_stats_table, conf_stats_table) = table_tuple //SI-5589
 
       // Season stats is split into top level, offense, defense
 
@@ -291,7 +293,7 @@ trait TeamParser {
             builders.season_stats_def map extractor
           ) ::
           HNil
-        }.map(enricher).tupled.parMapN((_, _, _))
+        }.map(enricher).tupled.parMapN((_, _, _)) //SI-5589
       }
 
       (

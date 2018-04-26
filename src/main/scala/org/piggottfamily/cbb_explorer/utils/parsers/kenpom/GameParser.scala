@@ -88,8 +88,9 @@ trait GameParser {
   protected def parse_date(date_str: String, current_year: Year):
     Either[ParseError, DateTime] =
   {
+    //TODO: need to increment year if <June
     Try(formatter.parseDateTime(s"$date_str ${current_year.value}"))
-      .map(Right(_))
+      .map(Right(_.withTime(12, 0, 0, 0)))
       .getOrElse(
         Left(ParseUtils.build_sub_error(nameOf[Game](_.date))(
           s"Unexpected date format: [$date_str]"
@@ -141,9 +142,9 @@ trait GameParser {
       case Some("https://kenpom.com/assets/b.gif") =>
         Right(Game.TierType.B)
       case _ =>
-      Left(ParseUtils.build_sub_error(nameOf[Game](_.tier))(
-        s"Unrecognized tier element: [${element.outerHtml}]"
-      ))
+        Left(ParseUtils.build_sub_error(nameOf[Game](_.tier))(
+          s"Unrecognized tier element: [${element.outerHtml}]"
+        ))
     }
   }
 
@@ -160,6 +161,7 @@ trait GameParser {
         object games_extractor extends HtmlExtractorMapper {
           override val root = row
         }
+        //TODO: extract team name first so we can use it in errors
         ParseUtils.sequence_kv_results(fields map games_extractor).right.map(
           game_summary_builders.game_model.from(_)
         )

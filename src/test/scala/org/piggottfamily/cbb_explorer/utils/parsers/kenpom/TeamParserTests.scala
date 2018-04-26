@@ -1,7 +1,6 @@
 package org.piggottfamily.cbb_explorer.utils.parsers.kenpom
 
 import utest._
-import shapeless._
 import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.utils.parsers._
 import org.piggottfamily.cbb_explorer.utils.TestUtils
@@ -21,17 +20,6 @@ import syntax.singleton._
 
 object TeamParserTests extends TestSuite with TeamParser {
   import ExtractorUtils._
-
-  def get_doc(html: String): Document = {
-    val browser = JsoupBrowser()
-    browser.parseString(html)
-  }
-  def with_doc(html: String)(test: Document => Unit): Unit = {
-    val doc = get_doc(html)
-    test(doc)
-  }
-
-  //TODO add tests for the 2 extractors (and don't forget sequence_kv_results in ParseUtilsTests)
 
   val tests = Tests {
     "TeamParser" - {

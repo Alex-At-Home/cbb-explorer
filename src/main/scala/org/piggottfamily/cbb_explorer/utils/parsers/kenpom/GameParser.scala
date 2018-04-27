@@ -33,14 +33,24 @@ trait GameParser {
   protected object game_summary_builders {
 
     def table_finder(doc: Document): Option[List[Element]] =
-      doc >?> elementList("table[id=schedule-table] > tbody > tl")
+      (doc >?> elementList("table[id=schedule-table] tbody tr:has(td.pace)")).filter(_.nonEmpty)
 
     val game_model = LabelledGeneric[Game]
+
+    /** Find the opponent out of band */
+    val opponent_finder = {
+      var f: Game = null  // (just used to infer type in "nameOf")
+      Symbol(nameOf(f.opponent)) ->> HtmlExtractor(
+        el => el >?> element("a[href^=team]"),
+        el => Right(TeamSeasonId(TeamId(el.text), Year(0))) //(year is not used)
+      ) ::
+      HNil
+    }
 
     def fields(current_year: Year, eoy_rank: Int) = {
       var f: Game = null  // (just used to infer type in "nameOf")
       Symbol(nameOf(f.opponent)) ->> HtmlExtractor(
-        el => el >?> element("a[href^=team.php]"),
+        el => el >?> element("a[href^=team]"),
         el => Right(TeamSeasonId(TeamId(el.text), current_year))
       ) ::
       Symbol(nameOf(f.date)) ->> HtmlExtractor(
@@ -74,7 +84,7 @@ trait GameParser {
         el => parse_location_type(el.text)
       ) ::
       Symbol(nameOf(f.tier)) ->> HtmlExtractor(
-        el => el >?> element("img"),
+        el => el >?> element("img[src]"),
         el => parse_tier(el),
         fallback = Some(Game.TierType.C)
       ) ::
@@ -82,20 +92,33 @@ trait GameParser {
     }
   }
 
-  private val formatter = DateTimeFormat.forPattern("EEE MMM dd yyyy")
+  private val pre_formatter = ".*[A-Za-z]+ ([A-Za-z]+ *[0-9]+).*".r //(discard dow)
+  private val formatter = DateTimeFormat.forPattern("MMM dd yyyy")
 
   /** Parse Kenpom format dates eg "Mon Nov 16" into date times */
   protected def parse_date(date_str: String, current_year: Year):
     Either[ParseError, DateTime] =
   {
-    //TODO: need to increment year if <June
-    Try(formatter.parseDateTime(s"$date_str ${current_year.value}"))
-      .map(Right(_.withTime(12, 0, 0, 0)))
-      .getOrElse(
-        Left(ParseUtils.build_sub_error(nameOf[Game](_.date))(
-          s"Unexpected date format: [$date_str]"
-        ))
-      )
+    (date_str match {
+      case pre_formatter(formatted_date_str) => Some(formatted_date_str)
+      case _ => None
+    }).flatMap { formatted_date_str =>
+      Try(
+        formatter.parseDateTime(s"$formatted_date_str ${current_year.value}")
+      ).toOption
+    }.map(dateOnly =>
+      if (dateOnly.monthOfYear.get < 6) {
+        dateOnly.withYear(current_year.value + 1)
+      } else {
+        dateOnly
+      }
+    ).map(dateOnly =>
+      Right(dateOnly.withTime(12, 0, 0, 0))
+    ).getOrElse(
+      Left(ParseUtils.build_sub_error(nameOf[Game](_.date))(
+        s"Unexpected date format: [$date_str]"
+      ))
+    )
   }
 
   private val ScoreRegex = "[^WL]*([WL])[^0-9]*([0-9]+)[-]([0-9]+).*".r
@@ -141,9 +164,13 @@ trait GameParser {
         Right(Game.TierType.A)
       case Some("https://kenpom.com/assets/b.gif") =>
         Right(Game.TierType.B)
-      case _ =>
+      case Some(unrecognized_image) =>
         Left(ParseUtils.build_sub_error(nameOf[Game](_.tier))(
-          s"Unrecognized tier element: [${element.outerHtml}]"
+          s"Unrecognized tier value: [$unrecognized_image]"
+        ))
+      case None => //(shouldn't happen because src is part of the attribute)
+        Left(ParseUtils.build_sub_error(nameOf[Game](_.tier))(
+          s"Unrecognized tier element: [${element.innerHtml}] [${element.attrs}]"
         ))
     }
   }
@@ -161,11 +188,22 @@ trait GameParser {
         object games_extractor extends HtmlExtractorMapper {
           override val root = row
         }
-        //TODO: extract team name first so we can use it in errors
-        ParseUtils.sequence_kv_results(fields map games_extractor).right.map(
-          game_summary_builders.game_model.from(_)
-        )
-      } //returns List[Either[List[ParseError, Game]]]
+        for {
+          opponent <-
+            (game_summary_builders.opponent_finder map games_extractor)
+              .head.left.map(single_error_enricher(`parent_fills_in`))
+
+          game_error_enricher = multi_error_enricher(opponent.team.name)
+          game_info <-
+            ParseUtils.sequence_kv_results(fields map games_extractor)
+              .right.map(
+                game_summary_builders.game_model.from(_)
+              ).left.map(
+                game_error_enricher
+              )
+        } yield game_info // returns Either[List[ParseError], Game]
+
+      } //returns List[Either[List[ParseError], Game]]
 
       games_or_errors.parSequence // returns Either[List[ParseError], List[Game]]
 

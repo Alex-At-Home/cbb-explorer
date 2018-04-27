@@ -31,11 +31,11 @@ object ExtractorUtilsTests extends TestSuite {
     v
   }
 
-  private def get_doc(html: String): Document = {
+  protected [kenpom] def get_doc(html: String): Document = {
     val browser = JsoupBrowser()
     browser.parseString(html)
   }
-  private def with_doc(html: String)(test: Document => Unit): Unit = {
+  protected [kenpom] def with_doc(html: String)(test: Document => Unit): Unit = {
     val doc = get_doc(html)
     test(doc)
   }

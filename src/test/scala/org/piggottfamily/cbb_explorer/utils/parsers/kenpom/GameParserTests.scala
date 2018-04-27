@@ -17,18 +17,59 @@ import shapeless.labelled._
 import record._
 import ops.record._
 import syntax.singleton._
+import org.joda.time.DateTime
 
-object TeamParserTests extends TestSuite with TeamParser {
+object GameParserTests extends TestSuite with GameParser {
   import ExtractorUtils._
+  import ExtractorUtilsTests._
 
-  def get_doc(html: String): Document = {
-    val browser = JsoupBrowser()
-    browser.parseString(html)
-  }
-  def with_doc(html: String)(test: Document => Unit): Unit = {
-    val doc = get_doc(html)
-    test(doc)
-  }
+  /** The expected team games pulled from the same team HTML file */
+  protected [kenpom] val expected_team_games =
+    Game(
+      opponent = TeamSeasonId(TeamId("OpponentA"), Year(2010)),
+      date = new DateTime(2010, 11, 16, 12, 0, 0, 0), // Nov 16
+      won = false,
+      score = Game.Score(55, 63),
+      pace = 72,
+      rank = 36,
+      opp_rank = 111,
+      location_type =  Game.LocationType.Away,
+      tier = Game.TierType.B
+    ) ::
+    Game(
+      opponent = TeamSeasonId(TeamId("Opponent B"), Year(2010)),
+      date = new DateTime(2010, 11, 20, 12, 0, 0, 0), //Nov 20
+      won = true,
+      score = Game.Score(76, 66),
+      pace = 74,
+      rank = 11,
+      opp_rank = 222,
+      location_type =  Game.LocationType.Home,
+      tier = Game.TierType.C
+    ) ::
+    Game(
+      opponent = TeamSeasonId(TeamId("ConfOppC"), Year(2010)),
+      date = new DateTime(2011, 1, 5, 12, 0, 0, 0), //Jan 5
+      won = false,
+      score = Game.Score(76, 78),
+      pace = 78,
+      rank = 11,
+      opp_rank = 150,
+      location_type =  Game.LocationType.Away,
+      tier = Game.TierType.C
+    ) ::
+    Game(
+      opponent = TeamSeasonId(TeamId("Conf Opp D"), Year(2010)),
+      date = new DateTime(2011, 1, 11, 12, 0, 0, 0), //Jan 11
+      won = false,
+      score = Game.Score(58, 74),
+      pace = 70,
+      rank = 11,
+      opp_rank = 22,
+      location_type =  Game.LocationType.Home,
+      tier = Game.TierType.A
+    ) ::
+    Nil
 
   val tests = Tests {
     "GameParser" - {
@@ -36,10 +77,16 @@ object TeamParserTests extends TestSuite with TeamParser {
         TestUtils.inside(parse_date("nonsense", Year(2018))) {
           case Left(ParseError(_, "[date]", _)) =>
         }
-        TestUtils.inside(parse_date("Mon Feb 1", Year(2015))) {
+        TestUtils.inside(parse_date("Mon Feb 2", Year(2015))) {
           case Right(date) =>
-            date.dayOfMonth.get ==> 1
+            date.dayOfMonth.get ==> 2
             date.monthOfYear.get ==> 2
+            date.year.get ==> 2016
+        }
+        TestUtils.inside(parse_date("Rabbit Aug 2", Year(2015))) {
+          case Right(date) =>
+            date.dayOfMonth.get ==> 2
+            date.monthOfYear.get ==> 8
             date.year.get ==> 2015
         }
       }
@@ -51,10 +98,10 @@ object TeamParserTests extends TestSuite with TeamParser {
           case Left(ParseError(_, "[score]", _)) =>
         }
         TestUtils.inside(parse_score("L, 63-55")) {
-          case Right(Score(55, 63)) =>
+          case Right(Game.Score(55, 63)) =>
         }
         TestUtils.inside(parse_score("  W 63-55")) {
-          case Right(Score(63, 55)) =>
+          case Right(Game.Score(63, 55)) =>
         }
       }
       "parse_location_type" - {
@@ -62,7 +109,7 @@ object TeamParserTests extends TestSuite with TeamParser {
           "Home" :: "Away" :: "Neutral" :: "Semi-Home" :: "Semi-Away" :: Nil
 
         TestUtils.inside(parse_location_type("rubbish")) {
-          case Left(ParseUtils(_, "[location_type]", _)) =>
+          case Left(ParseError(_, "[location_type]", _)) =>
         }
         supported_locations.foreach { location_str =>
           TestUtils.inside(parse_location_type(location_str)) {
@@ -75,19 +122,28 @@ object TeamParserTests extends TestSuite with TeamParser {
         }
       }
       "parse_tier" - {
-        with_doc("<img/>") { doc =>
-          TestUtils.inside(parse_tier(doc.root)) {
-            case Left(ParseUtils(_, "[tier]")) =>
+        def with_image(s: String)(test: Element => Unit) =
+          with_doc(s) { doc =>
+            test((doc >?> element("img")).get)
+          }
+        with_image("<img/>") { img_el =>
+          TestUtils.inside(parse_tier(img_el)) {
+            case Left(ParseError(_, "[tier]", _)) =>
           }
         }
-        with_doc("<img src='https://kenpom.com/assets/a.gif'>") { doc =>
-          TestUtils.inside(parse_tier(doc.root)) {
-            case Right(Game.TierType.A)
+        with_image("<img src='wrong_image'/>") { img_el =>
+          TestUtils.inside(parse_tier(img_el)) {
+            case Left(ParseError(_, "[tier]", _)) =>
           }
         }
-        with_doc("<img src='https://kenpom.com/assets/b.gif'>") { doc =>
-          TestUtils.inside(parse_tier(doc.root)) {
-            case Right(Game.TierType.B)
+        with_image("<img src='https://kenpom.com/assets/a.gif'/>") { img_el =>
+          TestUtils.inside(parse_tier(img_el)) {
+            case Right(Game.TierType.A) =>
+          }
+        }
+        with_image("<img src='https://kenpom.com/assets/b.gif'/>") { img_el =>
+          TestUtils.inside(parse_tier(img_el)) {
+            case Right(Game.TierType.B) =>
           }
         }
       }
@@ -105,71 +161,31 @@ object TeamParserTests extends TestSuite with TeamParser {
             .replace("150</span>", "xxx150</span>")
             .replace("https://kenpom.com/assets/a.gif", "https://kenpom.com/assets/X.gif")
 
+          val bad_html_name = good_html
+            .replace("href=\"team", "href=\"bean")
+
           with_doc(good_html) { doc =>
             val expected = GameParserTests.expected_team_games
             TestUtils.inside(parse_games(doc, Year(2010), 11)) {
               case Right(`expected`) =>
             }
           }
-          //TODO: test case where name is bad
           with_doc(bad_html) { doc =>
             TestUtils.inside(parse_games(doc, Year(2010), 11)) {
               case Left(List(
-                ParseUtils("", "[ConfOppC][opp_rank]", _),
-                ParseUtils("", "[Conf Opp D][tier]", _)
+                ParseError("", "[ConfOppC][opp_rank]", _),
+                ParseError("", "[Conf Opp D][tier]", _)
               )) =>
+            }
+          }
+          with_doc(bad_html_name) { doc =>
+            TestUtils.inside(parse_games(doc, Year(2010), 11)) {
+              case Left(name_errors) =>
+                name_errors.foreach { _ ==> "[opponent]"}
             }
           }
         }
       }
     }
   }
-}
-object GameParserTests {
-  val expected_team_games =
-    Game(
-      opponent = TeamSeasonId("OpponentA"),
-      date = new DateTime(2010, 11, 16, 12, 0, 0, 0), // Nov 16
-      won = false,
-      score = Game.Score(55, 63),
-      pace = 72,
-      rank = 36,
-      opp_rank = 111,
-      location_type =  Game.LocationType.Away,
-      tier = Game.TierType.B
-    ) ::
-    Game(
-      opponent = TeamSeasonId("Opponent B"),
-      date = new DateTime(2010, 11, 20, 12, 0, 0, 0), //Nov 20
-      won = true,
-      score = Game.Score(76, 66),
-      pace = 74,
-      rank = 11,
-      opp_rank = 222,
-      location_type =  Game.LocationType.Home,
-      tier = Game.TierType.C
-    ) ::
-    Game(
-      opponent = TeamSeasonId("ConfOppC"),
-      date = new DateTime(2011, 1, 5, 12, 0, 0, 0), //Jan 5
-      won = false,
-      score = Game.Score(76, 78),
-      pace = 78,
-      rank = 11,
-      opp_rank = 150,
-      location_type =  Game.LocationType.Away,
-      tier = Game.TierType.C
-    ) ::
-    Game(
-      opponent = TeamSeasonId("Conf Opp D"),
-      date = new DateTime(2011, 1, 11, 12, 0, 0, 0), //Jan 11
-      won = false,
-      score = Game.Score(58, 74),
-      pace = 70,
-      rank = 11,
-      opp_rank = 22,
-      location_type =  Game.LocationType.Home,
-      tier = Game.TierType.A
-    ) ::
-    Nil
 }

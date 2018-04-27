@@ -4,6 +4,7 @@ import utest._
 import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.utils.parsers._
 import org.piggottfamily.cbb_explorer.utils.TestUtils
+import org.piggottfamily.cbb_explorer.utils.parsers.kenpom.GameParserTests.expected_team_games
 import net.ruippeixotog.scalascraper.browser.JsoupBrowser
 import net.ruippeixotog.scalascraper.dsl.DSL._
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
@@ -20,6 +21,7 @@ import syntax.singleton._
 
 object TeamParserTests extends TestSuite with TeamParser {
   import ExtractorUtils._
+  import ExtractorUtilsTests._
 
   val tests = Tests {
     "TeamParser" - {
@@ -179,11 +181,13 @@ object TeamParserTests extends TestSuite with TeamParser {
           val bad_filename_id = s"[$bad_filename]"
           val root_prefix = "kenpom.parse_team"
 
+          //TODO: should include a bad test from the game parser
+
           TestUtils.inside(parse_team(good_html, good_filename, Year(2000))) {
             case Right(ParseResponse(TeamSeason(
               TeamSeasonId(TeamId("TestTeam"), Year(2010)),
               `expected_team_stats`,
-              Nil,
+              GameParserTests.expected_team_games,
               players,
               CoachId("Coach Name"),
               ConferenceId("Atlantic Coast Conference")

@@ -43,11 +43,11 @@ trait TeamParser {
       // Note this list has to be in order of parameters in TeamSeasonStats
       // (compile error otherwise)
       Symbol(nameOf(f.coach)) ->> HtmlExtractor(
-        e => (e >?> element("span[class=coach]") >?> element("a")).flatten,
+        e => e >?> element("span[class=coach] a"),
         e => Right(CoachId(e.text))
       ) ::
       Symbol(nameOf(f.conf)) ->> HtmlExtractor(
-        e => (e >?> element("span[class=otherinfo]") >?> element("a")).flatten,
+        e => e >?> element("span[class=otherinfo] a"),
         e => Right(ConferenceId(e.text))
       ) ::
       HNil
@@ -84,8 +84,8 @@ trait TeamParser {
     val season_stats_sos = {
       var f: TeamSeasonStats.StrengthOfSchedule = null // (just used to infer type in "nameOf")
       def common_extractor(title: String, e: Element, skip: Int = 0): Option[Element] = {
-        (e >?> element(s"tr:contains($title)") >?> elementList("td"))
-          .flatten.getOrElse(Nil).drop(1 + skip).headOption
+        (e >?> elementList(s"tr:contains($title) td"))
+          .getOrElse(Nil).drop(1 + skip).headOption
       }
       Symbol(nameOf(f.off)) ->> HtmlMetricExtractor(
         e => common_extractor("components:", e)
@@ -104,8 +104,8 @@ trait TeamParser {
     val season_stats_personnel = {
       var f: TeamSeasonStats.Personnel = null // (just used to infer type in "nameOf")
       def common_extractor(title: String, e: Element): Option[Element] = {
-        (e >?> element(s"tr:contains($title)") >?> elementList("td"))
-          .flatten.getOrElse(Nil).drop(1).headOption
+        (e >?> elementList(s"tr:contains($title) td"))
+          .getOrElse(Nil).drop(1).headOption
       }
       Symbol(nameOf(f.bench_mins_pct)) ->> HtmlMetricExtractor(
         e => common_extractor("bench minutes:", e)
@@ -126,7 +126,7 @@ trait TeamParser {
       // Note this list has to be in order of parameters in TeamSeasonStats
       // (compile error otherwise)
       Symbol(nameOf(f.adj_margin)) ->> HtmlExtractor(
-        e => (e >?> element("div[id=title-container]") >?> element("span[class=rank]")).flatten,
+        e => e >?> element("div[id=title-container] span[class=rank]"),
         e => ParseUtils.parse_rank(Some(e.text)).map(Metric(Metric.no_value, _))
       ) ::
       Symbol(nameOf(f.adj_off)) ->> ScriptMetricExtractor("td#OE") ::

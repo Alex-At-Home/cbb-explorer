@@ -24,7 +24,7 @@ object GameParserTests extends TestSuite with GameParser {
   import ExtractorUtilsTests._
 
   /** The expected team games pulled from the same team HTML file */
-  protected [kenpom] val expected_team_games =
+  protected [kenpom] def expected_team_games(eoy_rank: Int): List[Game] =
     Game(
       opponent = TeamSeasonId(TeamId("OpponentA"), Year(2010)),
       date = new DateTime(2010, 11, 16, 12, 0, 0, 0), // Nov 16
@@ -42,7 +42,7 @@ object GameParserTests extends TestSuite with GameParser {
       won = true,
       score = Game.Score(76, 66),
       pace = 74,
-      rank = 11,
+      rank = eoy_rank,
       opp_rank = 222,
       location_type =  Game.LocationType.Home,
       tier = Game.TierType.C
@@ -53,7 +53,7 @@ object GameParserTests extends TestSuite with GameParser {
       won = false,
       score = Game.Score(76, 78),
       pace = 78,
-      rank = 11,
+      rank = eoy_rank,
       opp_rank = 150,
       location_type =  Game.LocationType.Away,
       tier = Game.TierType.C
@@ -64,7 +64,7 @@ object GameParserTests extends TestSuite with GameParser {
       won = false,
       score = Game.Score(58, 74),
       pace = 70,
-      rank = 11,
+      rank = eoy_rank,
       opp_rank = 22,
       location_type =  Game.LocationType.Home,
       tier = Game.TierType.A
@@ -75,27 +75,23 @@ object GameParserTests extends TestSuite with GameParser {
     "GameParser" - {
       "parse_date" - {
         TestUtils.inside(parse_date("nonsense", Year(2018))) {
-          case Left(ParseError(_, "[date]", _)) =>
+          case Left(ParseError(_, "", _)) =>
         }
         TestUtils.inside(parse_date("Mon Feb 2", Year(2015))) {
           case Right(date) =>
-            date.dayOfMonth.get ==> 2
-            date.monthOfYear.get ==> 2
-            date.year.get ==> 2016
+            date ==> new DateTime(2016, 2, 2, 12, 0, 0, 0)
         }
         TestUtils.inside(parse_date("Rabbit Aug 2", Year(2015))) {
           case Right(date) =>
-            date.dayOfMonth.get ==> 2
-            date.monthOfYear.get ==> 8
-            date.year.get ==> 2015
+            date ==> new DateTime(2015, 8, 2, 12, 0, 0, 0)
         }
       }
       "parse_score" - {
         TestUtils.inside(parse_score("nonsense")) {
-          case Left(ParseError(_, "[score]", _)) =>
+          case Left(ParseError(_, "", _)) =>
         }
         TestUtils.inside(parse_score("63-55")) {
-          case Left(ParseError(_, "[score]", _)) =>
+          case Left(ParseError(_, "", _)) =>
         }
         TestUtils.inside(parse_score("L, 63-55")) {
           case Right(Game.Score(55, 63)) =>
@@ -109,7 +105,7 @@ object GameParserTests extends TestSuite with GameParser {
           "Home" :: "Away" :: "Neutral" :: "Semi-Home" :: "Semi-Away" :: Nil
 
         TestUtils.inside(parse_location_type("rubbish")) {
-          case Left(ParseError(_, "[location_type]", _)) =>
+          case Left(ParseError(_, "", _)) =>
         }
         supported_locations.foreach { location_str =>
           TestUtils.inside(parse_location_type(location_str)) {
@@ -128,12 +124,12 @@ object GameParserTests extends TestSuite with GameParser {
           }
         with_image("<img/>") { img_el =>
           TestUtils.inside(parse_tier(img_el)) {
-            case Left(ParseError(_, "[tier]", _)) =>
+            case Left(ParseError(_, "", _)) =>
           }
         }
         with_image("<img src='wrong_image'/>") { img_el =>
           TestUtils.inside(parse_tier(img_el)) {
-            case Left(ParseError(_, "[tier]", _)) =>
+            case Left(ParseError(_, "", _)) =>
           }
         }
         with_image("<img src='https://kenpom.com/assets/a.gif'/>") { img_el =>
@@ -165,8 +161,9 @@ object GameParserTests extends TestSuite with GameParser {
             .replace("href=\"team", "href=\"bean")
 
           with_doc(good_html) { doc =>
-            val expected = GameParserTests.expected_team_games
-            TestUtils.inside(parse_games(doc, Year(2010), 11)) {
+            val eoy_rank = 11
+            val expected = GameParserTests.expected_team_games(eoy_rank)
+            TestUtils.inside(parse_games(doc, Year(2010), eoy_rank)) {
               case Right(`expected`) =>
             }
           }
@@ -181,7 +178,7 @@ object GameParserTests extends TestSuite with GameParser {
           with_doc(bad_html_name) { doc =>
             TestUtils.inside(parse_games(doc, Year(2010), 11)) {
               case Left(name_errors) =>
-                name_errors.foreach { _ ==> "[opponent]"}
+                name_errors.foreach { _.id ==> "[opponent]" }
             }
           }
         }

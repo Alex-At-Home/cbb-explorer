@@ -51,6 +51,10 @@ object ExtractorUtilsTests extends TestSuite {
           e => (e >?> element("span[class=coach]") >?> element("a")).flatten,
           e => Right(CoachId(e.text))
         )
+        val erroring_extractor = HtmlExtractor(
+          e => (e >?> element("span[class=coach]") >?> element("a")).flatten,
+          e => Left(ParseError("", "[last]", Nil))
+        )
         val good_doc = """ <span class="coach">Head coach: <a href="test">CoachName</a></span> """
         val bad_doc = """ <span class="team"><div><a>CoachName</a></div></span> """
 
@@ -66,6 +70,14 @@ object ExtractorUtilsTests extends TestSuite {
                 show_value(good_result) ==> Right(CoachId("CoachName"))
                 show_key(good_result) ==> 'coach
             }
+            TestUtils.inside(
+              'coach ->> erroring_extractor :: HNil map mapper
+            ) {
+              case bad_result :: HNil =>
+                TestUtils.inside(show_value(bad_result)) {
+                  case Left(List(ParseError("", "[coach][last]", _))) =>
+                }
+            }
           }
           with_doc(bad_doc) { doc =>
             object mapper extends HtmlExtractorMapper {
@@ -76,7 +88,7 @@ object ExtractorUtilsTests extends TestSuite {
             ) {
               case bad_result :: HNil =>
                 TestUtils.inside(show_value(bad_result)) {
-                  case Left(ParseError("", "[coach]", _)) =>
+                  case Left(List(ParseError("", "[coach]", _))) =>
                 }
             }
           }
@@ -89,7 +101,7 @@ object ExtractorUtilsTests extends TestSuite {
           }
           with_doc(bad_doc) { doc =>
             TestUtils.inside(parse_html(doc.root, extractor, "coach")) {
-              case Left(ParseError("", "[coach]", _)) =>
+              case Left(List(ParseError("", "[coach]", _))) =>
             }
           }
         }

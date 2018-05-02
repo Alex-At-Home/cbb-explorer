@@ -179,19 +179,31 @@ object TeamParserTests extends TestSuite with TeamParser {
           val good_filename_id = s"[$good_filename]"
           val bad_filename = "bad_filename"
           val bad_filename_id = s"[$bad_filename]"
-          val root_prefix = "kenpom.parse_team"
+          val root_prefix = `kenpom.parse_team`
+          val game_prefix = `kenpom.parse_team.parse_games`
 
-          //TODO: should include a bad test from the game parser
+          // Check that the right location is applied to errors from
+          // games (see GameParserTests for details)
+          val bad_team_html = good_html
+            .replace("150</span>", "xxx150</span>")
 
+          val expected_team_games = GameParserTests.expected_team_games(
+            expected_team_stats.adj_margin.rank
+          )
           TestUtils.inside(parse_team(good_html, good_filename, Year(2000))) {
             case Right(ParseResponse(TeamSeason(
               TeamSeasonId(TeamId("TestTeam"), Year(2010)),
               `expected_team_stats`,
-              GameParserTests.expected_team_games,
+              `expected_team_games`,
               players,
               CoachId("Coach Name"),
               ConferenceId("Atlantic Coast Conference")
             ), Nil)) if players.isEmpty =>
+          }
+          TestUtils.inside(parse_team(bad_team_html, good_filename, Year(2000))) {
+            case Left(l @ List(
+              ParseError(`game_prefix`, _, _)
+            )) =>
           }
           TestUtils.inside(parse_team("<>bad<ht>ml", good_filename, Year(2000))) {
             case Left(l @ List(

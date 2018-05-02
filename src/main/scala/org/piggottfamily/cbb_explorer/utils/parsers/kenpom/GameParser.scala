@@ -68,16 +68,16 @@ trait GameParser {
       ) ::
       Symbol(nameOf(f.pace)) ->> HtmlExtractor(
         el => el >?> element("td.pace"),
-        el => ParseUtils.parse_rank(Some(el.text)) //(lazily re-use the int parser)
+        el => ParseUtils.build_sub_request[Int](`parent_fills_in`)(el.text.toInt)
       ) ::
       Symbol(nameOf(f.rank)) ->> HtmlExtractor(
-        el => el >?> element("span[class=seed-grey]"),
-        el => ParseUtils.parse_rank(Some(el.text)),
+        el => el >?> element("span.seed-gray"),
+        el => ParseUtils.build_sub_request[Int](`parent_fills_in`)(el.text.toInt),
         fallback = Some(eoy_rank)
       ) ::
       Symbol(nameOf(f.opp_rank)) ->> HtmlExtractor(
-        el => el >?> element("span[class=seed]"),
-        el => ParseUtils.parse_rank(Some(el.text))
+        el => el >?> element("span.seed"),
+        el => ParseUtils.build_sub_request[Int](`parent_fills_in`)(el.text.toInt)
       ) ::
       Symbol(nameOf(f.location_type)) ->> HtmlExtractor(
         el => el >?> element("td:matches(Home|Away|Neutral|Semi-Home|Semi-Away)"),
@@ -115,7 +115,7 @@ trait GameParser {
     ).map(dateOnly =>
       Right(dateOnly.withTime(12, 0, 0, 0))
     ).getOrElse(
-      Left(ParseUtils.build_sub_error(nameOf[Game](_.date))(
+      Left(ParseUtils.build_sub_error(`parent_fills_in`)(
         s"Unexpected date format: [$date_str]"
       ))
     )
@@ -136,7 +136,7 @@ trait GameParser {
           (Game.Score.apply _).tupled(_)
         }
       case _ =>
-        Left(ParseUtils.build_sub_error(nameOf[Game](_.score))(
+        Left(ParseUtils.build_sub_error(`parent_fills_in`)(
           s"Unrecognized score, expecting '[WL], ptsW-ptsL', got: [$score_str]"
         ))
   }
@@ -150,7 +150,7 @@ trait GameParser {
       case "Semi-Home" => Right(Game.LocationType.SemiHome)
       case "Semi-Away" => Right(Game.LocationType.SemiAway)
       case _ =>
-        Left(ParseUtils.build_sub_error(nameOf[Game](_.location_type))(
+        Left(ParseUtils.build_sub_error(`parent_fills_in`)(
           s"Unrecognized location type: [$location_str]"
         ))
     }
@@ -165,11 +165,11 @@ trait GameParser {
       case Some("https://kenpom.com/assets/b.gif") =>
         Right(Game.TierType.B)
       case Some(unrecognized_image) =>
-        Left(ParseUtils.build_sub_error(nameOf[Game](_.tier))(
+        Left(ParseUtils.build_sub_error(`parent_fills_in`)(
           s"Unrecognized tier value: [$unrecognized_image]"
         ))
       case None => //(shouldn't happen because src is part of the attribute)
-        Left(ParseUtils.build_sub_error(nameOf[Game](_.tier))(
+        Left(ParseUtils.build_sub_error(`parent_fills_in`)(
           s"Unrecognized tier element: [${element.innerHtml}] [${element.attrs}]"
         ))
     }
@@ -191,7 +191,7 @@ trait GameParser {
         for {
           opponent <-
             (game_summary_builders.opponent_finder map games_extractor)
-              .head.left.map(single_error_enricher(`parent_fills_in`))
+              .head.left.map(multi_error_enricher(`parent_fills_in`))
 
           game_error_enricher = multi_error_enricher(opponent.team.name)
           game_info <-

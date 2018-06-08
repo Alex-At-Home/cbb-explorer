@@ -50,20 +50,29 @@ trait TeamParser {
         e => e >?> element("span[class=otherinfo] a"),
         e => Right(ConferenceId(e.text))
       ) ::
+      Symbol(nameOf(f.ncaa_seed)) ->> HtmlExtractor(
+        e => e >?> element("td[class=label]:regex(NCAA Tournament.*)"),
+        e => parse_ncaa_seed(e.text),
+        fallback = Some(None) // ie do have a fallback, T=Option[Seed] so the fallback is none
+      ) ::
       HNil
     }
+
 
     val season_stats_model = LabelledGeneric[TeamSeasonStats]
     val season_stats_off_def_model = LabelledGeneric[TeamSeasonStats.OffenseDefenseStats]
     val season_stats_sos_model = LabelledGeneric[TeamSeasonStats.StrengthOfSchedule]
     val season_stats_personnel_model = LabelledGeneric[TeamSeasonStats.Personnel]
-    private def season_stats_off_def(off_not_def: Boolean) = {
+    private def season_stats_off_def(off_not_def: Boolean, year: Year) = {
       val prefix = if (off_not_def) "" else "D" //(most parameters differ like this)
       val suffix = if (off_not_def) "O" else "D" //(odd case)
       var f: TeamSeasonStats.OffenseDefenseStats = null // (just used to infer type in "nameOf")
       // Note this list has to be in order of parameters in TeamSeasonStats
       // (compile error otherwise)
-      Symbol(nameOf(f.avg_poss_len)) ->> ScriptMetricExtractor(s"td#APL${suffix}") ::
+      Symbol(nameOf(f.avg_poss_len)) ->> OptionalScriptMetricExtractor(
+        s"td#APL${suffix}",
+        l => if (year.value < 2010) Nil else l, //(data not available pre-2010)
+      ) ::
       Symbol(nameOf(f.eff_fg)) ->> ScriptMetricExtractor(s"td#${prefix}eFG") ::
       Symbol(nameOf(f.to_pct)) ->> ScriptMetricExtractor(s"td#${prefix}TOPct") ::
       Symbol(nameOf(f.orb_pct)) ->> ScriptMetricExtractor(s"td#${prefix}ORPct") ::
@@ -101,7 +110,7 @@ trait TeamParser {
       ) ::
       HNil
     }
-    val season_stats_personnel = {
+    def season_stats_personnel(year: Year) = {
       var f: TeamSeasonStats.Personnel = null // (just used to infer type in "nameOf")
       def common_extractor(title: String, e: Element): Option[Element] = {
         (e >?> elementList(s"tr:contains($title) td"))
@@ -113,15 +122,18 @@ trait TeamParser {
       Symbol(nameOf(f.experience_yrs)) ->> HtmlMetricExtractor(
         e => common_extractor("experience:", e)
       ) ::
-      Symbol(nameOf(f.continuity_pct)) ->> HtmlMetricExtractor(
-        e => common_extractor("minutes continuity", e)
+      Symbol(nameOf(f.continuity_pct)) ->> OptionalHtmlMetricExtractor(
+        e => common_extractor("minutes continuity", e),
+        l => if (year.value < 2008) Nil else l.filter { err => //(data not available pre-2008)
+          err.messages.filterNot(_.contains("N/A")).nonEmpty //(if N/A then just ignore)
+        },
       ) ::
       Symbol(nameOf(f.avg_height_inches)) ->> HtmlMetricExtractor(
         e => common_extractor("average height:", e)
       ) ::
       HNil
     }
-    val season_stats = {
+    def season_stats(year: Year) = {
       var f: TeamSeasonStats = null // (just used to infer type in "nameOf")
       // Note this list has to be in order of parameters in TeamSeasonStats
       // (compile error otherwise)
@@ -135,20 +147,22 @@ trait TeamParser {
       Symbol(nameOf(f.sos)) ->> ChildExtractor(
         season_stats_sos, season_stats_sos_model
       ) ::
-      Symbol(nameOf(f.personnel)) ->> ChildExtractor(
-        season_stats_personnel, season_stats_personnel_model
+      Symbol(nameOf(f.personnel)) ->> OptionalChildExtractor(
+        season_stats_personnel(year),
+        l => if (year.value < 2007) Nil else l, //(data not available pre-2007)
+        season_stats_personnel_model
       ) ::
       //(can't do off and _def as part of HList because the nesting breaks the compiler)
       HNil
     }
-    val season_stats_off = Symbol(nameOf[TeamSeasonStats](_.off)) ->>
+    def season_stats_off(year: Year) = Symbol(nameOf[TeamSeasonStats](_.off)) ->>
       ChildExtractor(
-        season_stats_off_def(off_not_def = true),
+        season_stats_off_def(off_not_def = true, year),
         season_stats_off_def_model
       ) :: HNil
-    val season_stats_def = Symbol(nameOf[TeamSeasonStats](_._def)) ->>
+    def season_stats_def(year: Year) = Symbol(nameOf[TeamSeasonStats](_._def)) ->>
       ChildExtractor(
-        season_stats_off_def(off_not_def = false),
+        season_stats_off_def(off_not_def = false, year),
         season_stats_off_def_model
       ) :: HNil
   }
@@ -182,7 +196,7 @@ trait TeamParser {
       }.left.map(multi_error_completer)
 
       // Get basic ranking and metrics
-      metrics_or_errors = parse_metrics(doc).left.map(multi_error_completer)
+      metrics_or_errors = parse_metrics(doc, team_season.year).left.map(multi_error_completer)
 
       // TODO Get players
 
@@ -241,7 +255,7 @@ trait TeamParser {
   /** Parses out the season and conference metrics from various spots in the HTML
       and (ugh) script functions
   */
-  protected def parse_metrics(doc: Document): Either[List[ParseError], TeamSeasonStats] = {
+  protected def parse_metrics(doc: Document, current_year: Year): Either[List[ParseError], TeamSeasonStats] = {
 
     val root: Either[List[ParseError], Unit] = Right(())
 
@@ -282,15 +296,15 @@ trait TeamParser {
         }
         {
           ParseUtils.sequence_kv_results(
-            builders.season_stats map extractor
+            builders.season_stats(current_year) map extractor
           ) ::
           // (For performance reasons, we write these 2 separately ... the compiler
           //  can't handle nesting these large HLists)
           ParseUtils.sequence_kv_results(
-            builders.season_stats_off map extractor
+            builders.season_stats_off(current_year) map extractor
           ) ::
           ParseUtils.sequence_kv_results(
-            builders.season_stats_def map extractor
+            builders.season_stats_def(current_year) map extractor
           ) ::
           HNil
         }.map(enricher).tupled.parMapN((_, _, _)) //SI-5589
@@ -363,6 +377,19 @@ trait TeamParser {
         }
         element_id -> map_value
     }.toMap
+  }
+
+  /** Extracts the NCAA seed from the table label that contains that info */
+  protected def parse_ncaa_seed(seed_text: String): Either[ParseError, Option[Seed]] = {
+    val seed_extractor = "NCAA Tournament - ([0-9]+) seed".r
+    seed_text match {
+      case seed_extractor(seed) if seed != null =>
+        Right(Some(Seed(seed.toInt)))
+      case _ =>
+        Left(ParseUtils.build_sub_error(`parent_fills_in`)(
+          s"Unexpected seed format: [$seed_text]"
+        ))
+    }
   }
 
   //TODO: parse_players

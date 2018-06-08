@@ -182,6 +182,9 @@ trait GameParser {
   def parse_games(doc: Document, current_year: Year, eoy_rank: Int):
     Either[List[ParseError], List[Game]] =
   {
+/**///TODO: one thing at a time
+return Right(Nil)
+
     game_summary_builders.table_finder(doc).map { rows =>
       val fields = game_summary_builders.fields(current_year, eoy_rank)
       val games_or_errors = rows.map { row =>

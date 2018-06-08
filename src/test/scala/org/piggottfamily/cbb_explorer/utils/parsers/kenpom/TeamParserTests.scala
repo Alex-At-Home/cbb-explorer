@@ -128,15 +128,15 @@ object TeamParserTests extends TestSuite with TeamParser {
           builders.season_stats_model.from({
             val t: TeamSeasonStats = null //(just for nameOf type inference)
             Symbol(nameOf(t.adj_margin)) ->> Metric(-1.0, 333) ::
-            (builders.season_stats collect generate_expected_results) ::: //(this is list)
+            (builders.season_stats(Year(2010)) collect generate_expected_results) ::: //(this is list)
             Symbol(nameOf(t.sos)) ->> TeamSeasonStats.StrengthOfSchedule(
               off = Metric(100.1, 111), _def = Metric(100.2, 88),
               total = Metric(4.44, 77), non_conf = Metric(-1.66, 222),
             ) ::
-            Symbol(nameOf(t.personnel)) ->> TeamSeasonStats.Personnel(
+            Symbol(nameOf(t.personnel)) ->> Some(TeamSeasonStats.Personnel(
               bench_mins_pct = Metric(22.2, 199), experience_yrs = Metric(1.11, 198),
-              continuity_pct = Metric(33.3, 333), avg_height_inches = Metric(77.0, 99)
-            ) ::
+              continuity_pct = Some(Metric(33.3, 333)), avg_height_inches = Metric(77.0, 99)
+            )) ::
             Symbol(nameOf(t.off)) ->> builders.season_stats_off_def_model.from(
               (builders.season_stats_off.head.fields map generate_expected_results)
             ) ::
@@ -148,15 +148,16 @@ object TeamParserTests extends TestSuite with TeamParser {
         }
 
         "parse_metrics" - {
+          val test_year = Year(2011)
           with_doc(good_html) { doc =>
-            TestUtils.inside(parse_metrics(doc)) {
+            TestUtils.inside(parse_metrics(doc, test_year)) {
               case Right(`expected_team_stats`) =>
                 // Check we grabbed all the fields from the expected map
                 mutable_expected_season_stats_map.toMap ==> Map.empty
             }
           }
           with_doc(bad_stats_html_1) { doc =>
-            TestUtils.inside(parse_metrics(doc)) {
+            TestUtils.inside(parse_metrics(doc, test_year)) {
               case Left(List(
                 ParseError("", "[stats]", _),
                 ParseError("", "[stats.conf_stats]", _)
@@ -164,7 +165,7 @@ object TeamParserTests extends TestSuite with TeamParser {
             }
           }
           with_doc(bad_stats_html_2) { doc =>
-            TestUtils.inside(parse_metrics(doc)) {
+            TestUtils.inside(parse_metrics(doc, test_year)) {
               case Left(List(
                 ParseError("", "[stats][adj_margin]", _),
                 ParseError("", "[stats][adj_off][value]", _),
@@ -173,6 +174,7 @@ object TeamParserTests extends TestSuite with TeamParser {
               )) =>
             }
           }
+          //TODO: test error validation vs 2007/2008/rest
         }
         "parse_team" - {
           val good_filename = "teamb2512010_TestTeam___.html"

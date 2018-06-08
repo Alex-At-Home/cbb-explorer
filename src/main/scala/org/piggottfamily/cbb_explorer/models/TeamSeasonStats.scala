@@ -12,7 +12,7 @@ case class TeamSeasonStats( //TODO conf-only and season-wide
 	adj_def: Metric,
 	adj_tempo: Metric,
 	sos: TeamSeasonStats.StrengthOfSchedule,
-	personnel: TeamSeasonStats.Personnel,
+	personnel: Option[TeamSeasonStats.Personnel],
 	off: TeamSeasonStats.OffenseDefenseStats,
 	_def: TeamSeasonStats.OffenseDefenseStats
 )
@@ -20,7 +20,7 @@ case class TeamSeasonStats( //TODO conf-only and season-wide
 
 object TeamSeasonStats {
 	case class OffenseDefenseStats(
-		avg_poss_len: Metric,
+		avg_poss_len: Option[Metric],
 		eff_fg: Metric,
 		to_pct: Metric,
 		orb_pct: Metric,
@@ -45,7 +45,7 @@ object TeamSeasonStats {
 	case class Personnel(
 		bench_mins_pct: Metric,
 		experience_yrs: Metric,
-		continuity_pct: Metric,
+		continuity_pct: Option[Metric],
 		avg_height_inches: Metric
 	)
 }

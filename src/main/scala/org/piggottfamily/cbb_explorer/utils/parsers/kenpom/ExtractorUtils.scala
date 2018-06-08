@@ -35,6 +35,12 @@ object ExtractorUtils {
   /** Pulls out metrics from the scripts used to inject into the HTML page */
   case class ScriptMetricExtractor(path: String)
 
+  /** Pulls out metrics from the scripts used to inject into the HTML page for metrics that may legitimately not be present */
+  case class OptionalScriptMetricExtractor(
+    path: String,
+    filter_errors: List[ParseError] => List[ParseError] = _ => Nil
+  )
+
   /** Pulls fields out from any HTML doc and builds into an object or error */
   case class HtmlExtractor[T](
     extract: Element => Option[Element],
@@ -46,9 +52,21 @@ object ExtractorUtils {
   case class HtmlMetricExtractor(
     extract: Element => Option[Element]
   )
+  /** Pulls "metrics elements" into metrics from HTML for metrics that may legitimately not be present */
+  case class OptionalHtmlMetricExtractor(
+    extract: Element => Option[Element],
+    filter_errors: List[ParseError] => List[ParseError] = _ => Nil,
+  )
+
   /** Performs non-recursive extraction of child fields that can be any of the above extractors */
   case class ChildExtractor[I <: HList, T](
     fields: I,
+    model_builder: LabelledGeneric[T] //(unused except to provide the type T)
+  )
+  /** As above but for optional fields, may decide to ignore some of the errors */
+  case class OptionalChildExtractor[I <: HList, T](
+    fields: I,
+    filter_errors: List[ParseError] => List[ParseError] = _ => Nil,
     model_builder: LabelledGeneric[T] //(unused except to provide the type T)
   )
 
@@ -71,6 +89,21 @@ object ExtractorUtils {
             .left.map(multi_error_enricher(key.value.name))
         ) //(returns FieldType[K, Either[List[ParseError], Metric])
       })
+
+      implicit def optional_script_metric_fields[K <: Symbol](implicit key: Witness.Aux[K]) =
+        at[FieldType[K, OptionalScriptMetricExtractor]](kv => {
+          val extractor: OptionalScriptMetricExtractor = kv
+          field[K](
+            parse_stats_map(map.get(extractor.path))
+            .right.map(Some(_))
+            .left.flatMap { errs =>
+              extractor.filter_errors(errs) match {
+                case Nil => Right(None)
+                case filtered_errs => Left(multi_error_enricher(key.value.name)(filtered_errs))
+              }
+            }
+          ) //(returns FieldType[K, Either[List[ParseError], Optional[Metric]])
+        })
   }
   /** HList mapper for converting HTML fields */
   trait HtmlExtractorMapper extends Poly1 {
@@ -96,6 +129,21 @@ object ExtractorUtils {
             .left.map(multi_error_enricher(key.value.name))
         ) //(returns FieldType[K, Either[List[ParseError], Metric])
       })
+
+      implicit def optional_html_metric_fields[K <: Symbol, T](implicit key: Witness.Aux[K]) =
+        at[FieldType[K, OptionalHtmlMetricExtractor]](kv => {
+          val extractor: OptionalHtmlMetricExtractor = kv
+          field[K](
+            get_metric(extractor.extract(root))
+              .right.map(Some(_))
+              .left.flatMap { errs =>
+                extractor.filter_errors(errs) match {
+                  case Nil => Right(None)
+                  case filtered_errs => Left(multi_error_enricher(key.value.name)(filtered_errs))
+                }
+              }
+          ) //(returns FieldType[K, Either[List[ParseError], Option[Metric]])
+        })
   }
 
   /** Internal component for HList mapper that maps over nested HLists */
@@ -137,6 +185,33 @@ object ExtractorUtils {
           .right.map(ogen.from(_))
         )//returns Either[List[ParseError], O]
       })
+
+      implicit def optional_children_fields
+        [K <: Symbol, I <: HList, M1 <: HList, M2 <: HList, R <: HList, O]
+        (implicit
+          key: Witness.Aux[K],
+          ogen: LabelledGeneric.Aux[O, R],
+          child_mapper: Mapper.Aux[child_extractor.type, I, M1],
+          // (need to bring in all the impplicits from ParseUtils.sequence_kv_results):
+          right_only_mapper: Mapper.Aux[ParseUtils.right_only_kv.type, M1, R],
+          left_or_filter_right_mapper: Mapper.Aux[ParseUtils.left_or_filter_right_kv.type, M1, M2],
+          to_list: ToTraversable.Aux[M2, List, List[ParseError]]
+        ) = at[FieldType[K, OptionalChildExtractor[I, O]]](kv => {
+          val extractor: OptionalChildExtractor[I, O] = kv
+
+          field[K](
+            ParseUtils.sequence_kv_results(
+              extractor.fields map child_extractor
+            )
+            .right.map(v => Some(ogen.from(v)))
+            .left.flatMap { errs =>
+              extractor.filter_errors(errs) match {
+                case Nil => Right(None)
+                case filtered_errs => Left(multi_error_enricher(key.value.name)(filtered_errs))
+              }
+            }
+          )//returns Either[List[ParseError], Option[O]]
+        })
   }
 
   // Utility methods required by the mappers

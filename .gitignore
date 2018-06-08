@@ -2,3 +2,7 @@
 *.log
 target/*
 project/target/*
+project/project/*
+.ensime
+.ensime_cache
+ensime.sbt

@@ -51,7 +51,7 @@ trait TeamParser {
         e => Right(ConferenceId(e.text))
       ) ::
       Symbol(nameOf(f.ncaa_seed)) ->> HtmlExtractor(
-        e => e >?> element("td[class=label]:regex(NCAA Tournament.*)"),
+        e => e >?> element("td:matches(.*NCAA Tournament.*[0-9]+ seed.*)"),
         e => parse_ncaa_seed(e.text),
         fallback = Some(None) // ie do have a fallback, T=Option[Seed] so the fallback is none
       ) ::

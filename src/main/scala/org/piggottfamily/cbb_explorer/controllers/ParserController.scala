@@ -8,12 +8,15 @@ import org.piggottfamily.cbb_explorer.utils.parsers.kenpom._
 import ParserController._
 
 import ammonite.ops.Path
+import scala.util.matching.Regex
 
 /** Top level business logic for parsing the different datasets */
 class ParserController(d: Dependencies = Dependencies())
 {
   /** Build a map of teams */
-  def build_teams(root_team_path: Path, default_year: Year): Map[TeamId, Map[Year, TeamSeason]] = {
+  def build_teams(
+    root_team_path: Path, default_year: Year, filename_filter: Option[Regex] = None
+  ): Map[TeamId, Map[Year, TeamSeason]] = {
     object display_vars {
       var approx_mem_in_use = 0
       var num_files = 0
@@ -21,6 +24,7 @@ class ParserController(d: Dependencies = Dependencies())
     val teams_or_errors = for {
       file <- d.file_manager.list_files(root_team_path, Some("html"))
       filename = file.last
+      if filename_filter.flatMap(_.findFirstIn(filename)).isDefined
       _ = display_vars.num_files += 1
       _ = d.logger.info(s"Reading [$filename]")
       team_or_error = {

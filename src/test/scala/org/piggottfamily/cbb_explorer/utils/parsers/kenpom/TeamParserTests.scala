@@ -23,6 +23,9 @@ object TeamParserTests extends TestSuite with TeamParser {
   import ExtractorUtils._
   import ExtractorUtilsTests._
 
+  //TODO: test optionally missing: apl, continuity_pct, personnel
+  // (need a nice declarative framework?)
+
   val tests = Tests {
     "TeamParser" - {
       "parse_filename" - {
@@ -124,6 +127,18 @@ object TeamParserTests extends TestSuite with TeamParser {
                   }
                 }
               })
+              implicit def optional_get_field[K <: Symbol] =
+                at[FieldType[K, OptionalScriptMetricExtractor]](kv => {
+                  val extractor: OptionalScriptMetricExtractor = kv
+                  field[K] {
+                    //(throws if not present)
+                    mutable_expected_season_stats_map.remove(extractor.path).orElse {
+                      throw new Exception(
+                        s"Missing [${extractor.path}], left = [$mutable_expected_season_stats_map]"
+                      )
+                    }
+                  }
+                })
           }
           builders.season_stats_model.from({
             val t: TeamSeasonStats = null //(just for nameOf type inference)
@@ -138,10 +153,10 @@ object TeamParserTests extends TestSuite with TeamParser {
               continuity_pct = Some(Metric(33.3, 333)), avg_height_inches = Metric(77.0, 99)
             )) ::
             Symbol(nameOf(t.off)) ->> builders.season_stats_off_def_model.from(
-              (builders.season_stats_off.head.fields map generate_expected_results)
+              (builders.season_stats_off(Year(2010)).head.fields map generate_expected_results)
             ) ::
             Symbol(nameOf(t._def)) ->> builders.season_stats_off_def_model.from(
-              (builders.season_stats_def.head.fields map generate_expected_results)
+              (builders.season_stats_def(Year(2010)).head.fields map generate_expected_results)
             ) ::
             HNil
           })
@@ -199,7 +214,8 @@ object TeamParserTests extends TestSuite with TeamParser {
               `expected_team_games`,
               players,
               CoachId("Coach Name"),
-              ConferenceId("Atlantic Coast Conference")
+              ConferenceId("Atlantic Coast Conference"),
+              None //TODO: test NCAA seed
             ), Nil)) if players.isEmpty =>
           }
           TestUtils.inside(parse_team(bad_team_html, good_filename, Year(2000))) {

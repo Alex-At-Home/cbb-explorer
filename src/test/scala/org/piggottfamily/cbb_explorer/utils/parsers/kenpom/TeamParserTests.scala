@@ -215,7 +215,19 @@ object TeamParserTests extends TestSuite with TeamParser {
               players,
               CoachId("Coach Name"),
               ConferenceId("Atlantic Coast Conference"),
-              None //TODO: test NCAA seed
+              None
+            ), Nil)) if players.isEmpty =>
+          }
+          val good_html_with_ncaa_seed = good_html.replace("XNXCXAXAX", "NCAA")
+          TestUtils.inside(parse_team(good_html_with_ncaa_seed, good_filename, Year(2000))) {
+            case Right(ParseResponse(TeamSeason(
+              TeamSeasonId(TeamId("TestTeam"), Year(2010)),
+              `expected_team_stats`,
+              `expected_team_games`,
+              players,
+              CoachId("Coach Name"),
+              ConferenceId("Atlantic Coast Conference"),
+              Some(Seed(9))
             ), Nil)) if players.isEmpty =>
           }
           TestUtils.inside(parse_team(bad_team_html, good_filename, Year(2000))) {

@@ -15,7 +15,7 @@ class ParserController(d: Dependencies = Dependencies())
 {
   /** Build a map of teams */
   def build_teams(
-    root_team_path: Path, default_year: Year, filename_filter: Option[Regex] = None
+    root_team_path: Path, default_year: Year, filename_filter: Option[Regex] = Some("team.*".r)
   ): Map[TeamId, Map[Year, TeamSeason]] = {
     object display_vars {
       var approx_mem_in_use = 0

@@ -8,5 +8,5 @@ case class PlayerSeasonSummary(
     id: PlayerId,
     team_season: TeamSeasonId,
     conf: ConferenceId,
-    stats: PlayerSeasonSummaryStats
+    stats: kenpom.PlayerSeasonSummaryStats
 )

@@ -6,9 +6,9 @@ package org.piggottfamily.cbb_explorer.models
  */
 case class TeamSeason(
 	team_season: TeamSeasonId,
-	stats: TeamSeasonStats,
+	stats: kenpom.TeamSeasonStats,
 	games: List[Game],
-	players: Map[PlayerId, PlayerSeasonSummaryStats],
+	players: Map[PlayerId, kenpom.PlayerSeasonSummaryStats],
 	coach: CoachId,
 	conf: ConferenceId,
 	ncaa_seed: Option[Seed]

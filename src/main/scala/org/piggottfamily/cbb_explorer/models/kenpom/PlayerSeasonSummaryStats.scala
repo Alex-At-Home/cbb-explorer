@@ -1,4 +1,6 @@
-package org.piggottfamily.cbb_explorer.models
+package org.piggottfamily.cbb_explorer.models.kenpom
+
+import org.piggottfamily.cbb_explorer.models._
 
 /**
  * Contains top-level information about a player's statistical season

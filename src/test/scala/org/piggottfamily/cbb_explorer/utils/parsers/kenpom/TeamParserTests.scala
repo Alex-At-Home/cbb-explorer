@@ -2,6 +2,7 @@ package org.piggottfamily.cbb_explorer.utils.parsers.kenpom
 
 import utest._
 import org.piggottfamily.cbb_explorer.models._
+import org.piggottfamily.cbb_explorer.models.kenpom._
 import org.piggottfamily.cbb_explorer.utils.parsers._
 import org.piggottfamily.cbb_explorer.utils.TestUtils
 import org.piggottfamily.cbb_explorer.utils.parsers.kenpom.GameParserTests.expected_team_games

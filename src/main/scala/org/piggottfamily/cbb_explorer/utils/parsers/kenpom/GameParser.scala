@@ -33,6 +33,8 @@ trait GameParser {
   /** This should be the only object that is edited as stats are added to Game */
   protected object game_summary_builders {
 
+    val non_d1_bucket_name = "NOT_D1"
+
     def table_finder(doc: Document): Option[List[Element]] =
       (doc >?> elementList("table[id=schedule-table] tbody tr:has(td.pace)")).filter(_.nonEmpty)
 
@@ -43,7 +45,8 @@ trait GameParser {
       var f: Game = null  // (just used to infer type in "nameOf")
       Symbol(nameOf(f.opponent)) ->> HtmlExtractor(
         el => el >?> element("a[href^=team]"),
-        el => Right(TeamSeasonId(TeamId(el.text), Year(0))) //(year is not used)
+        el => Right(TeamSeasonId(TeamId(el.text), Year(0))), //(year is not used),
+        fallback = Some(TeamSeasonId(TeamId(non_d1_bucket_name), Year(0))) //(if href not found then assume D2)
       ) ::
       HNil
     }
@@ -184,7 +187,7 @@ trait GameParser {
     Either[List[ParseError], List[Game]] =
   {
 /**///TODO: one thing at a time
-return Right(Nil)
+//return Right(Nil)
 
     game_summary_builders.table_finder(doc).map { rows =>
       val fields = game_summary_builders.fields(current_year, eoy_rank)
@@ -199,14 +202,20 @@ return Right(Nil)
 
           game_error_enricher = multi_error_enricher(opponent.team.name)
           game_info <-
-            ParseUtils.sequence_kv_results(fields map games_extractor)
-              .right.map(
-                game_summary_builders.game_model.from(_)
-              ).left.map(
-                game_error_enricher
-              )
-        } yield game_info // returns Either[List[ParseError], Game]
+            ParseUtils.sequence_kv_results(fields map games_extractor) match {
+              case Right(game) =>
+                Right(Some(game_summary_builders.game_model.from(game)))
+              case Left(errs) if // filter out D2- teams
+                opponent.team.name != game_summary_builders.non_d1_bucket_name =>
+                Right(None)
+              case Left(errs) =>
+                Left(game_error_enricher(errs))
+            }
+        } yield game_info // returns Either[List[ParseError], Option[Game]]
 
+      }.collect { // (flatten out Option[Game]), removing None == D2- opposition
+        case Right(Some(game)) => Right(game)
+        case errs @ Left(_) => errs
       } //returns List[Either[List[ParseError], Game]]
 
       games_or_errors.parSequence // returns Either[List[ParseError], List[Game]]

@@ -15,9 +15,10 @@ object ExtractorUtils {
       case _ => Nil //(impossible by construction of split)
     }).map {
       _.toLowerCase
-    }.filter { candidate => // get rid or jr/sr/ii/etc
+    }.filterNot { candidate => // get rid or jr/sr/ii/etc
       candidate.size < 2 ||
       candidate(0).isDigit ||
+      candidate == "the" ||
       candidate == "first" || candidate == "second" || candidate == "third" ||
       candidate == "jr" || candidate == "jr." ||
       candidate == "sr" || candidate == "sr." ||
@@ -25,13 +26,13 @@ object ExtractorUtils {
           (candidate.endsWith("ii") || candidate.endsWith("i."))
         )
     }.map { transform =>
-      transform(0).toUpper + transform(1).toLower
+      s"${transform(0).toUpper}${transform(1).toLower}"
     }.mkString(""), PlayerId(name))
   }
 
   /** Builds a lineup id from a list of players */
   private def build_lineup_id(players: List[LineupEvent.PlayerCodeId]): LineupEvent.LineupId = {
-    LineupEvent.LineupId(players.map(_.code).sorted.mkString("/"))
+    LineupEvent.LineupId(players.map(_.code).sorted.mkString("_"))
   }
 
   /** Orders play-by-play data to ensure that all the subs are at the start */
@@ -67,13 +68,13 @@ object ExtractorUtils {
 
   /** Creates an "empty" new lineup */
   private def new_lineup_event(
-    min: Double, prev: LineupEvent,
+    prev: LineupEvent,
     in: Option[String] = None, out: Option[String] = None
   ): LineupEvent = {
     LineupEvent(
       date = prev.date,
-      start_min = min,
-      end_min = min, //(updates with every event)
+      start_min = prev.end_min,
+      end_min = prev.end_min, //(updates with every event)
       duration_mins = 0.0, //(fill in at end of event)
       score_diff = 0, //(calculate later)
       team = prev.team,
@@ -98,7 +99,7 @@ object ExtractorUtils {
       end_min = min,
       duration_mins = min - curr.start_min,
       lineup_id = build_lineup_id(new_player_list),
-      players = new_player_list,
+      players = new_player_list.sortBy(_.code),
       raw_team_events = curr.raw_team_events.reverse,
       raw_opponent_events = curr.raw_opponent_events.reverse
     )
@@ -115,18 +116,20 @@ object ExtractorUtils {
     val end_state = partial_events.foldLeft(starting_state) { (state, event) =>
       event match {
         case Model.SubInEvent(min, player_name) if state.is_active(min) =>
+          val completed_curr = complete_lineup(state.curr, min)
           state.copy(
             curr = new_lineup_event(
-              min, state.curr, in = Some(player_name)
+              completed_curr, in = Some(player_name)
             ),
-            prev = complete_lineup(state.curr, min) :: state.prev
+            prev = completed_curr :: state.prev
           )
         case Model.SubOutEvent(min, player_name) if state.is_active(min) =>
+        val completed_curr = complete_lineup(state.curr, min)
           state.copy(
             curr = new_lineup_event(
-              min, state.curr, out = Some(player_name)
+              completed_curr, out = Some(player_name)
             ),
-            prev = complete_lineup(state.curr, min) :: state.prev
+            prev = completed_curr :: state.prev
           )
         case Model.SubInEvent(min, player_name) => // !state.isActive
             // Keep adding sub events
@@ -144,7 +147,7 @@ object ExtractorUtils {
 
         case Model.GameBreakEvent(min, event_string, next_lineup) =>
           state.copy(
-            curr = next_lineup,
+            curr = next_lineup.copy(start_min = min),
             prev = complete_lineup(state.curr, min) :: state.prev
           )
         case Model.GameEndEvent(min) =>

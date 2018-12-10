@@ -152,7 +152,7 @@ object GameParserTests extends TestSuite with GameParser {
           //(other tests below)
         }
         "[file_tests]" - {
-          val good_html = Source.fromURL(getClass.getResource("/teamb2512010_TestTeam___.html")).mkString
+          val good_html = Source.fromURL(getClass.getResource("/kenpom/teamb2512010_TestTeam___.html")).mkString
 
           val bad_html = good_html
             .replace("150</span>", "xxx150</span>")

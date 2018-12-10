@@ -5,6 +5,15 @@ import org.piggottfamily.cbb_explorer.models.ncaa._
 
 object ExtractorUtils {
 
+  /** Error enrichment placeholder */
+  val `parent_fills_in` = ""
+
+  /** Gets the start duration from the period - ie 2x 20 minute halves, then 5m overtimes */
+  def duration_from_period(period: Int): Double = (period - 1) match {
+    case n if n < 2 => n*20.0
+    case m => 40.0 + (m - 2)*5.0
+  }
+
   /** Builds a player code out of the name, with various formats supported */
   def build_player_code(name: String): LineupEvent.PlayerCodeId = {
     LineupEvent.PlayerCodeId((name.split("\\s*,\\s*", 2).toList match {

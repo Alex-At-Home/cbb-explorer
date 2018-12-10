@@ -80,7 +80,7 @@ object TeamParserTests extends TestSuite with TeamParser {
         }
       }
       "[file_tests]" - {
-        val good_html = Source.fromURL(getClass.getResource("/teamb2512010_TestTeam___.html")).mkString
+        val good_html = Source.fromURL(getClass.getResource("/kenpom/teamb2512010_TestTeam___.html")).mkString
 
         val bad_stats_html_1 = good_html
           .replace("function tableStart", "function renamed_table_start")

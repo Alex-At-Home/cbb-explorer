@@ -23,6 +23,7 @@ import syntax.singleton._
 object TeamParserTests extends TestSuite with TeamParser {
   import ExtractorUtils._
   import ExtractorUtilsTests._
+  import TestUtils.with_doc
 
   //TODO: test optionally missing: apl, continuity_pct, personnel
   // (need a nice declarative framework?)

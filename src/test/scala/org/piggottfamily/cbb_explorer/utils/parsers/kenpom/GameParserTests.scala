@@ -120,7 +120,7 @@ object GameParserTests extends TestSuite with GameParser {
       }
       "parse_tier" - {
         def with_image(s: String)(test: Element => Unit) =
-          with_doc(s) { doc =>
+          TestUtils.with_doc(s) { doc =>
             test((doc >?> element("img")).get)
           }
         with_image("<img/>") { img_el =>
@@ -145,7 +145,7 @@ object GameParserTests extends TestSuite with GameParser {
         }
       }
       "parse_games" - {
-        with_doc("<p>No table</p>") { doc =>
+        TestUtils.with_doc("<p>No table</p>") { doc =>
           TestUtils.inside(parse_games(doc, Year(2010), 11)) {
             case Left(List(ParseError(_, "", _))) =>
           }
@@ -161,14 +161,14 @@ object GameParserTests extends TestSuite with GameParser {
           val bad_html_name = good_html
             .replace("href=\"team", "href=\"bean")
 
-          with_doc(good_html) { doc =>
+          TestUtils.with_doc(good_html) { doc =>
             val eoy_rank = 11
             val expected = GameParserTests.expected_team_games(eoy_rank)
             TestUtils.inside(parse_games(doc, Year(2010), eoy_rank)) {
               case Right(`expected`) =>
             }
           }
-          with_doc(bad_html) { doc =>
+          TestUtils.with_doc(bad_html) { doc =>
             TestUtils.inside(parse_games(doc, Year(2010), 11)) {
               case Left(List(
                 ParseError("", "[ConfOppC][opp_rank]", _),
@@ -176,7 +176,7 @@ object GameParserTests extends TestSuite with GameParser {
               )) =>
             }
           }
-          with_doc(bad_html_name) { doc =>
+          TestUtils.with_doc(bad_html_name) { doc =>
             TestUtils.inside(parse_games(doc, Year(2010), 11)) {
               case Left(name_errors) =>
                 name_errors.foreach { _.id ==> "[opponent]" }

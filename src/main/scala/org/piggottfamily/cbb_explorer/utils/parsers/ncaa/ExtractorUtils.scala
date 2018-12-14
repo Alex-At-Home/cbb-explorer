@@ -8,11 +8,95 @@ object ExtractorUtils {
   /** Error enrichment placeholder */
   val `parent_fills_in` = ""
 
-  /** Gets the start duration from the period - ie 2x 20 minute halves, then 5m overtimes */
-  def duration_from_period(period: Int): Double = (period - 1) match {
+  // Top level
+
+  /** Converts a stream of partially parsed events into a list of lineup events
+   * (note box_lineup has all players, but the top 5 are always the starters)
+   */
+  def build_partial_lineup_list(
+    reversed_partial_events: Iterator[Model.PlayByPlayEvent],
+    box_lineup: LineupEvent
+  ): List[LineupEvent] = {
+    val starters_only = box_lineup.copy(players = box_lineup.players.take(5))
+
+    val starting_state = Model.LineupBuildingState(starters_only, Nil)
+    val partial_events = reversed_partial_events.toList.reverse
+    val end_state = partial_events.foldLeft(starting_state) { (state, event) =>
+      event match {
+        case Model.SubInEvent(min, player_name) if state.is_active(min) =>
+          val completed_curr = complete_lineup(state.curr, min)
+          state.copy(
+            curr = new_lineup_event(
+              completed_curr, in = Some(player_name)
+            ),
+            prev = completed_curr :: state.prev
+          )
+        case Model.SubOutEvent(min, player_name) if state.is_active(min) =>
+        val completed_curr = complete_lineup(state.curr, min)
+          state.copy(
+            curr = new_lineup_event(
+              completed_curr, out = Some(player_name)
+            ),
+            prev = completed_curr :: state.prev
+          )
+        case Model.SubInEvent(min, player_name) => // !state.is_active
+            // Keep adding sub events
+            state.with_player_in(player_name)
+
+        case Model.SubOutEvent(min, player_name) => // !state.is_active
+          // Keep adding sub events
+          state.with_player_out(player_name)
+
+        case Model.OtherTeamEvent(min, event_string) =>
+          state.with_team_event(min, event_string)
+
+        case Model.OtherOpponentEvent(min, event_string) =>
+          state.with_opponent_event(min, event_string)
+
+        case Model.GameBreakEvent(min) =>
+          state.copy(
+            curr = starters_only.copy(start_min = min, end_min = min),
+            prev = complete_lineup(state.curr, min) :: state.prev
+          )
+        case Model.GameEndEvent(min) =>
+          state.copy(curr = complete_lineup(state.curr, min))
+      }
+    }
+    end_state.build()
+  }
+
+  // Utils with some exernal usefulness
+
+  /** Pulls out inconsistent lineups (self healing seems harder
+    * based on cases I've seen, eg
+    * player B enters game+player A leaves game ...
+    * ... A makes shot...player A enters game)
+   */
+  def validate_lineup(lineup_event: LineupEvent, all_players: List[LineupEvent.PlayerCodeId]): Boolean = {
+    val right_number_of_players = lineup_event.players.size == 5
+    val raw_events_only_ref_in_players = {
+      val all_players_map = all_players.map { p => p.code -> p.id }.toMap
+      val bench_players =
+        (all_players_map -- lineup_event.players.map(_.code))
+          .values.map(_.name.toLowerCase)
+      val bad_raw_events = lineup_event.raw_team_events.filter { raw_event =>
+        val text = raw_event.toLowerCase
+        bench_players.exists(text.contains)
+      }
+      bad_raw_events.isEmpty
+    }
+    right_number_of_players && raw_events_only_ref_in_players
+  }
+
+  /** Gets the start time from the period - ie 2x 20 minute halves, then 5m overtimes */
+  def start_time_from_period(period: Int): Double = (period - 1) match {
     case n if n < 2 => n*20.0
     case m => 40.0 + (m - 2)*5.0
   }
+  /** Gets the end time (ie game duration to date) from the period
+  *   - ie 2x 20 minute halves, then 5m overtimes
+  */
+  def duration_from_period(period: Int): Double = start_time_from_period(period + 1)
 
   /** Builds a player code out of the name, with various formats supported */
   def build_player_code(name: String): LineupEvent.PlayerCodeId = {
@@ -39,41 +123,19 @@ object ExtractorUtils {
     }.mkString(""), PlayerId(name))
   }
 
+  // Internal Utils
+
   /** Builds a lineup id from a list of players */
   private def build_lineup_id(players: List[LineupEvent.PlayerCodeId]): LineupEvent.LineupId = {
     LineupEvent.LineupId(players.map(_.code).sorted.mkString("_"))
   }
 
-  /** Orders play-by-play data to ensure that all the subs are at the start */
-  private def reorder_and_reverse(
-    reversed_partial_events: Iterator[Model.PlayByPlayEvent]
-  ): List[Model.PlayByPlayEvent] = {
-    /** Ensures all the sub data is at the start of the block */
-    def inner_sort(in: List[Model.PlayByPlayEvent]): List[Model.PlayByPlayEvent] = {
-      in.zipWithIndex.sortBy {
-        case (_: Model.SubInEvent, index) => -index
-        case (_: Model.SubOutEvent, index) => -index
-        case (_, index) => index
-      }.map(_._1)
-    }
+  //TODO: split on timeouts? (and have is_after_timeout flag, or sub_event == in-game/break/timeout)
 
-    val starting_state = List[List[Model.PlayByPlayEvent]]()
-    (reversed_partial_events.foldLeft(starting_state) { (acc, event) => acc match {
-      case Nil =>
-        // Create a new block of play by play events
-        (event :: Nil) :: Nil
-      case Nil :: tail =>
-        // Create a new block of play by play events (in practice this won't happen)
-        (event :: Nil) :: tail
-      case (head :: inner_tail) :: outer_tail if head.min == event.min =>
-        // Add the new play by play to the existing block
-        (event :: head :: inner_tail) :: outer_tail
-      case (curr@(head :: inner_tail)) :: outer_tail => //head.min != event.min
-        // Reorder the existing block then add a new one
-        (event :: Nil) :: inner_sort(curr) :: outer_tail
+  //TODO: box_lineup should have entire team and then only emit the first 5?
+  // that way the subs' names won't be captialized...
 
-    }}).flatten
-  }
+  //TODO tidy up names in general
 
   /** Creates an "empty" new lineup */
   private def new_lineup_event(
@@ -101,8 +163,11 @@ object ExtractorUtils {
 
   /** Fills in/tidies up a partial lineup event following its completion */
   private def complete_lineup(curr: LineupEvent, min: Double): LineupEvent = {
+    val curr_players = curr.players.map(p => p.code -> p).toMap
+    val curr_players_out = curr.players_out.map(p => p.code -> p).toMap
+    val curr_players_in = curr.players_in.map(p => p.code -> p).toMap
     val new_player_list =
-      (curr.players.toSet -- curr.players_out.toSet ++ curr.players_in.toSet).toList
+      (curr_players -- curr_players_out.keySet ++ curr_players_in).values.toList
 
     curr.copy(
       end_min = min,
@@ -114,57 +179,7 @@ object ExtractorUtils {
     )
   }
 
-  /** Converts a stream of partially parsed events into a list of lineup events */
-  def build_partial_lineup_list(
-    reversed_partial_events: Iterator[Model.PlayByPlayEvent],
-    starting_lineup: LineupEvent
-  ): List[LineupEvent] = {
-
-    val starting_state = Model.LineupBuildingState(starting_lineup, Nil)
-    val partial_events = reorder_and_reverse(reversed_partial_events)
-    val end_state = partial_events.foldLeft(starting_state) { (state, event) =>
-      event match {
-        case Model.SubInEvent(min, player_name) if state.is_active(min) =>
-          val completed_curr = complete_lineup(state.curr, min)
-          state.copy(
-            curr = new_lineup_event(
-              completed_curr, in = Some(player_name)
-            ),
-            prev = completed_curr :: state.prev
-          )
-        case Model.SubOutEvent(min, player_name) if state.is_active(min) =>
-        val completed_curr = complete_lineup(state.curr, min)
-          state.copy(
-            curr = new_lineup_event(
-              completed_curr, out = Some(player_name)
-            ),
-            prev = completed_curr :: state.prev
-          )
-        case Model.SubInEvent(min, player_name) => // !state.isActive
-            // Keep adding sub events
-            state.with_player_in(player_name)
-
-        case Model.SubOutEvent(min, player_name) => // !state.isActive
-          // Keep adding sub events
-          state.with_player_out(player_name)
-
-        case Model.OtherTeamEvent(min, event_string) =>
-          state.with_team_event(min, event_string)
-
-        case Model.OtherOpponentEvent(min, event_string) =>
-          state.with_opponent_event(min, event_string)
-
-        case Model.GameBreakEvent(min, event_string, next_lineup) =>
-          state.copy(
-            curr = next_lineup.copy(start_min = min),
-            prev = complete_lineup(state.curr, min) :: state.prev
-          )
-        case Model.GameEndEvent(min) =>
-          state.copy(curr = complete_lineup(state.curr, min))
-      }
-    }
-    end_state.build()
-  }
+  // Models (used by the parser also)
 
   object Model {
     private val SUB_SAFETY_DELTA_MINS = 4.0/60 //4s
@@ -177,9 +192,17 @@ object ExtractorUtils {
       def build(): List[LineupEvent] = {
         (curr :: prev).reverse
       }
+      /** Opposition subs are currently treated as game events. but shouldn't
+       *  result in new lineups */
+      private def ignore_subs(s: String): Boolean = {
+        val s_lower = s.toLowerCase
+        //TODO: move this into some parsing module
+        !s_lower.endsWith("leaves game") && !s_lower.endsWith("enters game")
+      }
       /** Ifsome time has elapsed since the last sub or a game event has occurred */
       def is_active(min: Double): Boolean =
-        curr.raw_team_events.nonEmpty || curr.raw_opponent_events.nonEmpty ||
+        curr.raw_team_events.nonEmpty ||
+        curr.raw_opponent_events.filter(ignore_subs).nonEmpty ||
         {
           min - curr.end_min > SUB_SAFETY_DELTA_MINS
         }
@@ -216,14 +239,25 @@ object ExtractorUtils {
 
     sealed trait PlayByPlayEvent {
       def min: Double
+      def with_min(new_min: Double): PlayByPlayEvent
     }
-    case class SubInEvent(min: Double, player_name: String) extends PlayByPlayEvent
-    case class SubOutEvent(min: Double, player_name: String) extends PlayByPlayEvent
-    case class OtherTeamEvent(min: Double, event_string: String) extends PlayByPlayEvent
-    case class OtherOpponentEvent(min: Double, event_string: String) extends PlayByPlayEvent
-    case class GameBreakEvent(
-      min: Double, event_string: String, next_lineup: LineupEvent
-    ) extends PlayByPlayEvent
-    case class GameEndEvent(min: Double) extends PlayByPlayEvent
+    case class SubInEvent(min: Double, player_name: String) extends PlayByPlayEvent {
+      def with_min(new_min: Double): SubInEvent = copy(min = new_min)
+    }
+    case class SubOutEvent(min: Double, player_name: String) extends PlayByPlayEvent {
+      def with_min(new_min: Double): SubOutEvent = copy(min = new_min)
+    }
+    case class OtherTeamEvent(min: Double, event_string: String) extends PlayByPlayEvent {
+      def with_min(new_min: Double): OtherTeamEvent = copy(min = new_min)
+    }
+    case class OtherOpponentEvent(min: Double, event_string: String) extends PlayByPlayEvent {
+      def with_min(new_min: Double): OtherOpponentEvent = copy(min = new_min)
+    }
+    case class GameBreakEvent(min: Double) extends PlayByPlayEvent {
+      def with_min(new_min: Double): GameBreakEvent = copy(min = new_min)
+    }
+    case class GameEndEvent(min: Double) extends PlayByPlayEvent {
+      def with_min(new_min: Double): GameEndEvent = copy(min = new_min)
+    }
   }
 }

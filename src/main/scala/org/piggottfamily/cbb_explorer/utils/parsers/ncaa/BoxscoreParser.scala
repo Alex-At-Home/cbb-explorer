@@ -48,8 +48,8 @@ trait BoxscoreParser {
       (doc >?> elementList("div.header_menu + table.mytable td a[href]")).filter(_.nonEmpty)
   }
 
-  /** Gets the lineup from the HTML page */
-  def get_lineup(in: String, filename: String, year: Year)
+  /** Gets the boxscore lineup from the HTML page */
+  def get_box_lineup(in: String, filename: String, year: Year)
     : Either[List[ParseError], LineupEvent] =
   {
     val browser = JsoupBrowser()
@@ -76,14 +76,14 @@ trait BoxscoreParser {
         builders.date_finder(doc)
       ).left.map(single_error_completer)
 
-      starting_lineup <- parse_starters_from_boxscore(
+      starting_lineup <- parse_players_from_boxscore(
         builders.boxscore_finder(doc)
       ).left.map(single_error_completer)
 
     } yield LineupEvent(
       date,
-      start_min = duration_from_period(period),
-      end_min = duration_from_period(period),
+      start_min = start_time_from_period(period),
+      end_min = start_time_from_period(period),
       duration_mins = 0.0,
       score_diff = 0,
       team = TeamSeasonId(TeamId(team), year),
@@ -108,7 +108,7 @@ trait BoxscoreParser {
     val filename_parser = "[^_]+_p([0-9]+)[.][^.]*".r // eg test_p<period>.html
 
     filename match {
-      case filename_parser(period_str) if Option(period_str).isDefined =>
+      case filename_parser(period_str) =>
         Right(period_str.toInt)
       case _ =>
         Left(ParseUtils.build_sub_error(`parent_fills_in`)(
@@ -150,12 +150,12 @@ trait BoxscoreParser {
   }
 
   /** Gets the list of starters from the boxscore */
-  def parse_starters_from_boxscore(boxscore_table: Option[List[Element]])
+  protected def parse_players_from_boxscore(boxscore_table: Option[List[Element]])
     : Either[ParseError, List[String]] =
   {
     boxscore_table.map { rows =>
       if (rows.size >= 5) {
-        Right(rows.take(5).map(_.text))
+        Right(rows.map(_.text))
       } else {
         Left(ParseUtils.build_sub_error(`parent_fills_in`)(
           s"Not enough rows in boxscore table: [$rows]"

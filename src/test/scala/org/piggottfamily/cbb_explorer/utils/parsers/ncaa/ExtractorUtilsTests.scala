@@ -58,39 +58,41 @@ object ExtractorUtilsTests extends TestSuite {
           Model.OtherTeamEvent(0.2, "event1a") ::
           Model.OtherTeamEvent(0.2, "event2a") ::
           // Second event
-          Model.SubInEvent(0.4, player1.id.name) :: // check subs in any order
+          Model.SubInEvent(0.4, player1.id.name) ::
           Model.SubInEvent(0.4, player7.id.name) ::
+          // CHECK: we only care about "code" not "id":
+          Model.SubOutEvent(0.4, player2.id.name.toUpperCase + " ii") ::
+          Model.SubOutEvent(0.4, player4.id.name) ::
           Model.OtherOpponentEvent(0.4, "event1b") ::
           Model.OtherOpponentEvent(0.4, "event2b") ::
           Model.OtherTeamEvent(0.4, "event3a") ::
           Model.OtherTeamEvent(0.4, "event4a") ::
-          Model.SubOutEvent(0.4, player2.id.name) ::
-          Model.SubOutEvent(0.4, player4.id.name) ::
           // Half time! (third event)
-          Model.GameBreakEvent(20.0, "Half time", starting_lineup) ::
-          // Fourth event - subs happen immediately after break
-          Model.SubOutEvent(20.1, player1.id.name) ::
-          Model.SubInEvent(20.1, player6.id.name) ::
-          // Fifth event  - sub-on-sub action
+          Model.GameBreakEvent(20.0) ::
+          // (subs happen immediately after break)
+          Model.SubOutEvent(20.0, player1.id.name) ::
+          Model.OtherOpponentEvent(20.0, "Player Leaves Game") :: //opponents can sub too....
+          Model.SubInEvent(20.0, player6.id.name) ::
+          // Fourth event  - sub-on-sub action
           Model.SubOutEvent(20.4, player2.id.name) ::
           Model.SubOutEvent(20.4, player4.id.name) ::
           Model.SubInEvent(20.4, player1.id.name) :: // check subs in any order
           Model.SubInEvent(20.4, player7.id.name) ::
-          // Overtime! (sixth event)
-          Model.GameBreakEvent(40.0, "OT", starting_lineup) ::
-          // Seventh event
+          // Overtime! (first event)
+          Model.GameBreakEvent(40.0) ::
+          // Sixth event
           Model.OtherOpponentEvent(40.4, "event3b") ::
           Model.OtherTeamEvent(40.4, "event5a") ::
           Model.SubInEvent(40.5, player6.id.name) ::
           Model.SubOutEvent(40.5, player1.id.name) ::
           Model.OtherTeamEvent(40.6, "event6a") ::
           Model.OtherOpponentEvent(40.7, "event4b") ::
-          // Fin (Eighth event)
+          // Fin (Seventh event)
           Model.GameEndEvent(45.0) ::
           Nil
 
         TestUtils.inside(build_partial_lineup_list(test_events.reverse.toIterator, starting_lineup)) {
-          case List(event_1, event_2, event_3, event_4, event_5, event_6, event_7, event_8) =>
+          case List(event_1, event_2, event_3, event_4, event_5, event_6, event_7) =>
             TestUtils.inside(event_1) {
               case LineupEvent(
                 `now`, 0.0, 0.1, delta, 0, `my_team`, `other_team`,
@@ -121,10 +123,11 @@ object ExtractorUtilsTests extends TestSuite {
               case LineupEvent(
                 `now`, 0.4, 20.0, delta, 0, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
-                List(`player1`, `player7`), List(`player2`, `player4`),
+                List(`player7`, `player1`), List(`player4`, player2_with_mods),
                 List("event3a", "event4a"), List("event1b", "event2b"),
                 _, _
               ) =>
+                player2_with_mods.code ==> `player2`.code // (we corrupted the id)
                 "%.1f".format(delta) ==> "19.6"
                 players ==>  {
                   event_2.players.toSet + player1 + player7 - player2 - player4
@@ -133,35 +136,23 @@ object ExtractorUtilsTests extends TestSuite {
             }
             TestUtils.inside(event_4) {
               case LineupEvent(
-                `now`, 20.0, 20.1, delta, 0, `my_team`, `other_team`,
+                `now`, 20.0, 20.4, delta, 0, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
-                List(), List(),
-                List(), List(),
+                List(`player6`), List(`player1`),
+                List(), List("Player Leaves Game"),
                 _, _
               ) =>
-                "%.1f".format(delta) ==> "0.1"
-                players ==> starting_lineup.players.sortBy(_.code)
+                "%.1f".format(delta) ==> "0.4"
+                players ==>  {
+                  starting_lineup.players.toSet + player6 - player1
+                }.toList.sortBy(_.code)
                 lineup_id ==> players.map(_.code).mkString("_")
             }
             TestUtils.inside(event_5) {
               case LineupEvent(
-                `now`, 20.1, 20.4, delta, 0, `my_team`, `other_team`,
-                LineupEvent.LineupId(lineup_id), players,
-                List(`player6`), List(`player1`),
-                List(), List(),
-                _, _
-              ) =>
-                "%.1f".format(delta) ==> "0.3"
-                players ==>  {
-                  event_4.players.toSet + player6 - player1
-                }.toList.sortBy(_.code)
-                lineup_id ==> players.map(_.code).mkString("_")
-            }
-            TestUtils.inside(event_6) {
-              case LineupEvent(
                 `now`, 20.4, 40.0, delta, 0, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
-                List(`player1`, `player7`), List(`player2`, `player4`),
+                List(`player7`, `player1`), List(`player4`, `player2`),
                 List(), List(),
                 _, _
               ) =>
@@ -171,7 +162,7 @@ object ExtractorUtilsTests extends TestSuite {
                 }.toList.sortBy(_.code)
                 lineup_id ==> players.map(_.code).mkString("_")
             }
-            TestUtils.inside(event_7) {
+            TestUtils.inside(event_6) {
               case LineupEvent(
                 `now`, 40.0, 40.5, delta, 0, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
@@ -183,7 +174,7 @@ object ExtractorUtilsTests extends TestSuite {
                 players ==> starting_lineup.players.sortBy(_.code)
                 lineup_id ==> players.map(_.code).mkString("_")
             }
-            TestUtils.inside(event_8) {
+            TestUtils.inside(event_7) {
               case LineupEvent(
                 `now`, 40.5, 45.0, delta, 0, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,

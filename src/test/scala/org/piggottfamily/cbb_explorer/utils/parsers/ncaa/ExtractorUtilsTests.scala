@@ -34,7 +34,7 @@ object ExtractorUtilsTests extends TestSuite {
           )
         val my_team = TeamSeasonId(TeamId("TestTeam1"), Year(2018))
         val other_team = TeamSeasonId(TeamId("TestTeam2"), Year(2017))
-        val starting_lineup = LineupEvent(
+        val box_lineup = LineupEvent(
           date = now,
           start_min = 0.0,
           end_min = -100.0,
@@ -43,7 +43,7 @@ object ExtractorUtilsTests extends TestSuite {
           team = my_team,
           opponent = other_team,
           lineup_id = LineupEvent.LineupId.unknown,
-          players = all_players.take(5),
+          players = all_players,
           players_in = Nil,
           players_out = Nil,
           raw_team_events = Nil,
@@ -51,6 +51,7 @@ object ExtractorUtilsTests extends TestSuite {
           team_stats = LineupEventStats.empty,
           opponent_stats = LineupEventStats.empty
         )
+        val starting_lineup = box_lineup.copy(players = box_lineup.players.take(5))
         val test_events =
           // First event - sub immediately after game start
           Model.SubInEvent(0.1, player6.id.name) ::
@@ -59,7 +60,8 @@ object ExtractorUtilsTests extends TestSuite {
           Model.OtherTeamEvent(0.2, "event2a") ::
           // Second event
           Model.SubInEvent(0.4, player1.id.name) ::
-          Model.SubInEvent(0.4, player7.id.name) ::
+          // confirm that all upper case names are returned to normal form:
+          Model.SubInEvent(0.4, player7.id.name.toUpperCase) ::
           // CHECK: we only care about "code" not "id":
           Model.SubOutEvent(0.4, player2.id.name.toUpperCase + " ii") ::
           Model.SubOutEvent(0.4, player4.id.name) ::
@@ -91,7 +93,7 @@ object ExtractorUtilsTests extends TestSuite {
           Model.GameEndEvent(45.0) ::
           Nil
 
-        TestUtils.inside(build_partial_lineup_list(test_events.reverse.toIterator, starting_lineup)) {
+        TestUtils.inside(build_partial_lineup_list(test_events.reverse.toIterator, box_lineup)) {
           case List(event_1, event_2, event_3, event_4, event_5, event_6, event_7) =>
             TestUtils.inside(event_1) {
               case LineupEvent(
@@ -127,6 +129,7 @@ object ExtractorUtilsTests extends TestSuite {
                 List("event3a", "event4a"), List("event1b", "event2b"),
                 _, _
               ) =>
+
                 player2_with_mods.code ==> `player2`.code // (we corrupted the id)
                 "%.1f".format(delta) ==> "19.6"
                 players ==>  {

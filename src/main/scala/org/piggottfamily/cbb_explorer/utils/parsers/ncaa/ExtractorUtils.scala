@@ -5,6 +5,8 @@ import org.piggottfamily.cbb_explorer.models.ncaa._
 
 object ExtractorUtils {
 
+  //TODO: split on timeouts? (and have is_after_timeout flag, or sub_event == in-game/break/timeout)
+
   /** Error enrichment placeholder */
   val `parent_fills_in` = ""
 
@@ -18,34 +20,44 @@ object ExtractorUtils {
     box_lineup: LineupEvent
   ): List[LineupEvent] = {
     val starters_only = box_lineup.copy(players = box_lineup.players.take(5))
+    // Use this to render player names in their more readable format
+    val all_players_map = box_lineup.players.map(p => p.code -> p.id.name).toMap
 
     val starting_state = Model.LineupBuildingState(starters_only, Nil)
     val partial_events = reversed_partial_events.toList.reverse
     val end_state = partial_events.foldLeft(starting_state) { (state, event) =>
+      def tidy_player(p: String): String =
+        all_players_map
+          .get(build_player_code(p).code)
+          .getOrElse(p)
       event match {
         case Model.SubInEvent(min, player_name) if state.is_active(min) =>
+          val tidier_player_name = tidy_player(player_name)
           val completed_curr = complete_lineup(state.curr, min)
           state.copy(
             curr = new_lineup_event(
-              completed_curr, in = Some(player_name)
+              completed_curr, in = Some(tidier_player_name)
             ),
             prev = completed_curr :: state.prev
           )
         case Model.SubOutEvent(min, player_name) if state.is_active(min) =>
-        val completed_curr = complete_lineup(state.curr, min)
+          val tidier_player_name = tidy_player(player_name)
+          val completed_curr = complete_lineup(state.curr, min)
           state.copy(
             curr = new_lineup_event(
-              completed_curr, out = Some(player_name)
+              completed_curr, out = Some(tidier_player_name)
             ),
             prev = completed_curr :: state.prev
           )
         case Model.SubInEvent(min, player_name) => // !state.is_active
             // Keep adding sub events
-            state.with_player_in(player_name)
+            val tidier_player_name = tidy_player(player_name)
+            state.with_player_in(tidier_player_name)
 
         case Model.SubOutEvent(min, player_name) => // !state.is_active
           // Keep adding sub events
-          state.with_player_out(player_name)
+          val tidier_player_name = tidy_player(player_name)
+          state.with_player_out(tidier_player_name)
 
         case Model.OtherTeamEvent(min, event_string) =>
           state.with_team_event(min, event_string)
@@ -72,20 +84,13 @@ object ExtractorUtils {
     * player B enters game+player A leaves game ...
     * ... A makes shot...player A enters game)
    */
-  def validate_lineup(lineup_event: LineupEvent, all_players: List[LineupEvent.PlayerCodeId]): Boolean = {
+  def validate_lineup(
+    lineup_event: LineupEvent
+  ): Boolean = {
     val right_number_of_players = lineup_event.players.size == 5
-    val raw_events_only_ref_in_players = {
-      val all_players_map = all_players.map { p => p.code -> p.id }.toMap
-      val bench_players =
-        (all_players_map -- lineup_event.players.map(_.code))
-          .values.map(_.name.toLowerCase)
-      val bad_raw_events = lineup_event.raw_team_events.filter { raw_event =>
-        val text = raw_event.toLowerCase
-        bench_players.exists(text.contains)
-      }
-      bad_raw_events.isEmpty
-    }
-    right_number_of_players && raw_events_only_ref_in_players
+    // We also see cases where players not in a lineup make plays
+    //TODO we're going to ignore those for the moment
+    right_number_of_players
   }
 
   /** Gets the start time from the period - ie 2x 20 minute halves, then 5m overtimes */
@@ -129,13 +134,6 @@ object ExtractorUtils {
   private def build_lineup_id(players: List[LineupEvent.PlayerCodeId]): LineupEvent.LineupId = {
     LineupEvent.LineupId(players.map(_.code).sorted.mkString("_"))
   }
-
-  //TODO: split on timeouts? (and have is_after_timeout flag, or sub_event == in-game/break/timeout)
-
-  //TODO: box_lineup should have entire team and then only emit the first 5?
-  // that way the subs' names won't be captialized...
-
-  //TODO tidy up names in general
 
   /** Creates an "empty" new lineup */
   private def new_lineup_event(

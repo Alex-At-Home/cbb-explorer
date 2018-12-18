@@ -83,16 +83,20 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
       // Higher level tests
 
       "create_lineup_data" - {
-        val starting_players = {
+        val box_players = {
           "S1rname, F1rstname TeamA" ::
           "S2rname, F2rstname TeamA" ::
           "S3rname, F3rstname TeamA" ::
           "S4rname, F4rstname TeamA" ::
           "S5rname, F5rstname TeamA" ::
+          "S6rname, F6rstname TeamA" ::
+          "S7rname, F7rstname TeamA" ::
+          "S8rname, F8rstname TeamA" ::
+          "S9rname, F9rstname TeamA" ::
           Nil
-        }.map(build_player_code).sortBy(_.code)
+        }.map(build_player_code)
 
-        val test_lineup = LineupEvent(
+        val box_lineup = LineupEvent(
           date = new DateTime(),
           start_min = 0.0,
           end_min = -100.0,
@@ -101,7 +105,7 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
           team = TeamSeasonId(TeamId("TeamA"), Year(2017)),
           opponent = TeamSeasonId(TeamId("TeamB"), Year(2017)),
           lineup_id = LineupEvent.LineupId.unknown,
-          players = starting_players,
+          players = box_players,
           players_in = Nil,
           players_out = Nil,
           raw_team_events = Nil,
@@ -109,10 +113,10 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
           team_stats = LineupEventStats.empty,
           opponent_stats = LineupEventStats.empty
         )
-        TestUtils.inside(create_lineup_data("filename_test", play_by_play_html, test_lineup)) {
+        TestUtils.inside(create_lineup_data("filename_test", play_by_play_html, box_lineup)) {
           case Right((lineup_events, bad_lineup_events)) =>
-            lineup_events.size ==> 24 // (by inspection)
-            bad_lineup_events.size ==> 4
+            lineup_events.size ==> 27 // (by inspection)
+            bad_lineup_events.size ==> 1
               //(1 with wrong lineup size, 3 where a benched player was in an event)
 
             // Spot checks:
@@ -121,6 +125,12 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
                 case (event, index) =>
                   // Always have 5 players in the lineup:
                   event.players.size ==> 5
+
+                  // Correct capitalization etc for names
+                  event.players.map(_.id.name).foreach { p =>
+                    val p_no_spaces = p.replace(" ", "")
+                    assert(p_no_spaces.toUpperCase != p_no_spaces)
+                  }
 
                   // Duration is always >0
                   event.duration_mins > 0.0

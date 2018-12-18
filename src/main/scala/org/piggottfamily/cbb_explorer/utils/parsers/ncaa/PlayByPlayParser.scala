@@ -60,13 +60,8 @@ trait PlayByPlayParser {
   ): Either[List[ParseError], (List[LineupEvent], List[LineupEvent])] = {
     parse_game_events(filename, in).map { reversed_events =>
       build_partial_lineup_list(reversed_events.toIterator, box_lineup)
-    }.map { lineup_events =>
-      val good_and_bad_events = lineup_events.map(enrich_lineup)
-      val all_players = // find all the strings in the actual raw events
-        good_and_bad_events.map(e => e.players_in ++ e.players_out)
-          .flatten
-          .distinct
-      good_and_bad_events.partition(validate_lineup(_, all_players))
+    }.map {
+      _.map(enrich_lineup).partition(validate_lineup)
     }
   }
 

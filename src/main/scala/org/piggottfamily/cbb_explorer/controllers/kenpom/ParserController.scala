@@ -1,4 +1,4 @@
-package org.piggottfamily.cbb_explorer.controllers
+package org.piggottfamily.cbb_explorer.controllers.kenpom
 
 import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.utils._

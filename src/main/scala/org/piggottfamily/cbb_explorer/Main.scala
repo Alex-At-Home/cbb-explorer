@@ -8,9 +8,11 @@ object Main {
     val startup = """
       |import ammonite.ops._
       |import org.piggottfamily.cbb_explorer.models._
-      |import org.piggottfamily.cbb_explorer.controllers._
+      |import org.piggottfamily.cbb_explorer.controllers.kenpom.ParserController
+      |import org.piggottfamily.cbb_explorer.controllers.ncaa.LineupController
       |
-      |val parser_controller = new ParserController() 
+      |val kenpom_parser_controller = new ParserController()
+      |val ncaa_lineup_controller = new LineupController()
     """.stripMargin
 
     ammonite.Main(

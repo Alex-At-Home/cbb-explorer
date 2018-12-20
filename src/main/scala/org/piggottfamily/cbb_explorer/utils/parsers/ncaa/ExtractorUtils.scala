@@ -2,6 +2,7 @@ package org.piggottfamily.cbb_explorer.utils.parsers.ncaa
 
 import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.models.ncaa._
+import org.piggottfamily.cbb_explorer.utils.parsers._
 
 object ExtractorUtils {
 
@@ -78,6 +79,27 @@ object ExtractorUtils {
   }
 
   // Utils with some exernal usefulness
+
+  /** Pulls team name from "title" table element, matching the target and opponent teams
+    * returns the target team, the opposing team, and whether the target team is first (vs second)
+  */
+  def parse_team_name(teams: List[String], target_team: TeamId)
+    : Either[ParseError, (String, String, Boolean)] =
+  {
+    val target_team_str = target_team.name
+    teams.map(_.trim) match {
+      case List(`target_team_str`, opponent) =>
+        Right((target_team_str, opponent, true))
+
+      case List(opponent, `target_team_str`) =>
+        Right((target_team_str, opponent, false))
+
+      case _ =>
+      Left(ParseUtils.build_sub_error("team")(
+        s"Could not find/match team names (target=[$target_team]): $teams"
+      ))
+    }
+  }
 
   /** Pulls out inconsistent lineups (self healing seems harder
     * based on cases I've seen, eg
@@ -192,15 +214,16 @@ object ExtractorUtils {
       }
       /** Opposition subs are currently treated as game events. but shouldn't
        *  result in new lineups */
-      private def ignore_subs(s: String): Boolean = {
-        val s_lower = s.toLowerCase
+      private def is_sub(s: String): Boolean = {
+        val s_lower = s.toLowerCase.trim
         //TODO: move this into some parsing module
-        !s_lower.endsWith("leaves game") && !s_lower.endsWith("enters game")
+        s_lower.endsWith("leaves game") || s_lower.endsWith("enters game") ||
+        s_lower.endsWith("substitution in") || s_lower.endsWith("substitution out")
       }
       /** Ifsome time has elapsed since the last sub or a game event has occurred */
       def is_active(min: Double): Boolean =
         curr.raw_team_events.nonEmpty ||
-        curr.raw_opponent_events.filter(ignore_subs).nonEmpty ||
+        curr.raw_opponent_events.filterNot(is_sub).nonEmpty ||
         {
           min - curr.end_min > SUB_SAFETY_DELTA_MINS
         }

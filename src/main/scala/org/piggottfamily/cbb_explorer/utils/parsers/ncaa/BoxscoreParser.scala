@@ -35,21 +35,24 @@ trait BoxscoreParser {
   // Holds all the HTML parsing logic
   protected object builders {
 
-    def team_finder(doc: Document): Option[Element] =
-      (doc >?> element("div#contentarea br + table.mytable tr:eq(1) td a[href]"))
-
-    def opponent_finder(doc: Document): Option[Element] =
-      (doc >?> element("div#contentarea br + table.mytable tr:eq(2) td a[href]"))
+    def team_finder(doc: Document): List[String] =
+      (doc >?> elementList("div#contentarea table.mytable[width=50%] td a[href]"))
+        .getOrElse(Nil).map(_.text)
 
     def date_finder(doc: Document): Option[Element] =
       (doc >?> element("td.boldtext:contains(Game Date:) + td"))
 
-    def boxscore_finder(doc: Document): Option[List[Element]] =
-      (doc >?> elementList("div.header_menu + table.mytable td a[href]")).filter(_.nonEmpty)
+    //TODO: difference between home and away games
+    def boxscore_finder(doc: Document, target_team_first: Boolean): Option[List[Element]] = target_team_first match {
+      case true =>
+        (doc >?> elementList("div#contentarea div.header_menu + table.mytable[width=1000px] td a[href]")).filter(_.nonEmpty)
+      case false =>
+        (doc >?> elementList("div#contentarea br + table.mytable[width=1000px] td a[href]")).filter(_.nonEmpty)
+    }
   }
 
   /** Gets the boxscore lineup from the HTML page */
-  def get_box_lineup(in: String, filename: String, year: Year)
+  def get_box_lineup(filename: String, in: String, team: TeamId)
     : Either[List[ParseError], LineupEvent] =
   {
     val browser = JsoupBrowser()
@@ -64,20 +67,20 @@ trait BoxscoreParser {
       period <- parse_period_from_filename(filename)
                   .left.map(single_error_completer)
 
-      team <- parse_team_name(
-        builders.team_finder(doc), "team"
+      team_info <- parse_team_name(
+        builders.team_finder(doc), team
       ).left.map(single_error_completer)
 
-      opponent <- parse_team_name(
-        builders.opponent_finder(doc), "opponent"
-      ).left.map(single_error_completer)
+      (team, opponent, target_team_first) = team_info //SI-5589
 
       date <- parse_date(
         builders.date_finder(doc)
       ).left.map(single_error_completer)
 
+      year = Year(if (date.monthOfYear.get >= 6) date.year.get else (date.year.get - 1))
+
       starting_lineup <- parse_players_from_boxscore(
-        builders.boxscore_finder(doc)
+        builders.boxscore_finder(doc, target_team_first)
       ).left.map(single_error_completer)
 
     } yield LineupEvent(
@@ -110,21 +113,8 @@ trait BoxscoreParser {
     filename match {
       case filename_parser(period_str) =>
         Right(period_str.toInt)
-      case _ =>
-        Left(ParseUtils.build_sub_error(`parent_fills_in`)(
-          s"Could not parse period out of filename [$filename] via [$filename_parser]"
-        ))
-    }
-  }
-
-  /** Pulls team name from table element, just encapsulates error handling */
-  protected def parse_team_name(name: Option[Element], type_str: String)
-    : Either[ParseError, String] =
-  {
-    name.map(_.text).map(Right(_)).getOrElse {
-      Left(ParseUtils.build_sub_error(`parent_fills_in`)(
-        s"Could not find [$type_str] name"
-      ))
+      case _ => // default to period 1
+        Right(1)
     }
   }
 
@@ -132,11 +122,12 @@ trait BoxscoreParser {
   protected def parse_date(date: Option[Element]):
     Either[ParseError, DateTime] =
   {
-    val formatter = DateTimeFormat.forPattern("MM/dd/yyyy")
+    val formatter  = DateTimeFormat.forPattern("MM/dd/yyyy")
 
     date.map(_.text).map(_.trim).map { date_str =>
       Try(
-        Right(formatter.parseDateTime(date_str))
+        //(the split gets rid of the optional time at the end of the date)
+        Right(formatter.parseDateTime(date_str.split(" ")(0)))
       ).toOption.getOrElse {
         Left(ParseUtils.build_sub_error(`parent_fills_in`)(
           s"Unexpected date format: [$date_str]"
@@ -169,3 +160,4 @@ trait BoxscoreParser {
   }
 
 }
+object BoxscoreParser extends BoxscoreParser

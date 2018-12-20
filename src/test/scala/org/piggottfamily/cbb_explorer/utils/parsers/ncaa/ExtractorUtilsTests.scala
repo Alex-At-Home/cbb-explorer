@@ -73,7 +73,8 @@ object ExtractorUtilsTests extends TestSuite {
           Model.GameBreakEvent(20.0) ::
           // (subs happen immediately after break)
           Model.SubOutEvent(20.0, player1.id.name) ::
-          Model.OtherOpponentEvent(20.0, "Player Leaves Game") :: //opponents can sub too....
+          Model.OtherOpponentEvent(20.0, "PlayerA Leaves Game") :: //opponents can sub too....
+          Model.OtherOpponentEvent(20.0, "PlayerB, substitution in") :: //(new format))
           Model.SubInEvent(20.0, player6.id.name) ::
           // Fourth event  - sub-on-sub action
           Model.SubOutEvent(20.4, player2.id.name) ::
@@ -142,7 +143,7 @@ object ExtractorUtilsTests extends TestSuite {
                 `now`, 20.0, 20.4, delta, 0, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(`player6`), List(`player1`),
-                List(), List("Player Leaves Game"),
+                List(), List("PlayerA Leaves Game", "PlayerB, substitution in"),
                 _, _
               ) =>
                 "%.1f".format(delta) ==> "0.4"

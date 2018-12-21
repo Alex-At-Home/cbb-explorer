@@ -88,15 +88,14 @@ trait BoxscoreParser {
       start_min = start_time_from_period(period),
       end_min = start_time_from_period(period),
       duration_mins = 0.0,
-      score_diff = 0,
+      LineupEvent.ScoreInfo.empty,
       team = TeamSeasonId(TeamId(team), year),
       opponent = TeamSeasonId(TeamId(opponent), year),
       lineup_id = LineupEvent.LineupId.unknown,
       players = starting_lineup.map(build_player_code),
       players_in = Nil,
       players_out = Nil,
-      raw_team_events = Nil,
-      raw_opponent_events = Nil,
+      raw_game_events = Nil,
       team_stats = LineupEventStats.empty,
       opponent_stats = LineupEventStats.empty
     )
@@ -127,7 +126,10 @@ trait BoxscoreParser {
     date.map(_.text).map(_.trim).map { date_str =>
       Try(
         //(the split gets rid of the optional time at the end of the date)
-        Right(formatter.parseDateTime(date_str.split(" ")(0)))
+        Right(
+          formatter.parseDateTime(date_str.split(" ")(0))
+            .withHourOfDay(17) // (make it an early evening game, no reason)
+        )
       ).toOption.getOrElse {
         Left(ParseUtils.build_sub_error(`parent_fills_in`)(
           s"Unexpected date format: [$date_str]"

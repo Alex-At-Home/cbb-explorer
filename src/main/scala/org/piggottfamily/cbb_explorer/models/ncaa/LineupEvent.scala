@@ -24,20 +24,36 @@ case class LineupEvent(
   start_min: Double,
   end_min: Double,
   duration_mins: Double,
-  score_diff: Int,
+  score_info: LineupEvent.ScoreInfo,
   team: TeamSeasonId,
   opponent: TeamSeasonId,
   lineup_id: LineupEvent.LineupId,
   players: List[LineupEvent.PlayerCodeId],
   players_in: List[LineupEvent.PlayerCodeId],
   players_out: List[LineupEvent.PlayerCodeId],
-  raw_team_events: List[String],
-  raw_opponent_events: List[String],
+  raw_game_events: List[LineupEvent.RawGameEvent],
   team_stats: LineupEventStats,
   opponent_stats: LineupEventStats
 )
 
 object LineupEvent {
+
+  /** List of game events, categorized by whether it was "for" the team or its opponent */
+  case class RawGameEvent(team: Option[String] = None, opponent: Option[String] = None)
+
+  object RawGameEvent {
+    def team(s: String): RawGameEvent = RawGameEvent(Some(s), None)
+    def opponent(s: String): RawGameEvent = RawGameEvent(None, Some(s))
+  }
+
+  /** Info about the score at the start and end of the event */
+  case class ScoreInfo(start: Game.Score, end: Game.Score, start_diff: Int, end_diff: Int)
+
+  object ScoreInfo {
+    def empty: ScoreInfo = ScoreInfo(
+      Game.Score(0, 0), Game.Score(0, 0), 0, 0
+    )
+  }
 
   /** A string that defines the set of players on the floor (via per player codes) */
   case class LineupId(value: String) extends AnyVal

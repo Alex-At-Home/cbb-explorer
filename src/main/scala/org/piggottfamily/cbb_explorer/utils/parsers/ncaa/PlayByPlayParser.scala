@@ -237,14 +237,16 @@ trait PlayByPlayParser {
     : Either[ParseError, (String, Double)] =
   {
     val `game_time` = "game_time"
-    val time_regex = "([0-9]+):([0-9]+)".r
+    val time_regex = "([0-9]+):([0-9]+)(?:[:]([0-9]+))?".r
     builders.event_time_finder(el) match {
       case None =>
         Left(ParseUtils.build_sub_error(`game_time`)(
           s"Could not find time in [$el]"
         ))
-      case Some(str @ time_regex(min, secs)) =>
-        val descending_mins = min.toInt*1.0 + secs.toInt/60.0
+      case Some(str @ time_regex(min, secs, maybe_csecs)) =>
+        val descending_mins =
+          min.toInt*1.0 + secs.toInt/60.0
+          + Option(maybe_csecs).map(_.toInt).getOrElse(0)/6000.0
         Right((str, descending_mins))
       case Some(str) =>
         Left(ParseUtils.build_sub_error(`game_time`)(

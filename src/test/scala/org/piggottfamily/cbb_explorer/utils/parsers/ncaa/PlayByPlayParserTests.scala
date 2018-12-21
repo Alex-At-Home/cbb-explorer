@@ -26,8 +26,6 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
 
   val play_by_play_html = Source.fromURL(getClass.getResource("/ncaa/test_play_by_play.html")).mkString
 
-  //TODO: do the new version of this (See below)
-
   val sample_game_event = """
     <table><tr>
       <td class="smtext">20:00:00</td>
@@ -61,8 +59,6 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
     </table></tr>
   """
 
-  //TODO: do the new version of this (See below)
-
   val sample_team_sub_out = """
     <table><tr>
       <td class="smtext">15:00</td>
@@ -92,6 +88,14 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
   val sample_team_event = """
     <table><tr>
       <td class="smtext">15:00</td>
+      <td class="smtext">event text</td>
+      <td class="smtext" align="center">45-26</td>
+      <td class="smtext"></td>
+    </table></tr>
+  """
+  val sample_team_event_new_format = """
+    <table><tr>
+      <td class="smtext">15:00:50</td>
       <td class="smtext">event text</td>
       <td class="smtext" align="center">45-26</td>
       <td class="smtext"></td>
@@ -130,15 +134,14 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
           start_min = 0.0,
           end_min = -100.0,
           duration_mins = 0.0,
-          score_diff = 0,
+          score_info = LineupEvent.ScoreInfo.empty,
           team = TeamSeasonId(TeamId("TeamA"), Year(2017)),
           opponent = TeamSeasonId(TeamId("TeamB"), Year(2017)),
           lineup_id = LineupEvent.LineupId.unknown,
           players = box_players,
           players_in = Nil,
           players_out = Nil,
-          raw_team_events = Nil,
-          raw_opponent_events = Nil,
+          raw_game_events = Nil,
           team_stats = LineupEventStats.empty,
           opponent_stats = LineupEventStats.empty
         )
@@ -228,6 +231,12 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
           TestUtils.inside(parse_desc_game_time(doc.body)) {
             case Right(("15:00", t)) =>
               "%.1f".format(t) ==> "15.0"
+          }
+        }
+        TestUtils.with_doc(sample_team_event_new_format) { doc =>
+          TestUtils.inside(parse_desc_game_time(doc.body)) {
+            case Right(("15:00:50", t)) =>
+              "%.2f".format(t) ==> "15.00"
           }
         }
       }

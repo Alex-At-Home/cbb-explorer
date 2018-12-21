@@ -6,7 +6,40 @@ import org.piggottfamily.cbb_explorer.utils.parsers._
 
 object ExtractorUtils {
 
+  //TODO: move raw events into a single list of objects (vs 2 lists of strings)
+
   //TODO: split on timeouts? (and have is_after_timeout flag, or sub_event == in-game/break/timeout)
+
+  //TODO: you _can_ get
+  /*
+  12:00:00	Jacob Cushing, substitution in	16-17
+12:00:00	Darian Bryant, substitution out	16-17
+12:00:00	Eric Carter, substitution out	16-17
+12:00:00	Collin Goss, substitution in	16-17
+12:00:00	Kevin Anderson, substitution out	16-17
+12:00:00		16-17	Jalen Smith, substitution out
+12:00:00		16-17	Serrel Smith Jr., substitution in
+12:00:00		16-17	Darryl Morsell, substitution out
+12:00:00		16-17	Bruno Fernando, substitution in
+12:00:00		16-17	Aaron Wiggins, substitution in
+12:00:00	Ryan Johnson, substitution in	16-17
+12:00:00	Team, rebound defensive team	16-17
+12:00:00		16-17	Anthony Cowan, substitution out
+*/
+
+//TODO: also ... free throws:
+/*
+
+17:09		5-1	CARTER JR.,JOHN made Free Throw
+17:09		5-1	CARTER JR.,JOHN missed Free Throw
+
+17:09	,RICKY LINDO JR Defensive Rebound	5-1
+17:09	,RICKY LINDO JR Enters Game	5-1
+*/
+
+//TODO: so we need to retrieve "reorder and reverse" handling:
+// - subs in the middle of plays
+// - plays in the middle of subs !!
 
   /** Error enrichment placeholder */
   val `parent_fills_in` = ""
@@ -125,6 +158,8 @@ object ExtractorUtils {
   */
   def duration_from_period(period: Int): Double = start_time_from_period(period + 1)
 
+  //TODO add a test for 	",RICKY LINDO JR" and ensure tests for "CARTER JR.,JOHN"
+
   /** Builds a player code out of the name, with various formats supported */
   def build_player_code(name: String): LineupEvent.PlayerCodeId = {
     LineupEvent.PlayerCodeId((name.split("\\s*,\\s*", 2).toList match {
@@ -163,19 +198,18 @@ object ExtractorUtils {
     in: Option[String] = None, out: Option[String] = None
   ): LineupEvent = {
     LineupEvent(
-      date = prev.date,
+      date = prev.date.plusMillis((prev.duration_mins*60000.0).toInt),
       start_min = prev.end_min,
       end_min = prev.end_min, //(updates with every event)
       duration_mins = 0.0, //(fill in at end of event)
-      score_diff = 0, //(calculate later)
+      LineupEvent.ScoreInfo.empty, //(calculate later)
       team = prev.team,
       opponent = prev.opponent,
       lineup_id = LineupEvent.LineupId.unknown, //(will calc once we have all the subs)
       players = prev.players, //(will re-calc once we have all the subs)
       players_in = in.map(build_player_code).toList,
       players_out = out.map(build_player_code).toList,
-      raw_team_events = Nil,
-      raw_opponent_events = Nil,
+      raw_game_events = Nil,
       team_stats = LineupEventStats.empty, //(calculate these 2 later)
       opponent_stats = LineupEventStats.empty
     )
@@ -194,8 +228,7 @@ object ExtractorUtils {
       duration_mins = min - curr.start_min,
       lineup_id = build_lineup_id(new_player_list),
       players = new_player_list.sortBy(_.code),
-      raw_team_events = curr.raw_team_events.reverse,
-      raw_opponent_events = curr.raw_opponent_events.reverse
+      raw_game_events = curr.raw_game_events.reverse
     )
   }
 
@@ -214,16 +247,16 @@ object ExtractorUtils {
       }
       /** Opposition subs are currently treated as game events. but shouldn't
        *  result in new lineups */
-      private def is_sub(s: String): Boolean = {
+      private def is_sub(raw: LineupEvent.RawGameEvent): Boolean = raw.opponent.map { s =>
         val s_lower = s.toLowerCase.trim
         //TODO: move this into some parsing module
         s_lower.endsWith("leaves game") || s_lower.endsWith("enters game") ||
         s_lower.endsWith("substitution in") || s_lower.endsWith("substitution out")
-      }
+      }.getOrElse(false)
+
       /** Ifsome time has elapsed since the last sub or a game event has occurred */
       def is_active(min: Double): Boolean =
-        curr.raw_team_events.nonEmpty ||
-        curr.raw_opponent_events.filterNot(is_sub).nonEmpty ||
+        curr.raw_game_events.filterNot(is_sub).nonEmpty ||
         {
           min - curr.end_min > SUB_SAFETY_DELTA_MINS
         }
@@ -246,14 +279,14 @@ object ExtractorUtils {
         copy(
           curr = curr.copy(
             end_min = min,
-            raw_team_events = event_string :: curr.raw_team_events
+            raw_game_events = LineupEvent.RawGameEvent.team(event_string) :: curr.raw_game_events
           )
         )
       def with_opponent_event(min: Double, event_string: String): LineupBuildingState =
         copy(
           curr = curr.copy(
             end_min = min,
-            raw_opponent_events = event_string :: curr.raw_opponent_events
+            raw_game_events = LineupEvent.RawGameEvent.opponent(event_string) :: curr.raw_game_events
           )
         )
     }

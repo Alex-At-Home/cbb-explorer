@@ -33,12 +33,12 @@ object BoxscoreParserTests extends TestSuite with BoxscoreParser {
           // Home
           TestUtils.inside(get_box_lineup(s"test_p$period.html", lineup_html, TeamId("TeamA"))) {
             case Right(LineupEvent(
-              date, `mins`, `mins`, 0.0, 0,
+              date, `mins`, `mins`, 0.0, _,
               TeamSeasonId(TeamId("TeamA"), Year(2018)),
               TeamSeasonId(TeamId("TeamB"), Year(2018)),
-              _, lineup, Nil, Nil, Nil, Nil, _, _
+              _, lineup, Nil, Nil, Nil, _, _
             )) =>
-              date.toString ==> "2018-12-10T00:00:00.000-05:00"
+              date.toString ==> "2018-12-10T17:00:00.000-05:00"
               lineup ==> {
                 "S1rname, F1rstname TeamA" ::
                 "S2rname, F2rstname TeamA" ::
@@ -55,12 +55,12 @@ object BoxscoreParserTests extends TestSuite with BoxscoreParser {
           // Away
           TestUtils.inside(get_box_lineup(s"test_p$period.html", lineup_html, TeamId("TeamB"))) {
             case Right(LineupEvent(
-              date, `mins`, `mins`, 0.0, 0,
+              date, `mins`, `mins`, 0.0, _,
               TeamSeasonId(TeamId("TeamB"), Year(2018)),
               TeamSeasonId(TeamId("TeamA"), Year(2018)),
-              _, lineup, Nil, Nil, Nil, Nil, _, _
+              _, lineup, Nil, Nil, Nil, _, _
             )) =>
-              date.toString ==> "2018-12-10T00:00:00.000-05:00"
+              date.toString ==> "2018-12-10T17:00:00.000-05:00"
               lineup ==> {
                 "S1rname, F1rstname TeamB" ::
                 "S2rname, F2rstname TeamB" ::

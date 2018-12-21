@@ -39,15 +39,14 @@ object ExtractorUtilsTests extends TestSuite {
           start_min = 0.0,
           end_min = -100.0,
           duration_mins = 0.0,
-          score_diff = 0,
+          score_info = LineupEvent.ScoreInfo.empty,
           team = my_team,
           opponent = other_team,
           lineup_id = LineupEvent.LineupId.unknown,
           players = all_players,
           players_in = Nil,
           players_out = Nil,
-          raw_team_events = Nil,
-          raw_opponent_events = Nil,
+          raw_game_events = Nil,
           team_stats = LineupEventStats.empty,
           opponent_stats = LineupEventStats.empty
         )
@@ -98,10 +97,10 @@ object ExtractorUtilsTests extends TestSuite {
           case List(event_1, event_2, event_3, event_4, event_5, event_6, event_7) =>
             TestUtils.inside(event_1) {
               case LineupEvent(
-                `now`, 0.0, 0.1, delta, 0, `my_team`, `other_team`,
+                `now`, 0.0, 0.1, delta, _, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(), List(),
-                List(), List(),
+                List(),
                 _, _
               ) =>
                 "%.1f".format(delta) ==> "0.1"
@@ -110,12 +109,16 @@ object ExtractorUtilsTests extends TestSuite {
             }
             TestUtils.inside(event_2) {
               case LineupEvent(
-                `now`, 0.1, 0.4, delta, 0, `my_team`, `other_team`,
+                new_time, 0.1, 0.4, delta, _, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(`player6`), List(`player1`),
-                List("event1a", "event2a"), List(),
+                List(
+                  LineupEvent.RawGameEvent(Some("event1a"), None),
+                  LineupEvent.RawGameEvent(Some("event2a"), None)
+                ),
                 _, _
               ) =>
+                new_time ==> now.plusMillis(6000)
                 "%.1f".format(delta) ==> "0.3"
                 players ==>  {
                   event_1.players.toSet + player6 - player1
@@ -124,10 +127,15 @@ object ExtractorUtilsTests extends TestSuite {
             }
             TestUtils.inside(event_3) {
               case LineupEvent(
-                `now`, 0.4, 20.0, delta, 0, `my_team`, `other_team`,
+                _, 0.4, 20.0, delta, _, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(`player7`, `player1`), List(`player4`, player2_with_mods),
-                List("event3a", "event4a"), List("event1b", "event2b"),
+                List(
+                  LineupEvent.RawGameEvent(None, Some("event1b")),
+                  LineupEvent.RawGameEvent(None, Some("event2b")),
+                  LineupEvent.RawGameEvent(Some("event3a"), None),
+                  LineupEvent.RawGameEvent(Some("event4a"), None)
+                ),
                 _, _
               ) =>
 
@@ -140,10 +148,13 @@ object ExtractorUtilsTests extends TestSuite {
             }
             TestUtils.inside(event_4) {
               case LineupEvent(
-                `now`, 20.0, 20.4, delta, 0, `my_team`, `other_team`,
+                _, 20.0, 20.4, delta, _, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(`player6`), List(`player1`),
-                List(), List("PlayerA Leaves Game", "PlayerB, substitution in"),
+                List(
+                  LineupEvent.RawGameEvent(None, Some("PlayerA Leaves Game")),
+                  LineupEvent.RawGameEvent(None, Some("PlayerB, substitution in"))
+                ),
                 _, _
               ) =>
                 "%.1f".format(delta) ==> "0.4"
@@ -154,10 +165,10 @@ object ExtractorUtilsTests extends TestSuite {
             }
             TestUtils.inside(event_5) {
               case LineupEvent(
-                `now`, 20.4, 40.0, delta, 0, `my_team`, `other_team`,
+                _, 20.4, 40.0, delta, _, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(`player7`, `player1`), List(`player4`, `player2`),
-                List(), List(),
+                List(),
                 _, _
               ) =>
                 "%.1f".format(delta) ==> "19.6"
@@ -168,10 +179,13 @@ object ExtractorUtilsTests extends TestSuite {
             }
             TestUtils.inside(event_6) {
               case LineupEvent(
-                `now`, 40.0, 40.5, delta, 0, `my_team`, `other_team`,
+                _, 40.0, 40.5, delta, _, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(), List(),
-                List("event5a"), List("event3b"),
+                List(
+                  LineupEvent.RawGameEvent(None, Some("event3b")),
+                  LineupEvent.RawGameEvent(Some("event5a"), None)
+                ),
                 _, _
               ) =>
                 "%.1f".format(delta) ==> "0.5"
@@ -180,10 +194,13 @@ object ExtractorUtilsTests extends TestSuite {
             }
             TestUtils.inside(event_7) {
               case LineupEvent(
-                `now`, 40.5, 45.0, delta, 0, `my_team`, `other_team`,
+                _, 40.5, 45.0, delta, _, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(player6), List(player1),
-                List("event6a"), List("event4b"),
+                List(
+                  LineupEvent.RawGameEvent(Some("event6a"), None),
+                  LineupEvent.RawGameEvent(None, Some("event4b"))
+                ),
                 _, _
               ) =>
                 "%.1f".format(delta) ==> "4.5"

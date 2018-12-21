@@ -19,7 +19,7 @@ object TestUtils {
     } catch {
       case assert: java.lang.AssertionError =>
         val new_message = s"ASSERT inside [$t]:\n${assert.getMessage}"
-        throw new java.lang.AssertionError(new_message, assert.getCause)
+        throw new java.lang.AssertionError(new_message, assert)
     }
   }
 

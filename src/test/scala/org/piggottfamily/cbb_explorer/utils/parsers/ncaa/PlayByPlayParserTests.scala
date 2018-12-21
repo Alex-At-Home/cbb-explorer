@@ -26,90 +26,6 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
 
   val play_by_play_html = Source.fromURL(getClass.getResource("/ncaa/test_play_by_play.html")).mkString
 
-  val sample_game_event = """
-    <table><tr>
-      <td class="smtext">20:00:00</td>
-      <td colspan="3" align="center" class="boldtext"><b></b> random event like timeout </td>
-    </table></tr>
-  """
-
-  val sample_team_sub_in = """
-    <table><tr>
-      <td class="smtext">15:00</td>
-      <td class="smtext">S8RNAME,F8RSTNAME TEAMA Enters Game</td>
-      <td class="smtext" align="center">45-26</td>
-      <td class="smtext"></td>
-    </table></tr>
-  """
-  val sample_team_sub_in_new_format = """
-    <table><tr>
-      <td class="smtext">15:00</td>
-      <td class="smtext">F5rstname TeamA S5rname, substitution in</td>
-      <td class="smtext" align="center">45-26</td>
-      <td class="smtext"></td>
-    </table></tr>
-  """
-
-  val sample_oppo_sub_in = """
-    <table><tr>
-      <td class="smtext">15:00</td>
-      <td class="smtext"></td>
-      <td class="smtext" align="center">45-26</td>
-      <td class="smtext">S8RNAME,F8RSTNAME TEAMB Enters Game</td>
-    </table></tr>
-  """
-
-  val sample_team_sub_out = """
-    <table><tr>
-      <td class="smtext">15:00</td>
-      <td class="smtext">S8RNAME,F8RSTNAME TEAMA Leaves Game</td>
-      <td class="smtext" align="center">45-26</td>
-      <td class="smtext"></td>
-    </table></tr>
-  """
-  val sample_team_sub_out_new_format = """
-    <table><tr>
-      <td class="smtext">15:00</td>
-      <td class="smtext">F5rstname TeamA S5rname, substitution out</td>
-      <td class="smtext" align="center">45-26</td>
-      <td class="smtext"></td>
-    </table></tr>
-  """
-
-  val sample_oppo_sub_out = """
-    <table><tr>
-      <td class="smtext">15:00</td>
-      <td class="smtext"></td>
-      <td class="smtext" align="center">45-26</td>
-      <td class="smtext">S8RNAME,F8RSTNAME TEAMB Leaves Game</td>
-    </table></tr>
-  """
-
-  val sample_team_event = """
-    <table><tr>
-      <td class="smtext">15:00</td>
-      <td class="smtext">event text</td>
-      <td class="smtext" align="center">45-26</td>
-      <td class="smtext"></td>
-    </table></tr>
-  """
-  val sample_team_event_new_format = """
-    <table><tr>
-      <td class="smtext">15:00:50</td>
-      <td class="smtext">event text</td>
-      <td class="smtext" align="center">45-26</td>
-      <td class="smtext"></td>
-    </table></tr>
-  """
-  val sample_oppo_event = """
-    <table><tr>
-      <td class="smtext">15:00</td>
-      <td class="smtext"></td>
-      <td class="smtext" align="center">45-26</td>
-      <td class="smtext">event text</td>
-    </table></tr>
-  """
-
   val tests = Tests {
     "PlayByPlayParser" - {
 
@@ -123,7 +39,7 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
           "S4rname, F4rstname TeamA" ::
           "S5rname, F5rstname TeamA" ::
           "S6rname, F6rstname TeamA" ::
-          "S7rname, F7rstname TeamA" ::
+          //"S7rname, F7rstname TeamA" :: //(deliberately exclude this to check it gets handled)
           "S8rname, F8rstname TeamA" ::
           "S9rname, F9rstname TeamA" ::
           Nil
@@ -151,7 +67,24 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
             bad_lineup_events.size ==> 1
               //(1 with wrong lineup size, 3 where a benched player was in an event)
 
-            // Spot checks:
+            // Spot checks on a "random" entry:
+
+            TestUtils.inside(lineup_events.drop(1).headOption) {
+              case Some(event: LineupEvent) =>
+              // Check names get substituted for names in the lineup (but will fallback if not)
+                event.players.map(_.id.name).contains("F7rstname TeamA S7rname") ==> true
+                event.players.map(_.id.name).contains("S6rname, F6rstname TeamA") ==> true
+                // Basic enriched scores
+                //TODO: unlucky coincidence all the team/oppo stats are the same!
+                event.team_stats.num_events ==> 6
+                event.team_stats.pts ==> 3
+                event.team_stats.plus_minus ==> 0
+                event.opponent_stats.num_events ==> 6
+                event.opponent_stats.pts ==> 3
+                event.opponent_stats.plus_minus ==> -event.team_stats.plus_minus
+            }
+
+            // Spot checks across all entries:
             lineup_events.zipWithIndex.foreach { event_index =>
               TestUtils.inside(event_index) {
                 case (event, index) =>
@@ -160,8 +93,11 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
 
                   // Correct capitalization etc for names
                   event.players.map(_.id.name).foreach { p =>
+                    // Sub happens only if the tidier player name is in the box lineup
                     val p_no_spaces = p.replace(" ", "")
-                    assert(p_no_spaces.toUpperCase != p_no_spaces)
+                    if (box_lineup.players.exists(_.id.name == p)) {
+                      assert(p_no_spaces.toUpperCase != p_no_spaces)
+                    }
                   }
 
                   // Duration is always >0
@@ -191,21 +127,22 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
       }
 
       "enrich_and_reverse_game_events" - {
+        val score = Game.Score(1, 1)
         val test_list =
-          Model.OtherTeamEvent(2.0, "test1") ::
-          Model.OtherTeamEvent(3.0, "test2a") ::
-          Model.OtherTeamEvent(2.0, "test2b") ::
-          Model.OtherTeamEvent(2.5, "test3") ::
+          Model.OtherTeamEvent(2.0, score, "test1") ::
+          Model.OtherTeamEvent(3.0, score, "test2a") ::
+          Model.OtherTeamEvent(2.0, score, "test2b") ::
+          Model.OtherTeamEvent(2.5, score, "test3") ::
           Nil
         TestUtils.inside(enrich_and_reverse_game_events(test_list)) {
           case List(
             Model.GameEndEvent(end_t),
-            Model.OtherTeamEvent(game_t_3, "test3"),
+            Model.OtherTeamEvent(game_t_3, _, "test3"),
             Model.GameBreakEvent(mid_t_2),
-            Model.OtherTeamEvent(game_t_2b, "test2b"),
-            Model.OtherTeamEvent(game_t_2a, "test2a"),
+            Model.OtherTeamEvent(game_t_2b, _, "test2b"),
+            Model.OtherTeamEvent(game_t_2a, _, "test2a"),
             Model.GameBreakEvent(mid_t_1),
-            Model.OtherTeamEvent(game_t_1, "test1")
+            Model.OtherTeamEvent(game_t_1, _, "test1")
           ) =>
           "%.1f".format(game_t_1) ==> "18.0"
           "%.1f".format(mid_t_1) ==> "20.0"
@@ -219,10 +156,94 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
 
       // Lower level tests
 
+      val sample_game_event = """
+        <table><tr>
+          <td class="smtext">20:00:00</td>
+          <td colspan="3" align="center" class="boldtext"><b></b> random event like timeout </td>
+        </table></tr>
+      """
+
+      val sample_team_sub_in = """
+        <table><tr>
+          <td class="smtext">15:00</td>
+          <td class="smtext">S8RNAME,F8RSTNAME TEAMA Enters Game</td>
+          <td class="smtext" align="center">45-26</td>
+          <td class="smtext"></td>
+        </table></tr>
+      """
+      val sample_team_sub_in_new_format = """
+        <table><tr>
+          <td class="smtext">15:00</td>
+          <td class="smtext">F5rstname TeamA S5rname, substitution in</td>
+          <td class="smtext" align="center">45-26</td>
+          <td class="smtext"></td>
+        </table></tr>
+      """
+
+      val sample_oppo_sub_in = """
+        <table><tr>
+          <td class="smtext">15:00</td>
+          <td class="smtext"></td>
+          <td class="smtext" align="center">45-26</td>
+          <td class="smtext">S8RNAME,F8RSTNAME TEAMB Enters Game</td>
+        </table></tr>
+      """
+
+      val sample_team_sub_out = """
+        <table><tr>
+          <td class="smtext">15:00</td>
+          <td class="smtext">S8RNAME,F8RSTNAME TEAMA Leaves Game</td>
+          <td class="smtext" align="center">45-26</td>
+          <td class="smtext"></td>
+        </table></tr>
+      """
+      val sample_team_sub_out_new_format = """
+        <table><tr>
+          <td class="smtext">15:00</td>
+          <td class="smtext">F5rstname TeamA S5rname, substitution out</td>
+          <td class="smtext" align="center">45-26</td>
+          <td class="smtext"></td>
+        </table></tr>
+      """
+
+      val sample_oppo_sub_out = """
+        <table><tr>
+          <td class="smtext">15:00</td>
+          <td class="smtext"></td>
+          <td class="smtext" align="center">45-26</td>
+          <td class="smtext">S8RNAME,F8RSTNAME TEAMB Leaves Game</td>
+        </table></tr>
+      """
+
+      val sample_team_event = """
+        <table><tr>
+          <td class="smtext">15:00</td>
+          <td class="smtext">event text</td>
+          <td class="smtext" align="center">45-26</td>
+          <td class="smtext"></td>
+        </table></tr>
+      """
+      val sample_team_event_new_format = """
+        <table><tr>
+          <td class="smtext">15:00:50</td>
+          <td class="smtext">event text</td>
+          <td class="smtext" align="center">45-26</td>
+          <td class="smtext"></td>
+        </table></tr>
+      """
+      val sample_oppo_event = """
+        <table><tr>
+          <td class="smtext">15:00</td>
+          <td class="smtext"></td>
+          <td class="smtext" align="center">45-26</td>
+          <td class="smtext">event text</td>
+        </table></tr>
+      """
+
       "parse_game_score" - {
         TestUtils.with_doc(sample_team_event) { doc =>
           TestUtils.inside(parse_game_score(doc.body)) {
-            case Right("45-26") =>
+            case Right(("45-26", Game.Score(45, 26))) =>
           }
         }
       }
@@ -248,13 +269,13 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
         }
         TestUtils.with_doc(sample_team_event) { doc =>
           TestUtils.inside(parse_game_event(doc.body, target_team_first = true)) {
-            case Right(List(Model.OtherTeamEvent(t, "15:00,45-26,event text"))) =>
+            case Right(List(Model.OtherTeamEvent(t, Game.Score(45, 26), "15:00,45-26,event text"))) =>
               "%.1f".format(t) ==> "15.0"
           }
         }
         TestUtils.with_doc(sample_oppo_event) { doc =>
           TestUtils.inside(parse_game_event(doc.body, target_team_first = true)) {
-            case Right(List(Model.OtherOpponentEvent(t, "15:00,45-26,event text"))) =>
+            case Right(List(Model.OtherOpponentEvent(t, Game.Score(45, 26), "15:00,45-26,event text"))) =>
               "%.1f".format(t) ==> "15.0"
           }
         }
@@ -272,7 +293,7 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
         }
         TestUtils.with_doc(sample_oppo_sub_in) { doc =>
           TestUtils.inside(parse_game_event(doc.body, target_team_first = true)) {
-            case Right(List(Model.OtherOpponentEvent(t, "15:00,45-26,S8RNAME,F8RSTNAME TEAMB Enters Game"))) =>
+            case Right(List(Model.OtherOpponentEvent(t, Game.Score(45, 26), "15:00,45-26,S8RNAME,F8RSTNAME TEAMB Enters Game"))) =>
               "%.1f".format(t) ==> "15.0"
           }
         }
@@ -288,13 +309,13 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
               "%.1f".format(t) ==> "15.0"
           }
           TestUtils.inside(parse_game_event(doc.body, target_team_first = false)) {
-            case Right(List(Model.OtherOpponentEvent(t, "15:00,45-26,F5rstname TeamA S5rname, substitution out"))) =>
+            case Right(List(Model.OtherOpponentEvent(t, Game.Score(26, 45), "15:00,45-26,F5rstname TeamA S5rname, substitution out"))) =>
               "%.1f".format(t) ==> "15.0"
           }
         }
         TestUtils.with_doc(sample_oppo_sub_out) { doc =>
           TestUtils.inside(parse_game_event(doc.body, target_team_first = true)) {
-            case Right(List(Model.OtherOpponentEvent(t, "15:00,45-26,S8RNAME,F8RSTNAME TEAMB Leaves Game"))) =>
+            case Right(List(Model.OtherOpponentEvent(t, Game.Score(45, 26), "15:00,45-26,S8RNAME,F8RSTNAME TEAMB Leaves Game"))) =>
               "%.1f".format(t) ==> "15.0"
           }
           TestUtils.inside(parse_game_event(doc.body, target_team_first = false)) {

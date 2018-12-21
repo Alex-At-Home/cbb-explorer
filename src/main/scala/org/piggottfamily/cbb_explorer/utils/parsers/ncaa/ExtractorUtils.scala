@@ -6,8 +6,6 @@ import org.piggottfamily.cbb_explorer.utils.parsers._
 
 object ExtractorUtils {
 
-  //TODO: move raw events into a single list of objects (vs 2 lists of strings)
-
   //TODO: split on timeouts? (and have is_after_timeout flag, or sub_event == in-game/break/timeout)
 
   //TODO: you _can_ get
@@ -64,6 +62,7 @@ object ExtractorUtils {
         all_players_map
           .get(build_player_code(p).code)
           .getOrElse(p)
+
       event match {
         case Model.SubInEvent(min, player_name) if state.is_active(min) =>
           val tidier_player_name = tidy_player(player_name)
@@ -93,16 +92,20 @@ object ExtractorUtils {
           val tidier_player_name = tidy_player(player_name)
           state.with_player_out(tidier_player_name)
 
-        case Model.OtherTeamEvent(min, event_string) =>
-          state.with_team_event(min, event_string)
+        case Model.OtherTeamEvent(min, score, event_string) =>
+          state.with_team_event(min, event_string).with_latest_score(score)
 
-        case Model.OtherOpponentEvent(min, event_string) =>
-          state.with_opponent_event(min, event_string)
+        case Model.OtherOpponentEvent(min, score, event_string) =>
+          state.with_opponent_event(min, event_string).with_latest_score(score)
 
         case Model.GameBreakEvent(min) =>
+          val completed_curr = complete_lineup(state.curr, min)
           state.copy(
-            curr = starters_only.copy(start_min = min, end_min = min),
-            prev = complete_lineup(state.curr, min) :: state.prev
+            curr = new_lineup_event(completed_curr).copy(
+              lineup_id = starters_only.lineup_id,
+              players = starters_only.players //reset lineup
+            ),
+            prev = completed_curr :: state.prev
           )
         case Model.GameEndEvent(min) =>
           state.copy(curr = complete_lineup(state.curr, min))
@@ -158,8 +161,6 @@ object ExtractorUtils {
   */
   def duration_from_period(period: Int): Double = start_time_from_period(period + 1)
 
-  //TODO add a test for 	",RICKY LINDO JR" and ensure tests for "CARTER JR.,JOHN"
-
   /** Builds a player code out of the name, with various formats supported */
   def build_player_code(name: String): LineupEvent.PlayerCodeId = {
     LineupEvent.PlayerCodeId((name.split("\\s*,\\s*", 2).toList match {
@@ -192,7 +193,7 @@ object ExtractorUtils {
     LineupEvent.LineupId(players.map(_.code).sorted.mkString("_"))
   }
 
-  /** Creates an "empty" new lineup */
+  /** Creates an "empty" new lineup - note "prev" has had "complete_lineup" called on it */
   private def new_lineup_event(
     prev: LineupEvent,
     in: Option[String] = None, out: Option[String] = None
@@ -202,7 +203,11 @@ object ExtractorUtils {
       start_min = prev.end_min,
       end_min = prev.end_min, //(updates with every event)
       duration_mins = 0.0, //(fill in at end of event)
-      LineupEvent.ScoreInfo.empty, //(calculate later)
+      LineupEvent.ScoreInfo.empty.copy(
+        start = prev.score_info.end,
+        end = prev.score_info.end,
+        start_diff = prev.score_info.end_diff
+      ), //(complete later)
       team = prev.team,
       opponent = prev.opponent,
       lineup_id = LineupEvent.LineupId.unknown, //(will calc once we have all the subs)
@@ -226,6 +231,9 @@ object ExtractorUtils {
     curr.copy(
       end_min = min,
       duration_mins = min - curr.start_min,
+      score_info = curr.score_info.copy(
+        end_diff = curr.score_info.end.scored - curr.score_info.end.allowed
+      ),
       lineup_id = build_lineup_id(new_player_list),
       players = new_player_list.sortBy(_.code),
       raw_game_events = curr.raw_game_events.reverse
@@ -275,6 +283,15 @@ object ExtractorUtils {
             players_out = build_player_code(player_name) :: curr.players_out
           )
         )
+      def with_latest_score(score: Game.Score): LineupBuildingState = {
+        copy(
+          curr = curr.copy(
+            score_info = curr.score_info.copy(
+              end = score
+            )
+          )
+        )
+      }
       def with_team_event(min: Double, event_string: String): LineupBuildingState =
         copy(
           curr = curr.copy(
@@ -301,10 +318,10 @@ object ExtractorUtils {
     case class SubOutEvent(min: Double, player_name: String) extends PlayByPlayEvent {
       def with_min(new_min: Double): SubOutEvent = copy(min = new_min)
     }
-    case class OtherTeamEvent(min: Double, event_string: String) extends PlayByPlayEvent {
+    case class OtherTeamEvent(min: Double, score: Game.Score, event_string: String) extends PlayByPlayEvent {
       def with_min(new_min: Double): OtherTeamEvent = copy(min = new_min)
     }
-    case class OtherOpponentEvent(min: Double, event_string: String) extends PlayByPlayEvent {
+    case class OtherOpponentEvent(min: Double, score: Game.Score, event_string: String) extends PlayByPlayEvent {
       def with_min(new_min: Double): OtherOpponentEvent = copy(min = new_min)
     }
     case class GameBreakEvent(min: Double) extends PlayByPlayEvent {

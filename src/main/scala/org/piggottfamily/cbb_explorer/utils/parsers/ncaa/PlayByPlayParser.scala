@@ -25,9 +25,17 @@ import scala.util.Try
 /** Parses the game HTML (or game subsets of the team HTML) */
 trait PlayByPlayParser {
 
-  //TODO: read from home/away side correctly
-  //TODO: skip over in game-events (for now at least) (ADD TEST)
-  //TODO: make sure we handle different name formats (ADD TEST)
+//TODO:
+/*
+not sure why the sub here isn't working...
+LineupId("AaWi_AnCo_ErAy_IvBe_RiLi"),
+List(
+  PlayerCodeId("AaWi", PlayerId("Wiggins, Aaron")),
+  PlayerCodeId("AnCo", PlayerId("Cowan, Anthony")),
+  PlayerCodeId("ErAy", PlayerId("Ayala, Eric")),
+  PlayerCodeId("IvBe", PlayerId("Bender, Ivan")),
+  PlayerCodeId("RiLi", PlayerId(",RICKY LINDO JR"))
+*/
 
   import ExtractorUtils._
   import LineupUtils._
@@ -181,7 +189,13 @@ trait PlayByPlayParser {
         time_or_error = parse_desc_game_time(el).left.map(single_error_completer)
 
         score_and_time <- (score_or_error, time_or_error).parMapN((_, _))
-        (score, (time_str, time_mins)) = score_and_time
+        ((score_str, raw_score), (time_str, time_mins)) = score_and_time
+
+        // Ensure team score is first
+        score = if (target_team_first) raw_score else raw_score.copy(
+          scored = raw_score.allowed,
+          allowed = raw_score.scored
+        )
 
         event <- (
           builders.event_team_finder(el, target_team_first),
@@ -193,9 +207,9 @@ trait PlayByPlayParser {
             Right(Model.SubOutEvent(time_mins, player))
 
           case (Some(team), None) =>
-            Right(Model.OtherTeamEvent(time_mins, s"$time_str,$score,$team"))
+            Right(Model.OtherTeamEvent(time_mins, score, s"$time_str,$score_str,$team"))
           case (None, Some(oppo)) =>
-            Right(Model.OtherOpponentEvent(time_mins, s"$time_str,$score,$oppo"))
+            Right(Model.OtherOpponentEvent(time_mins, score, s"$time_str,$score_str,$oppo"))
 
           case (Some(team), Some(oppo)) =>
             Left(List(ParseUtils.build_sub_error(`ncaa.parse_playbyplay`)(
@@ -212,7 +226,7 @@ trait PlayByPlayParser {
 
   /** Parse a descending time of the form NN:MM into an ascending time */
   protected def parse_game_score(el: Element)
-    : Either[ParseError, String] =
+    : Either[ParseError, (String, Game.Score)] =
   {
     val score_regex = "([0-9]+)[-]([0-9]+)".r
     val `game_score` = "game_score"
@@ -222,7 +236,7 @@ trait PlayByPlayParser {
           s"Could not find score in [$el]"
         ))
       case Some(str @ score_regex(team, oppo)) =>
-        Right(str)
+        Right((str, Game.Score(team.toInt, oppo.toInt)))
       case Some(str) =>
         Left(ParseUtils.build_sub_error(`game_score`)(
           s"Could not find parse score [A-B] from [$str] in [$el]"

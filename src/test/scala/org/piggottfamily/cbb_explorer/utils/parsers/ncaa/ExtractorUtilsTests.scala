@@ -55,8 +55,8 @@ object ExtractorUtilsTests extends TestSuite {
           // First event - sub immediately after game start
           Model.SubInEvent(0.1, player6.id.name) ::
           Model.SubOutEvent(0.1, player1.id.name) ::
-          Model.OtherTeamEvent(0.2, "event1a") ::
-          Model.OtherTeamEvent(0.2, "event2a") ::
+          Model.OtherTeamEvent(0.2, Game.Score(1, 0), "event1a") ::
+          Model.OtherTeamEvent(0.2, Game.Score(2, 0), "event2a") ::
           // Second event
           Model.SubInEvent(0.4, player1.id.name) ::
           // confirm that all upper case names are returned to normal form:
@@ -64,16 +64,16 @@ object ExtractorUtilsTests extends TestSuite {
           // CHECK: we only care about "code" not "id":
           Model.SubOutEvent(0.4, player2.id.name.toUpperCase + " ii") ::
           Model.SubOutEvent(0.4, player4.id.name) ::
-          Model.OtherOpponentEvent(0.4, "event1b") ::
-          Model.OtherOpponentEvent(0.4, "event2b") ::
-          Model.OtherTeamEvent(0.4, "event3a") ::
-          Model.OtherTeamEvent(0.4, "event4a") ::
+          Model.OtherOpponentEvent(0.4, Game.Score(1, 1), "event1b") ::
+          Model.OtherOpponentEvent(0.4, Game.Score(1, 2), "event2b") ::
+          Model.OtherTeamEvent(0.4, Game.Score(3, 2), "event3a") ::
+          Model.OtherTeamEvent(0.4, Game.Score(4, 2), "event4a") ::
           // Half time! (third event)
           Model.GameBreakEvent(20.0) ::
           // (subs happen immediately after break)
           Model.SubOutEvent(20.0, player1.id.name) ::
-          Model.OtherOpponentEvent(20.0, "PlayerA Leaves Game") :: //opponents can sub too....
-          Model.OtherOpponentEvent(20.0, "PlayerB, substitution in") :: //(new format))
+          Model.OtherOpponentEvent(20.0, Game.Score(4, 2), "PlayerA Leaves Game") :: //opponents can sub too....
+          Model.OtherOpponentEvent(20.0, Game.Score(4, 2), "PlayerB, substitution in") :: //(new format))
           Model.SubInEvent(20.0, player6.id.name) ::
           // Fourth event  - sub-on-sub action
           Model.SubOutEvent(20.4, player2.id.name) ::
@@ -83,12 +83,12 @@ object ExtractorUtilsTests extends TestSuite {
           // Overtime! (first event)
           Model.GameBreakEvent(40.0) ::
           // Sixth event
-          Model.OtherOpponentEvent(40.4, "event3b") ::
-          Model.OtherTeamEvent(40.4, "event5a") ::
+          Model.OtherOpponentEvent(40.4, Game.Score(4, 3), "event3b") ::
+          Model.OtherTeamEvent(40.4, Game.Score(5, 3), "event5a") ::
           Model.SubInEvent(40.5, player6.id.name) ::
           Model.SubOutEvent(40.5, player1.id.name) ::
-          Model.OtherTeamEvent(40.6, "event6a") ::
-          Model.OtherOpponentEvent(40.7, "event4b") ::
+          Model.OtherTeamEvent(40.6, Game.Score(6, 3), "event6a") ::
+          Model.OtherOpponentEvent(40.7, Game.Score(6, 4) , "event4b") ::
           // Fin (Seventh event)
           Model.GameEndEvent(45.0) ::
           Nil
@@ -97,19 +97,22 @@ object ExtractorUtilsTests extends TestSuite {
           case List(event_1, event_2, event_3, event_4, event_5, event_6, event_7) =>
             TestUtils.inside(event_1) {
               case LineupEvent(
-                `now`, 0.0, 0.1, delta, _, `my_team`, `other_team`,
+                `now`, 0.0, 0.1, delta, score, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(), List(),
                 List(),
                 _, _
               ) =>
                 "%.1f".format(delta) ==> "0.1"
-                players ==> starting_lineup.players.sortBy(_.code)
+                score ==> LineupEvent.ScoreInfo(
+                  Game.Score(0, 0), Game.Score(0, 0), 0, 0
+                )
                 lineup_id ==> players.map(_.code).mkString("_")
+                players ==> starting_lineup.players.sortBy(_.code)
             }
             TestUtils.inside(event_2) {
               case LineupEvent(
-                new_time, 0.1, 0.4, delta, _, `my_team`, `other_team`,
+                new_time, 0.1, 0.4, delta, score, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(`player6`), List(`player1`),
                 List(
@@ -120,14 +123,17 @@ object ExtractorUtilsTests extends TestSuite {
               ) =>
                 new_time ==> now.plusMillis(6000)
                 "%.1f".format(delta) ==> "0.3"
+                score ==> LineupEvent.ScoreInfo(
+                  Game.Score(0, 0), Game.Score(2, 0), 0, 2
+                )
+                lineup_id ==> players.map(_.code).mkString("_")
                 players ==>  {
                   event_1.players.toSet + player6 - player1
                 }.toList.sortBy(_.code)
-                lineup_id ==> players.map(_.code).mkString("_")
             }
             TestUtils.inside(event_3) {
               case LineupEvent(
-                _, 0.4, 20.0, delta, _, `my_team`, `other_team`,
+                _, 0.4, 20.0, delta, score, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(`player7`, `player1`), List(`player4`, player2_with_mods),
                 List(
@@ -138,17 +144,19 @@ object ExtractorUtilsTests extends TestSuite {
                 ),
                 _, _
               ) =>
-
-                player2_with_mods.code ==> `player2`.code // (we corrupted the id)
                 "%.1f".format(delta) ==> "19.6"
+                score ==> LineupEvent.ScoreInfo(
+                  Game.Score(2, 0), Game.Score(4, 2), 2, 2
+                )
+                lineup_id ==> players.map(_.code).mkString("_")
                 players ==>  {
                   event_2.players.toSet + player1 + player7 - player2 - player4
                 }.toList.sortBy(_.code)
-                lineup_id ==> players.map(_.code).mkString("_")
+                player2_with_mods.code ==> `player2`.code // (we corrupted the id)
             }
             TestUtils.inside(event_4) {
               case LineupEvent(
-                _, 20.0, 20.4, delta, _, `my_team`, `other_team`,
+                _, 20.0, 20.4, delta, score, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(`player6`), List(`player1`),
                 List(
@@ -158,28 +166,34 @@ object ExtractorUtilsTests extends TestSuite {
                 _, _
               ) =>
                 "%.1f".format(delta) ==> "0.4"
+                score ==> LineupEvent.ScoreInfo(
+                  Game.Score(4, 2), Game.Score(4, 2), 2, 2
+                )
+                lineup_id ==> players.map(_.code).mkString("_")
                 players ==>  {
                   starting_lineup.players.toSet + player6 - player1
                 }.toList.sortBy(_.code)
-                lineup_id ==> players.map(_.code).mkString("_")
             }
             TestUtils.inside(event_5) {
               case LineupEvent(
-                _, 20.4, 40.0, delta, _, `my_team`, `other_team`,
+                _, 20.4, 40.0, delta, score, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(`player7`, `player1`), List(`player4`, `player2`),
                 List(),
                 _, _
               ) =>
                 "%.1f".format(delta) ==> "19.6"
+                score ==> LineupEvent.ScoreInfo(
+                  Game.Score(4, 2), Game.Score(4, 2), 2, 2
+                )
+                lineup_id ==> players.map(_.code).mkString("_")
                 players ==>  {
                   event_5.players.toSet + player1 + player7 - player2 - player4
                 }.toList.sortBy(_.code)
-                lineup_id ==> players.map(_.code).mkString("_")
             }
             TestUtils.inside(event_6) {
               case LineupEvent(
-                _, 40.0, 40.5, delta, _, `my_team`, `other_team`,
+                _, 40.0, 40.5, delta, score, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(), List(),
                 List(
@@ -189,12 +203,15 @@ object ExtractorUtilsTests extends TestSuite {
                 _, _
               ) =>
                 "%.1f".format(delta) ==> "0.5"
-                players ==> starting_lineup.players.sortBy(_.code)
+                score ==> LineupEvent.ScoreInfo(
+                  Game.Score(4, 2), Game.Score(5, 3), 2, 2
+                )
                 lineup_id ==> players.map(_.code).mkString("_")
+                players ==> starting_lineup.players.sortBy(_.code)
             }
             TestUtils.inside(event_7) {
               case LineupEvent(
-                _, 40.5, 45.0, delta, _, `my_team`, `other_team`,
+                _, 40.5, 45.0, delta, score, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(player6), List(player1),
                 List(
@@ -204,10 +221,13 @@ object ExtractorUtilsTests extends TestSuite {
                 _, _
               ) =>
                 "%.1f".format(delta) ==> "4.5"
+                score ==> LineupEvent.ScoreInfo(
+                  Game.Score(5, 3), Game.Score(6, 4), 2, 2
+                )
+                lineup_id ==> players.map(_.code).mkString("_")
                 players ==>  {
                   event_7.players.toSet + player6 - player1
                 }.toList.sortBy(_.code)
-                lineup_id ==> players.map(_.code).mkString("_")
             }
         }
       }

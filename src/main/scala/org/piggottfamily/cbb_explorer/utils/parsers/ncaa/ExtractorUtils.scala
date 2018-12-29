@@ -8,37 +8,6 @@ object ExtractorUtils {
 
   //TODO: split on timeouts? (and have is_after_timeout flag, or sub_event == in-game/break/timeout)
 
-  //TODO: you _can_ get
-  /*
-  12:00:00	Jacob Cushing, substitution in	16-17
-12:00:00	Darian Bryant, substitution out	16-17
-12:00:00	Eric Carter, substitution out	16-17
-12:00:00	Collin Goss, substitution in	16-17
-12:00:00	Kevin Anderson, substitution out	16-17
-12:00:00		16-17	Jalen Smith, substitution out
-12:00:00		16-17	Serrel Smith Jr., substitution in
-12:00:00		16-17	Darryl Morsell, substitution out
-12:00:00		16-17	Bruno Fernando, substitution in
-12:00:00		16-17	Aaron Wiggins, substitution in
-12:00:00	Ryan Johnson, substitution in	16-17
-12:00:00	Team, rebound defensive team	16-17
-12:00:00		16-17	Anthony Cowan, substitution out
-*/
-
-//TODO: also ... free throws:
-/*
-
-17:09		5-1	CARTER JR.,JOHN made Free Throw
-17:09		5-1	CARTER JR.,JOHN missed Free Throw
-
-17:09	,RICKY LINDO JR Defensive Rebound	5-1
-17:09	,RICKY LINDO JR Enters Game	5-1
-*/
-
-//TODO: so we need to retrieve "reorder and reverse" handling:
-// - subs in the middle of plays
-// - plays in the middle of subs !!
-
   /** Error enrichment placeholder */
   val `parent_fills_in` = ""
 
@@ -56,7 +25,7 @@ object ExtractorUtils {
     val all_players_map = box_lineup.players.map(p => p.code -> p.id.name).toMap
 
     val starting_state = Model.LineupBuildingState(starters_only, Nil)
-    val partial_events = reversed_partial_events.toList.reverse
+    val partial_events = reorder_and_reverse(reversed_partial_events)
     val end_state = partial_events.foldLeft(starting_state) { (state, event) =>
       def tidy_player(p: String): String =
         all_players_map
@@ -188,6 +157,108 @@ object ExtractorUtils {
 
   // Internal Utils
 
+  /** Orders play-by-play data to ensure that no subs occur in the middle of play-by-play
+   * basically the order needs to be:
+   * (non-sub-events) (sub-events) (non-sub events)
+   * where ... all game events that reference players subbed out is in the first group,
+   * all game events that reference players subbed in is in the second group, and
+   * if neither of these things holds then events that occur before the first sub
+   * live in the first group, everything else lives in the second group
+   * Simples!
+   * Examples:
+   * a) SUB_SET_1; REBOUND_X; SUB_SET_2 .. which should map to:
+   *    SET_SET_1; SUB_SET_2; REBOUND_X unless X is subbed out in one of the sub sets
+   * b) B FREE THROW; A REBOUND; A ENTERS ... which should map to:
+   *    B FREE THROW; A ENTERS; A REBOUND
+   * BUT
+   * c) A FREE THROW; A LEAVES ... should stay the same
+   * (protected just to support testing)
+   */
+  protected [ncaa] def reorder_and_reverse(
+    reversed_partial_events: Iterator[Model.PlayByPlayEvent]
+  ): List[Model.PlayByPlayEvent] = {
+    /** Ensures subs don't enclose plays */
+    def inner_sort(ordered_block: List[Model.PlayByPlayEvent]): List[Model.PlayByPlayEvent] = {
+      val subs = (ordered_block.collect {
+        case ev: Model.SubEvent => ev
+      })
+      if (subs.isEmpty) { // nothing to do
+        ordered_block
+      } else { //work to do to match up subs and events, see discussion in scaladoc
+        val (sub_ins, sub_outs) = subs.partition {
+          case _: Model.SubInEvent => true
+          case _ => false
+        }
+        case class State(
+          seen_sub: Boolean,
+          group_1: List[Model.PlayByPlayEvent],
+          group_2: List[Model.PlayByPlayEvent]
+        ) {
+          def build(): List[Model.PlayByPlayEvent] = {
+            // (the foldLeft below on ordered_block reverses the outputs, so we reverse them again)
+            group_1.reverse ++ subs ++ group_2.reverse
+          }
+        }
+        /** Does the event reference a player who was subbed (in or out as param)? */
+        def event_refs_subbed_player(ev: Model.MiscGameEvent, in_or_out: List[Model.SubEvent]): Boolean = {
+          //(don't need to worry about case because these names are all extracted from the same PbP source)
+          in_or_out.exists { candidate =>
+            ev.event_string.contains(candidate.player_name)
+          }
+        }
+        val starting_state = State(seen_sub = false, Nil, Nil)
+        /** Adds to either the "pre-sub" list of the "post-sub" one based on state */
+        def add_to_state(state: State, ev: Model.PlayByPlayEvent) = {
+          if (state.seen_sub) {
+            state.copy(group_2 = ev :: state.group_2)
+          } else {
+            state.copy(group_1 = ev :: state.group_1)
+          }
+        }
+        (ordered_block.foldLeft(starting_state) { (state, next_event) =>
+          next_event match {
+            case ev: Model.SubEvent => //(already added to "subs")
+              state.copy(seen_sub = true)
+
+            case ev: Model.OtherTeamEvent =>
+              if (event_refs_subbed_player(ev, sub_ins)) {
+                state.copy(group_2 = ev :: state.group_2)
+              } else if (event_refs_subbed_player(ev, sub_outs)) {
+                state.copy(group_1 = ev :: state.group_1)
+              } else {
+                add_to_state(state, ev)
+              }
+
+            case ev => // (game breaks and opponent events, leave well alone)
+              //TODO: also need to handle opponent subs and re-ordering else
+              // the advanced stats will be wrong
+              add_to_state(state, ev)
+          }
+        }).build()
+      }
+    }
+
+    val starting_state = List[List[Model.PlayByPlayEvent]]()
+    def complete(in: List[List[Model.PlayByPlayEvent]]): List[Model.PlayByPlayEvent] = (in match {
+      case Nil => Nil
+      case last :: tail => inner_sort(last) :: tail
+    }).flatten
+    complete(reversed_partial_events.foldLeft(starting_state) { (acc, event) => acc match {
+      case Nil =>
+        // Create a new block of play by play events
+        (event :: Nil) :: Nil
+      case Nil :: tail =>
+        // Create a new block of play by play events (in practice this won't happen)
+        (event :: Nil) :: tail
+      case (head :: inner_tail) :: outer_tail if head.min == event.min =>
+        // Add the new play by play to the existing block
+        (event :: head :: inner_tail) :: outer_tail
+      case (curr @ (head :: inner_tail)) :: outer_tail => //head.min != event.min
+        // Reorder the existing block then add a new one
+        (event :: Nil) :: inner_sort(curr) :: outer_tail
+    }})
+  }
+
   /** Builds a lineup id from a list of players */
   private def build_lineup_id(players: List[LineupEvent.PlayerCodeId]): LineupEvent.LineupId = {
     LineupEvent.LineupId(players.map(_.code).sorted.mkString("_"))
@@ -236,6 +307,8 @@ object ExtractorUtils {
       ),
       lineup_id = build_lineup_id(new_player_list),
       players = new_player_list.sortBy(_.code),
+      players_in = curr.players_in.reverse,
+      players_out = curr.players_out.reverse,
       raw_game_events = curr.raw_game_events.reverse
     )
   }
@@ -308,26 +381,40 @@ object ExtractorUtils {
         )
     }
 
+    // Event model
     sealed trait PlayByPlayEvent {
+      /** The ascending minute of the game */
       def min: Double
+      /** Update the minute (eg to switch from descending to ascending internal)*/
       def with_min(new_min: Double): PlayByPlayEvent
     }
-    case class SubInEvent(min: Double, player_name: String) extends PlayByPlayEvent {
+    // Wildcard events
+    sealed trait MiscGameEvent extends PlayByPlayEvent {
+      /** The raw event string */
+      def event_string: String
+    }
+    sealed trait SubEvent extends PlayByPlayEvent {
+      /** The raw or processed substitute name */
+      def player_name: String
+    }
+    sealed trait MiscGameBreak extends PlayByPlayEvent
+    // Concrete
+    case class SubInEvent(min: Double, player_name: String) extends SubEvent {
       def with_min(new_min: Double): SubInEvent = copy(min = new_min)
     }
-    case class SubOutEvent(min: Double, player_name: String) extends PlayByPlayEvent {
+    case class SubOutEvent(min: Double, player_name: String) extends SubEvent {
       def with_min(new_min: Double): SubOutEvent = copy(min = new_min)
     }
-    case class OtherTeamEvent(min: Double, score: Game.Score, event_string: String) extends PlayByPlayEvent {
+    case class OtherTeamEvent(min: Double, score: Game.Score, event_string: String) extends MiscGameEvent {
       def with_min(new_min: Double): OtherTeamEvent = copy(min = new_min)
     }
-    case class OtherOpponentEvent(min: Double, score: Game.Score, event_string: String) extends PlayByPlayEvent {
+    case class OtherOpponentEvent(min: Double, score: Game.Score, event_string: String) extends MiscGameEvent {
       def with_min(new_min: Double): OtherOpponentEvent = copy(min = new_min)
     }
-    case class GameBreakEvent(min: Double) extends PlayByPlayEvent {
+    case class GameBreakEvent(min: Double) extends MiscGameBreak {
       def with_min(new_min: Double): GameBreakEvent = copy(min = new_min)
     }
-    case class GameEndEvent(min: Double) extends PlayByPlayEvent {
+    case class GameEndEvent(min: Double) extends MiscGameBreak {
       def with_min(new_min: Double): GameEndEvent = copy(min = new_min)
     }
   }

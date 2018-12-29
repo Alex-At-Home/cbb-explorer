@@ -9,7 +9,6 @@ import org.piggottfamily.cbb_explorer.models.ncaa._
 object ExtractorUtilsTests extends TestSuite {
   import ExtractorUtils._
 
-
   val tests = Tests {
     "ExtractorUtils" - {
 
@@ -20,6 +19,62 @@ object ExtractorUtilsTests extends TestSuite {
           case LineupEvent.PlayerCodeId("FiRaSu", PlayerId(`test_name`)) =>
         }
       }
+
+      "reorder_and_reverse" - {
+        // (this is also partially tested by "build_partial_lineup_list" below
+        //  but want to demonstrate all the branches of this somewhat complex sub function)
+
+        val event_list @ (event_list_1 :: event_list_2 :: event_list_rest) = List(
+          Model.OtherTeamEvent(0.4, Game.Score(0, 0), "pre-sub-1-no-ref"),
+          Model.OtherOpponentEvent(0.4, Game.Score(0, 0), "pre-sub-2-no-ref"),
+          Model.OtherTeamEvent(0.4, Game.Score(0, 0), "[player1] pre-sub-3-ref-p1"),
+          Model.OtherTeamEvent(0.4, Game.Score(0, 0), "[player2] pre-sub-4-ref-p2"),
+          Model.OtherOpponentEvent(0.4, Game.Score(0, 0), "[player1] pre-sub-5-ignore-p1"),
+          Model.OtherOpponentEvent(0.4, Game.Score(0, 0), "[player2] pre-sub-6-ignore-p2"),
+
+          Model.SubInEvent(0.4, "player1"),
+          Model.OtherTeamEvent(0.4, Game.Score(0, 0), "middle-event"),
+          Model.SubOutEvent(0.4, "player2"),
+
+          Model.OtherTeamEvent(0.4, Game.Score(0, 0), "post-sub-1-no-ref"),
+          Model.OtherOpponentEvent(0.4, Game.Score(0, 0), "post-sub-2-no-ref"),
+          Model.OtherTeamEvent(0.4, Game.Score(0, 0), "[player1] post-sub-3-ref-p1"),
+          Model.OtherTeamEvent(0.4, Game.Score(0, 0), "[player2] post-sub-4-ref-p2"),
+          Model.OtherOpponentEvent(0.4, Game.Score(0, 0), "[player1] post-sub-5-ignore-p1"),
+          Model.OtherOpponentEvent(0.4, Game.Score(0, 0), "[player2] post-sub-6-ignore-p2")
+        )
+
+        // (check trivial case )
+        TestUtils.inside(reorder_and_reverse(event_list.take(2).toIterator)) {
+          case event_list_2 :: event_list_1 :: Nil =>
+        }
+
+        // (actual logic)
+        TestUtils.inside(reorder_and_reverse(event_list.reverse.toIterator)) {
+          case reordered_event_list =>
+            TestUtils.inside(reordered_event_list.map {
+              case ev: Model.MiscGameEvent => ev.event_string
+              case sub: Model.SubEvent => sub.player_name
+              case other @ _ => other.toString
+            }) {
+              case List(
+                "pre-sub-1-no-ref", "pre-sub-2-no-ref",
+                "[player2] pre-sub-4-ref-p2",
+                "[player1] pre-sub-5-ignore-p1", "[player2] pre-sub-6-ignore-p2",
+                "[player2] post-sub-4-ref-p2",
+
+                "player1", "player2",
+
+                "[player1] pre-sub-3-ref-p1", "middle-event",
+
+                "post-sub-1-no-ref", "post-sub-2-no-ref",
+                "[player1] post-sub-3-ref-p1",
+                "[player1] post-sub-5-ignore-p1", "[player2] post-sub-6-ignore-p2"
+              ) =>
+            }
+        }
+      }
+
       "build_partial_lineup_list" - {
         val now = new DateTime()
         val all_players @ (player1 :: player2 :: player3 :: player4 :: player5 ::
@@ -135,7 +190,7 @@ object ExtractorUtilsTests extends TestSuite {
               case LineupEvent(
                 _, 0.4, 20.0, delta, score, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
-                List(`player7`, `player1`), List(`player4`, player2_with_mods),
+                List(`player1`, `player7`), List(player2_with_mods, `player4`),
                 List(
                   LineupEvent.RawGameEvent(None, Some("event1b")),
                   LineupEvent.RawGameEvent(None, Some("event2b")),
@@ -178,7 +233,7 @@ object ExtractorUtilsTests extends TestSuite {
               case LineupEvent(
                 _, 20.4, 40.0, delta, score, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
-                List(`player7`, `player1`), List(`player4`, `player2`),
+                List(`player1`, `player7`), List(`player2`, `player4`),
                 List(),
                 _, _
               ) =>

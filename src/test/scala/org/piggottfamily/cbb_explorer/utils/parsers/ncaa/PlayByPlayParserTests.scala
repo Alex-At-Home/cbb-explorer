@@ -88,6 +88,10 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
             lineup_events.zipWithIndex.foreach { event_index =>
               TestUtils.inside(event_index) {
                 case (event, index) =>
+
+                  // 0 length lineup
+                  assert(event.duration_mins > 0.0)
+
                   // Always have 5 players in the lineup:
                   event.players.size ==> 5
 

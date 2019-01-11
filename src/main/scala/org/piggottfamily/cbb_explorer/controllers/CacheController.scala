@@ -1,6 +1,8 @@
 package org.piggottfamily.cbb_explorer.controllers
 
 import org.piggottfamily.cbb_explorer.models._
+import org.piggottfamily.cbb_explorer.models.kenpom._
+import org.piggottfamily.cbb_explorer.models.ncaa._
 import org.piggottfamily.cbb_explorer.utils._
 import org.piggottfamily.cbb_explorer.utils.parsers._
 import org.piggottfamily.cbb_explorer.utils.parsers.kenpom._
@@ -21,6 +23,12 @@ class CacheController(d: Dependencies = Dependencies())
 
   }
 
+  def cache_lineups(
+
+  ): Unit = {
+    
+  }
+
   def decache_teams(
     cache_root: Path = Path(default_cache_root),
     cache_name: String = default_teams_cache
@@ -38,4 +46,28 @@ object CacheController {
     logger: LogUtils = LogUtils,
     file_manager: FileUtils = FileUtils
   )
+
+  object JsonParserImplicits {
+    import io.circe.{ Decoder, Encoder, HCursor, Json }
+
+    // Date time:
+    import org.joda.time.DateTime
+    implicit val encodeDateTime: Encoder[DateTime] = new Encoder[DateTime] {
+      final def apply(a: DateTime): Json = Json.fromString(a.toString)
+    }
+    implicit val decodeDateTime: Decoder[DateTime] = new Decoder[DateTime] {
+      final def apply(c: HCursor): Decoder.Result[DateTime] = for {
+        dt <- c.as[String]
+      } yield DateTime.parse(dt)
+    }
+
+    // All the anyvals
+    import io.circe.generic.semiauto._
+    import shapeless.Unwrapped
+    implicit def encodeAnyVal[W, U](
+          implicit ev: W <:< AnyVal,
+                   unwrapped: Unwrapped.Aux[W, U],
+                   encoderUnwrapped: Encoder[U]
+    ): Encoder[W] = Encoder.instance[W](v => encoderUnwrapped(unwrapped.unwrap(v)))
+  }
 }

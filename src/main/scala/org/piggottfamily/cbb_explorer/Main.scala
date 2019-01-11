@@ -7,12 +7,18 @@ object Main {
 
     val startup = """
       |import ammonite.ops._
+      |import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
       |import org.piggottfamily.cbb_explorer.models._
+      |import org.piggottfamily.cbb_explorer.models.ncaa._
+      |import org.piggottfamily.cbb_explorer.models.kenpom._
       |import org.piggottfamily.cbb_explorer.controllers.kenpom.ParserController
       |import org.piggottfamily.cbb_explorer.controllers.ncaa.LineupController
+      |import org.piggottfamily.cbb_explorer.controllers.CacheController
+      |import org.piggottfamily.cbb_explorer.controllers.CacheController.JsonParserImplicits._
       |
       |val kenpom_parser_controller = new ParserController()
       |val ncaa_lineup_controller = new LineupController()
+      |val cache_controller = new CacheController()
     """.stripMargin
 
     ammonite.Main(

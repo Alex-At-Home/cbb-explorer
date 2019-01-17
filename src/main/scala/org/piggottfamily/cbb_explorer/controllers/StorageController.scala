@@ -7,39 +7,49 @@ import org.piggottfamily.cbb_explorer.utils._
 import org.piggottfamily.cbb_explorer.utils.parsers._
 import org.piggottfamily.cbb_explorer.utils.parsers.kenpom._
 
-import CacheController._
+import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
+
+import StorageController._
+import StorageController.JsonParserImplicits._
 
 import ammonite.ops.Path
 import scala.util.Try
 
 /** Top level business logic for parsing the different datasets */
-class CacheController(d: Dependencies = Dependencies())
+class StorageController(d: Dependencies = Dependencies())
 {
   def cache_teams(
     teams: Map[TeamId, Map[Year, TeamSeason]],
-    cache_root: Path = Path(default_cache_root),
+    cache_root: Path = default_cache_root,
     cache_name: String = default_teams_cache
   ): Unit = {
-
+    //TODO
   }
-
-  def cache_lineups(
-
-  ): Unit = {
-    
-  }
-
   def decache_teams(
-    cache_root: Path = Path(default_cache_root),
+    cache_root: Path = default_cache_root,
     cache_name: String = default_teams_cache
   ): Try[Map[TeamId, Map[Year, TeamSeason]]] = {
+    //TODO
     null
   }
-}
-object CacheController {
 
-  val default_cache_root = "~/.cbb-explorer"
-  val default_teams_cache = ".teams"
+  /** Store lineups in a NDJSON format */
+  def write_lineups(
+    lineups: List[LineupEvent],
+    file_root: Path = default_cache_root,
+    file_name: String = default_lineup_cache
+  ): Unit = {
+    d.file_manager.write_lines_to_file(
+      file_root / file_name, lineups.map(_.asJson.noSpaces)
+    )
+  }
+
+}
+object StorageController {
+
+  val default_cache_root: Path = Path.home / ".cbb-explorer"
+  val default_teams_cache: String = ".teams" //TODO include year for easy upload?
+  val default_lineup_cache: String = s".lineups.ndjson"
 
   /** Dependency injection */
   case class Dependencies(

@@ -13,12 +13,12 @@ object Main {
       |import org.piggottfamily.cbb_explorer.models.kenpom._
       |import org.piggottfamily.cbb_explorer.controllers.kenpom.ParserController
       |import org.piggottfamily.cbb_explorer.controllers.ncaa.LineupController
-      |import org.piggottfamily.cbb_explorer.controllers.CacheController
-      |import org.piggottfamily.cbb_explorer.controllers.CacheController.JsonParserImplicits._
+      |import org.piggottfamily.cbb_explorer.controllers.StorageController
+      |import org.piggottfamily.cbb_explorer.controllers.StorageController.JsonParserImplicits._
       |
       |val kenpom_parser_controller = new ParserController()
       |val ncaa_lineup_controller = new LineupController()
-      |val cache_controller = new CacheController()
+      |val storage_controller = new StorageController()
     """.stripMargin
 
     ammonite.Main(

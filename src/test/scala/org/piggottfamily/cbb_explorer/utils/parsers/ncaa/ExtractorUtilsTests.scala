@@ -87,7 +87,7 @@ object ExtractorUtilsTests extends TestSuite {
             LineupEvent.PlayerCodeId("PlSi", PlayerId("Player Six")),
             LineupEvent.PlayerCodeId("PlSe", PlayerId("Player Seven")),
           )
-        val my_team = TeamSeasonId(TeamId("TestTeam1"), Year(2018))
+        val my_team = TeamSeasonId(TeamId("TestTeam1"), Year(2017))
         val other_team = TeamSeasonId(TeamId("TestTeam2"), Year(2017))
         val box_lineup = LineupEvent(
           date = now,
@@ -243,7 +243,7 @@ object ExtractorUtilsTests extends TestSuite {
                 )
                 lineup_id ==> players.map(_.code).mkString("_")
                 players ==>  {
-                  event_5.players.toSet + player1 + player7 - player2 - player4
+                  event_4.players.toSet + player1 + player7 - player2 - player4
                 }.toList.sortBy(_.code)
             }
             TestUtils.inside(event_6) {
@@ -282,6 +282,29 @@ object ExtractorUtilsTests extends TestSuite {
                 lineup_id ==> players.map(_.code).mkString("_")
                 players ==>  {
                   event_7.players.toSet + player6 - player1
+                }.toList.sortBy(_.code)
+            }
+        }
+        // Test format change for 2018, builds post-half lineup from pre-half lineup
+        // (instead of starting lineup)
+        val box_lineup_2018 = box_lineup.copy(team = TeamSeasonId(TeamId("Maryland"), Year(2018)))
+        TestUtils.inside(build_partial_lineup_list(test_events.reverse.toIterator, box_lineup_2018)) {
+          case List(_, _, event_3, event_4, _, _, _) =>
+            val my_team_2018 = box_lineup_2018.team
+            TestUtils.inside(event_4) {
+              case LineupEvent(
+                _, _, _, _, score, `my_team_2018`, `other_team`,
+                LineupEvent.LineupId(lineup_id), players,
+                List(`player6`), List(`player1`),
+                _,
+                _, _
+              ) =>
+                score ==> LineupEvent.ScoreInfo(
+                  Game.Score(4, 2), Game.Score(4, 2), 2, 2
+                )
+                lineup_id ==> players.map(_.code).mkString("_")
+                players ==>  {
+                  event_3.players.toSet - player1 //(ie lineup only has 4 entries)
                 }.toList.sortBy(_.code)
             }
         }

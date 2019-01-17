@@ -25,18 +25,6 @@ import scala.util.Try
 /** Parses the game HTML (or game subsets of the team HTML) */
 trait PlayByPlayParser {
 
-//TODO:
-/*
-not sure why the sub here isn't working...
-LineupId("AaWi_AnCo_ErAy_IvBe_RiLi"),
-List(
-  PlayerCodeId("AaWi", PlayerId("Wiggins, Aaron")),
-  PlayerCodeId("AnCo", PlayerId("Cowan, Anthony")),
-  PlayerCodeId("ErAy", PlayerId("Ayala, Eric")),
-  PlayerCodeId("IvBe", PlayerId("Bender, Ivan")),
-  PlayerCodeId("RiLi", PlayerId(",RICKY LINDO JR"))
-*/
-
   import ExtractorUtils._
   import LineupUtils._
 

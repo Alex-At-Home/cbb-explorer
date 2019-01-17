@@ -69,10 +69,17 @@ object ExtractorUtils {
 
         case Model.GameBreakEvent(min) =>
           val completed_curr = complete_lineup(state.curr, min)
+          val (new_lineup_id, new_players) = starters_only.team.year match {
+            // Looks like the behavior changed from 2017 to 2018?
+            case Year(y) if y <= 2017 =>
+              (starters_only.lineup_id, starters_only.players)
+            case _ => // 2018+
+              (completed_curr.lineup_id, completed_curr.players)
+          }
           state.copy(
             curr = new_lineup_event(completed_curr).copy(
-              lineup_id = starters_only.lineup_id,
-              players = starters_only.players //reset lineup
+              lineup_id = new_lineup_id,
+              players = new_players //reset lineup
             ),
             prev = completed_curr :: state.prev
           )

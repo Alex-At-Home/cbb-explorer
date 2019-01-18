@@ -16,8 +16,9 @@ object ExtractorUtilsTests extends TestSuite {
         val test_name =
           "Surname, Firstname A B Iiii Iiiiaiii Jr Jr. Sr Sr. 4test the First second rAbbit Third"
         TestUtils.inside(build_player_code(test_name)) {
-          case LineupEvent.PlayerCodeId("FiRaSu", PlayerId(`test_name`)) =>
+          case LineupEvent.PlayerCodeId("FiRaSurname", PlayerId(`test_name`)) =>
         }
+        //TODO add some other cases (single name, no space for intermediate)
       }
 
       "reorder_and_reverse" - {
@@ -79,14 +80,10 @@ object ExtractorUtilsTests extends TestSuite {
         val now = new DateTime()
         val all_players @ (player1 :: player2 :: player3 :: player4 :: player5 ::
           player6 :: player7 :: Nil) = List(
-            LineupEvent.PlayerCodeId("PlOn", PlayerId("Player One")),
-            LineupEvent.PlayerCodeId("PlTw", PlayerId("Player Two")),
-            LineupEvent.PlayerCodeId("PlTh", PlayerId("Player Three")),
-            LineupEvent.PlayerCodeId("PlFo", PlayerId("Player Four")),
-            LineupEvent.PlayerCodeId("PlFi", PlayerId("Player Five")),
-            LineupEvent.PlayerCodeId("PlSi", PlayerId("Player Six")),
-            LineupEvent.PlayerCodeId("PlSe", PlayerId("Player Seven")),
-          )
+            "Player One", "Player Two", "Player Three",
+            "Player Four", "Player Five", "Player Six", "Player Seven"
+          ).map(build_player_code)
+
         val my_team = TeamSeasonId(TeamId("TestTeam1"), Year(2017))
         val other_team = TeamSeasonId(TeamId("TestTeam2"), Year(2017))
         val box_lineup = LineupEvent(

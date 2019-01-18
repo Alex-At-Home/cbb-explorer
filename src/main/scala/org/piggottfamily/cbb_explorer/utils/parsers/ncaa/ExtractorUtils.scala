@@ -8,6 +8,9 @@ object ExtractorUtils {
 
   //TODO: split on timeouts? (and have is_after_timeout flag, or sub_event == in-game/break/timeout)
 
+  /** The length of the player code, eg AlPi==4, AlPiggoty==8 etc */
+  val player_code_max_length = 16
+
   /** Error enrichment placeholder */
   val `parent_fills_in` = ""
 
@@ -139,7 +142,14 @@ object ExtractorUtils {
 
   /** Builds a player code out of the name, with various formats supported */
   def build_player_code(name: String): LineupEvent.PlayerCodeId = {
-    LineupEvent.PlayerCodeId((name.split("\\s*,\\s*", 2).toList match {
+    def transform(fragment: String, max_len: Int): String = {
+      if (fragment.isEmpty) {
+        ""
+      } else {
+        s"${fragment(0).toUpper}${fragment.take(max_len).tail.toLowerCase}"
+      }
+    }
+    val code = (name.split("\\s*,\\s*", 2).toList match {
       case all_name_set :: Nil =>
         all_name_set.split("\\s+").toList
       case last_name_set :: first_name_set :: Nil =>
@@ -157,9 +167,26 @@ object ExtractorUtils {
         (candidate.startsWith("ii") &&
           (candidate.endsWith("ii") || candidate.endsWith("i."))
         )
-    }.map { transform =>
-      s"${transform(0).toUpper}${transform(1).toLower}"
-    }.mkString(""), PlayerId(name))
+    } match {
+      case Nil => ""
+      case head :: Nil => transform(head, player_code_max_length)
+      case head :: tail => //(tail is non Nil, hence tail.last is well-formed)
+        val last_size = tail.last.size
+        val leftover = player_code_max_length - last_size - 2
+        // handle weird double-barreled names
+        val middle = if (leftover >= 2) {
+          val leftover_to_use = if (last_size < 6) { //short last name
+            leftover // us as much as possible
+          } else {
+            2 //(treat like head)
+          }
+          transform(tail.reverse.drop(1).headOption.getOrElse(""), leftover_to_use)
+        } else {
+          ""
+        }
+        transform(head, 2) + middle + transform(tail.last, player_code_max_length)
+    }
+    LineupEvent.PlayerCodeId(code, PlayerId(name))
   }
 
   // Internal Utils

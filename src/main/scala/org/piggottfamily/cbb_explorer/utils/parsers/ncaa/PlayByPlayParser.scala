@@ -50,7 +50,7 @@ trait PlayByPlayParser {
       (event >?> element("td.smtext:eq(2)")).map(_.text).filter(_.nonEmpty)
 
     def game_event_finder(event: Element): Option[String] =
-      (event >?> element("td.boldtext")).map(_.text).filter(_.nonEmpty)
+      (event >?> element("td.boldtext:not(.smtext)")).map(_.text).filter(_.nonEmpty)
 
     private def index(is: Boolean, want: Boolean): Int = if (is == want) 1 else 3
 

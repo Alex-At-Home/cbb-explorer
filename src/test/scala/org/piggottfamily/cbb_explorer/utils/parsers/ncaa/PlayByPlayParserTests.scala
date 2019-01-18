@@ -26,6 +26,12 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
 
   val play_by_play_html = Source.fromURL(getClass.getResource("/ncaa/test_play_by_play.html")).mkString
 
+  // A useful code block for testing real files quickly
+  //val test_lineup_html = Source.fromURL(getClass.getResource("/ncaa/xxx.html")).mkString
+  //val test_box_html = Source.fromURL(getClass.getResource("/ncaa/xxx42b2.html")).mkString
+  //object bb extends BoxscoreParser
+  //val test_box = bb.get_box_lineup("test", box_html, TeamId("TEAM")).right.get
+
   val tests = Tests {
     "PlayByPlayParser" - {
 
@@ -62,7 +68,9 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
           opponent_stats = LineupEventStats.empty
         )
         TestUtils.inside(create_lineup_data("filename_test", play_by_play_html, box_lineup)) {
+
           case Right((lineup_events, bad_lineup_events)) =>
+
             lineup_events.size ==> 27 // (by inspection)
             bad_lineup_events.size ==> 1
               //(1 with wrong lineup size, 3 where a benched player was in an event)

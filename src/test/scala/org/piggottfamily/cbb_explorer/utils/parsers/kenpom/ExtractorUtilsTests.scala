@@ -31,15 +31,6 @@ object ExtractorUtilsTests extends TestSuite {
     v
   }
 
-  protected [kenpom] def get_doc(html: String): Document = {
-    val browser = JsoupBrowser()
-    browser.parseString(html)
-  }
-  protected [kenpom] def with_doc(html: String)(test: Document => Unit): Unit = {
-    val doc = get_doc(html)
-    test(doc)
-  }
-
   val tests = Tests {
     "ExtractorUtils" - {
 
@@ -59,7 +50,7 @@ object ExtractorUtilsTests extends TestSuite {
         val bad_doc = """ <span class="team"><div><a>CoachName</a></div></span> """
 
         "HtmlExtractorMapper" - {
-          with_doc(good_doc) { doc =>
+          TestUtils.with_doc(good_doc) { doc =>
             object mapper extends HtmlExtractorMapper {
               val root = doc.root
             }
@@ -79,7 +70,7 @@ object ExtractorUtilsTests extends TestSuite {
                 }
             }
           }
-          with_doc(bad_doc) { doc =>
+          TestUtils.with_doc(bad_doc) { doc =>
             object mapper extends HtmlExtractorMapper {
               val root = doc.root
             }
@@ -94,12 +85,12 @@ object ExtractorUtilsTests extends TestSuite {
           }
         }
         "parse_html" - {
-          with_doc(good_doc) { doc =>
+          TestUtils.with_doc(good_doc) { doc =>
             TestUtils.inside(parse_html(doc.root, extractor, "coach")) {
               case Right(CoachId("CoachName")) =>
             }
           }
-          with_doc(bad_doc) { doc =>
+          TestUtils.with_doc(bad_doc) { doc =>
             TestUtils.inside(parse_html(doc.root, extractor, "coach")) {
               case Left(List(ParseError("", "[coach]", _))) =>
             }
@@ -119,7 +110,7 @@ object ExtractorUtilsTests extends TestSuite {
           val bad_extractor = HtmlMetricExtractor(
             e => e >?> element("xxx")
           )
-          with_doc(full_html) { doc =>
+          TestUtils.with_doc(full_html) { doc =>
             object mapper extends HtmlMetricExtractorMapper {
               val root = doc.root
             }
@@ -141,8 +132,8 @@ object ExtractorUtilsTests extends TestSuite {
           val partial_html = s"$fragment1 $fragment2"
           val test_map = Map(
             "test1" -> Left(ParseError("", "[test1_err]", List())),
-            "test2" -> Right(get_doc(partial_html)),
-            "test3" -> Right(get_doc(fragment1))
+            "test2" -> Right(TestUtils.get_doc(partial_html)),
+            "test3" -> Right(TestUtils.get_doc(fragment1))
           )
           val extractor1 = ScriptMetricExtractor("test1")
           val extractor2 = ScriptMetricExtractor("test2")
@@ -177,7 +168,7 @@ object ExtractorUtilsTests extends TestSuite {
             case Left(List(ParseError("", "[value]", _))) =>
           }
           List(fragment1, fragment2, fragment1 + fragment2, "").foreach { html =>
-            with_doc(html) { doc =>
+            TestUtils.with_doc(html) { doc =>
               TestUtils.inside(get_metric(Some(doc.body))) {
                 case Left(List(ParseError("", "[value]", _), ParseError("", "[rank]", _))) if html.isEmpty  =>
                 case Left(List(ParseError("", "[value]", _))) if !html.contains(fragment1) =>

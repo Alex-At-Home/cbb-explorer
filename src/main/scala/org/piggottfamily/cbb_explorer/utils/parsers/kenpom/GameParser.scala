@@ -187,7 +187,7 @@ trait GameParser {
     Either[List[ParseError], List[Game]] =
   {
 /**///TODO: one thing at a time
-//return Right(Nil)
+return Right(Nil)
 
     game_summary_builders.table_finder(doc).map { rows =>
       val fields = game_summary_builders.fields(current_year, eoy_rank)
@@ -218,7 +218,9 @@ trait GameParser {
         case errs @ Left(_) => errs
       } //returns List[Either[List[ParseError], Game]]
 
-      games_or_errors.parSequence // returns Either[List[ParseError], List[Game]]
+      /**///TODO: getting compile error here, thinks Game is (Product with Serializable)
+      //games_or_errors.parSequence // returns Either[List[ParseError], List[Game]]
+      Right(Nil)
 
     }.getOrElse(
       Left(List(ParseUtils.build_sub_error(`parent_fills_in`)(

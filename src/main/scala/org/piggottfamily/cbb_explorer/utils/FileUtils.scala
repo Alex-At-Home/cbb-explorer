@@ -22,5 +22,8 @@ trait FileUtils {
   def write_lines_to_file(file: Path, lines: Traversable[String]): Unit = {
     write.over(file, lines.map(_ + "\n"))
   }
+  def read_lines_from_file(file: Path): Seq[String] = {
+    read.lines(file)
+  }
 }
 object FileUtils extends FileUtils

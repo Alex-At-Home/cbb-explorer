@@ -186,9 +186,6 @@ trait GameParser {
   def parse_games(doc: Document, current_year: Year, eoy_rank: Int):
     Either[List[ParseError], List[Game]] =
   {
-/**///TODO: one thing at a time
-return Right(Nil)
-
     game_summary_builders.table_finder(doc).map { rows =>
       val fields = game_summary_builders.fields(current_year, eoy_rank)
       val games_or_errors = rows.map { row =>
@@ -206,21 +203,17 @@ return Right(Nil)
               case Right(game) =>
                 Right(Some(game_summary_builders.game_model.from(game)))
               case Left(errs) if // filter out D2- teams
-                opponent.team.name != game_summary_builders.non_d1_bucket_name =>
+                opponent.team.name == game_summary_builders.non_d1_bucket_name =>
                 Right(None)
               case Left(errs) =>
                 Left(game_error_enricher(errs))
             }
         } yield game_info // returns Either[List[ParseError], Option[Game]]
-
-      }.collect { // (flatten out Option[Game]), removing None == D2- opposition
+     }.collect { // (flatten out Option[Game]), removing None == D2- opposition
         case Right(Some(game)) => Right(game)
-        case errs @ Left(_) => errs
+        case Left(errs) => Left(errs)
       } //returns List[Either[List[ParseError], Game]]
-
-      /**///TODO: getting compile error here, thinks Game is (Product with Serializable)
-      //games_or_errors.parSequence // returns Either[List[ParseError], List[Game]]
-      Right(Nil)
+      games_or_errors.parSequence // returns Either[List[ParseError], List[Game]]
 
     }.getOrElse(
       Left(List(ParseUtils.build_sub_error(`parent_fills_in`)(

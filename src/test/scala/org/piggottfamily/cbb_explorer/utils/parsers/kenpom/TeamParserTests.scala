@@ -206,12 +206,9 @@ object TeamParserTests extends TestSuite with TeamParser {
           val bad_team_html = good_html
             .replace("150</span>", "xxx150</span>")
 
-/**//*TODO: fix game parser
           val expected_team_games = GameParserTests.expected_team_games(
             expected_team_stats.adj_margin.rank
           )
-*/
-          val expected_team_games = Nil
           TestUtils.inside(parse_team(good_html, good_filename, Year(2000))) {
             case Right(ParseResponse(TeamSeason(
               TeamSeasonId(TeamId("TestTeam"), Year(2010)),
@@ -236,8 +233,6 @@ object TeamParserTests extends TestSuite with TeamParser {
             ), Nil)) if players.isEmpty =>
           }
           TestUtils.inside(parse_team(bad_team_html, good_filename, Year(2000))) {
-  /**//* TODO: fix game parser */
-  case _ =>
             case Left(l @ List(
               ParseError(`game_prefix`, _, _)
             )) =>

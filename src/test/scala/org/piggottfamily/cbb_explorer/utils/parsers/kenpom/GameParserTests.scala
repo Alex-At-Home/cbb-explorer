@@ -145,6 +145,7 @@ object GameParserTests extends TestSuite with GameParser {
         }
       }
       "parse_games" - {
+
         TestUtils.with_doc("<p>No table</p>") { doc =>
           TestUtils.inside(parse_games(doc, Year(2010), 11)) {
             case Left(List(ParseError(_, "", _))) =>
@@ -161,24 +162,30 @@ object GameParserTests extends TestSuite with GameParser {
           val bad_html_name = good_html
             .replace("href=\"team", "href=\"bean")
 
+          val eoy_rank = 11
+          val expected = GameParserTests.expected_team_games(eoy_rank)
+
           TestUtils.with_doc(good_html) { doc =>
-            val eoy_rank = 11
-            val expected = GameParserTests.expected_team_games(eoy_rank)
             TestUtils.inside(parse_games(doc, Year(2010), eoy_rank)) {
-              case Right(`expected`) =>
+              case Right(ParseResponse(`expected`, List())) =>
             }
           }
           TestUtils.with_doc(bad_html) { doc =>
-            TestUtils.inside(parse_games(doc, Year(2010), 11)) {
-              case Left(List(
-                ParseError("", "[ConfOppC][opp_rank]", _),
-                ParseError("", "[Conf Opp D][tier]", _)
-              )) =>
+            TestUtils.inside(parse_games(doc, Year(2010), eoy_rank)) {
+              case Right(ParseResponse(
+                games,
+                List(
+                  ParseError("", "[ConfOppC][opp_rank]", _),
+                  ParseError("", "[Conf Opp D][tier]", _)
+              ))) =>
+                 games ==> expected.filterNot( game =>
+                   Set("ConfOppC", "Conf Opp D").contains(game.opponent.team.name)
+                 )
             }
           }
           TestUtils.with_doc(bad_html_name) { doc =>
-            TestUtils.inside(parse_games(doc, Year(2010), 11)) {
-              case Right(List()) =>
+            TestUtils.inside(parse_games(doc, Year(2010), eoy_rank)) {
+              case Right(ParseResponse(List(), List())) =>
                 //(Bad name gets treated as D2 opposition and ignored)
             }
           }

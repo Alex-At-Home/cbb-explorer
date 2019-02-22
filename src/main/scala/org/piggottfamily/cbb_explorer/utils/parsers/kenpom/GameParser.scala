@@ -71,7 +71,7 @@ trait GameParser {
         el => parse_score(el.text)
       ) ::
       Symbol(nameOf(f.pace)) ->> HtmlExtractor(
-        el => el >?> element("td.pace"),
+        el => el >?> element("td.pace"), //TODO:  a few games seem to be missing pace
         el => ParseUtils.build_sub_request[Int](`parent_fills_in`)(el.text.toInt)
       ) ::
       Symbol(nameOf(f.rank)) ->> HtmlExtractor(
@@ -181,10 +181,11 @@ trait GameParser {
 
   /**
    * Parses HTML fragment representing a team's games
-   * //TODO parse with warnings instead of error'ing out?!
+   * Doesn't error out on individual game errors, instead returns all
+   * valid games and warnings for games which it couldn't parse
    */
   def parse_games(doc: Document, current_year: Year, eoy_rank: Int):
-    Either[List[ParseError], List[Game]] =
+    Either[List[ParseError], ParseResponse[List[Game]]] =
   {
     game_summary_builders.table_finder(doc).map { rows =>
       val fields = game_summary_builders.fields(current_year, eoy_rank)
@@ -209,11 +210,12 @@ trait GameParser {
                 Left(game_error_enricher(errs))
             }
         } yield game_info // returns Either[List[ParseError], Option[Game]]
-     }.collect { // (flatten out Option[Game]), removing None == D2- opposition
-        case Right(Some(game)) => Right(game)
-        case Left(errs) => Left(errs)
-      } //returns List[Either[List[ParseError], Game]]
-      games_or_errors.parSequence // returns Either[List[ParseError], List[Game]]
+     }.foldLeft(ParseResponse[List[Game]](Nil)) { case (acc, v) => v match {
+       case Right(Some(game)) => acc.copy(response = acc.response ++ List(game))
+       case Left(errs) => acc.copy(warnings = acc.warnings ++ errs)
+       case _ => acc
+     }} // returns List[ParseResponse[List[Game]]]
+     Right(games_or_errors)
 
     }.getOrElse(
       Left(List(ParseUtils.build_sub_error(`parent_fills_in`)(

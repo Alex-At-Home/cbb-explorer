@@ -207,8 +207,10 @@ trait TeamParser {
       (other_fields, metrics) = various_fields //SI-5589
 
       // (Games depends on metrics + year)
-      games <- game_parser.parse_games(
+      games_and_warnings <- game_parser.parse_games(
         doc, team_season.year, metrics.adj_margin.rank
+      ).right.map(parse_response => //(ParseResponse[List[Game]])
+        parse_response.copy(warnings = game_completer(parse_response.warnings))
       ).left.map(game_completer)
 
     } yield ParseResponse({
@@ -216,11 +218,11 @@ trait TeamParser {
       builders.team_model.from(
         Symbol(nameOf(f.team_season)) ->> team_season ::
         Symbol(nameOf(f.stats)) ->> metrics ::
-        Symbol(nameOf(f.games)) ->> games ::
+        Symbol(nameOf(f.games)) ->> games_and_warnings.response ::
         Symbol(nameOf(f.players)) ->> Map[PlayerId, PlayerSeasonSummaryStats]() ::
         other_fields
       )
-    })
+    }, warnings = games_and_warnings.warnings)
   }
 
   /** Extracts the team name and year from the filename */
@@ -243,7 +245,9 @@ trait TeamParser {
             )
         }
         errors match {
-          case Nil => Right(TeamSeasonId(TeamId(team_name), Year(year)))
+          case Nil => Right( //(remove limited URL encoding)
+            TeamSeasonId(TeamId(team_name.replace("+", " ")), Year(year))
+          )
           case _ => Left(errors)
         }
       case _ =>

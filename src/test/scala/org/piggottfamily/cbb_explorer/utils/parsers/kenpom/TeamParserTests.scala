@@ -34,8 +34,8 @@ object TeamParserTests extends TestSuite with TeamParser {
         TestUtils.inside(parse_filename("team00002010_rabbit.html", Year(1066))) {
           case Right(TeamSeasonId(TeamId("rabbit"), Year(2010))) =>
         }
-        TestUtils.inside(parse_filename("team0000_rabbit.html", Year(1066))) {
-          case Right(TeamSeasonId(TeamId("rabbit"), Year(1066))) =>
+        TestUtils.inside(parse_filename("team0000_rabbit+coat.html", Year(1066))) {
+          case Right(TeamSeasonId(TeamId("rabbit coat"), Year(1066))) =>
         }
         TestUtils.inside(parse_filename("complete_failure", Year(1066))) {
           case Left(List(ParseError("", "", _))) =>
@@ -203,7 +203,7 @@ object TeamParserTests extends TestSuite with TeamParser {
 
           // Check that the right location is applied to errors from
           // games (see GameParserTests for details)
-          val bad_team_html = good_html
+          val bad_game_team_html = good_html
             .replace("150</span>", "xxx150</span>")
 
           val expected_team_games = GameParserTests.expected_team_games(
@@ -232,10 +232,10 @@ object TeamParserTests extends TestSuite with TeamParser {
               Some(Seed(9))
             ), Nil)) if players.isEmpty =>
           }
-          TestUtils.inside(parse_team(bad_team_html, good_filename, Year(2000))) {
-            case Left(l @ List(
+          TestUtils.inside(parse_team(bad_game_team_html, good_filename, Year(2000))) {
+            case Right(ParseResponse(_, List(
               ParseError(`game_prefix`, _, _)
-            )) =>
+            ))) =>
           }
           TestUtils.inside(parse_team("<>bad<ht>ml", good_filename, Year(2000))) {
             case Left(l @ List(

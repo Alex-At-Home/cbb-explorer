@@ -1,0 +1,24 @@
+#================================ Input =====================================
+
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - ADD_PATH
+  json.keys_under_root: true
+
+#================================ Output =====================================
+
+cloud.id: "ADD_CLOUD_ID"
+cloud.auth: "ADD_USER:ADD_PASSWORD"
+
+output.elasticsearch:
+  index: "ADD_INDEX"
+
+setup.template.enabled: false
+
+#================================ Logging =====================================
+
+# Sets log level. The default log level is info.
+# Available log levels are: error, warning, info, debug
+logging.level: info

@@ -1,0 +1,17 @@
+# Delete recent data (eg 4h) in case it's corrupt
+GET maryland_2018/_delete_by_query
+{"query":
+ {
+    "bool": {
+      "must": [
+        {
+          "range": {
+            "@timestamp": {
+              "gte": "now-4h"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

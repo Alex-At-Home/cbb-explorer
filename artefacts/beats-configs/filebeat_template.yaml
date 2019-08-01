@@ -9,6 +9,8 @@ filebeat.inputs:
 
 #================================ Output =====================================
 
+setup.ilm.enabled: false
+
 cloud.id: "ADD_CLOUD_ID"
 cloud.auth: "ADD_USER:ADD_PASSWORD"
 

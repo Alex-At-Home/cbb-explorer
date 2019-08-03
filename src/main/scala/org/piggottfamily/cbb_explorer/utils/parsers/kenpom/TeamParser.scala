@@ -369,8 +369,9 @@ trait TeamParser {
   protected def parse_script_function(in: String): Map[String, Either[ParseError, Document]] = {
     val browser = JsoupBrowser()
     val HtmlRegex = """^[^$]*[$][(]"([^"]+)"[)][.]html[(](".*")[)];[^;]*""".r
-    in.lines.collect {
-      case HtmlRegex(element_id, html) =>        val f: TeamSeasonStats = null //(just for nameOf type inference)
+    in.linesIterator.collect {
+      case HtmlRegex(element_id, html) =>
+        val f: TeamSeasonStats = null //(just for nameOf type inference)
 
         val map_value = io.circe.parser.parse(html).map(_.asString) match {
           case Right(Some(html_str)) =>

@@ -101,7 +101,7 @@ object TeamParserTests extends TestSuite with TeamParser {
         //$("td#eFG").html("<a href=\"stats.php?s=RankeFG_Pct\">55.1</a> <span class=\"seed\">105</span>");
         //$("td#Tempo").html("<span style=\"background-color:#dfebfd; padding:3px 8px\"><a href=\"summary.php?s=RankAdjTempo\">92.1</a> <span class=\"seed\">120</span></span>");
         def get_stats_map =
-          good_html.lines.flatMap { line =>
+          good_html.linesIterator.flatMap { line =>
             val regex =
               """.*[$][(]"(td#[^"]+)"[)][.]html[(]".*<a[^>]+>([0-9.]+)<.*<span.*>([0-9]+)<.*""".r
             line match {

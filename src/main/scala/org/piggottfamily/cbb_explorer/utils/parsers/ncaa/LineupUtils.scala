@@ -38,6 +38,12 @@ trait LineupUtils {
       normalized_event_str.contains("enters game") ||
       normalized_event_str.contains("leaves game")
     }
+    def is_ignorable_game_event(event_str: String): Boolean = {
+      val normalized_event_str = event_str.toLowerCase()
+      false
+    }
+    def is_ignorable_event(event_str: String): Boolean =
+      is_substitution_event(event_str) || is_ignorable_game_event(event_str)
 
     object Direction extends Enumeration {
       val Init, Team, Opponent = Value
@@ -45,7 +51,7 @@ trait LineupUtils {
     case class PossState(team: Int, opponent: Int, direction: Direction.Value)
 
     (raw_events.foldLeft(PossState(0, 0, Direction.Init)) {
-      case (state, LineupEvent.RawGameEvent(_, Some(opp_info))) if is_substitution_event(opp_info) =>
+      case (state, LineupEvent.RawGameEvent(_, Some(opp_info))) if is_ignorable_event(opp_info) =>
         state //(ignore sub data)
       case (state @ PossState(_, _, Direction.Init), LineupEvent.RawGameEvent(None, Some(opp_info))) =>
         state.copy(opponent = 1, direction = Direction.Opponent)
@@ -63,3 +69,40 @@ trait LineupUtils {
   }
 }
 object LineupUtils extends LineupUtils
+
+//TODO: I should probably be building "possession events" so that I can
+// a) validate the results
+// b) build a separate possession events table
+
+/*
+EXAMPLE PROBLEM: THIS ISN'T 2 POSSESSIONS I THINK, THE BLOCK RESULTS IN AN ORB?
+RawGameEvent(Some("14:11:00,7-9,Darryl Morsell, 2pt layup blocked missed"), None),
+RawGameEvent(None, Some("14:11:00,7-9,Emmitt Williams, block")),
+RawGameEvent(Some("14:11:00,7-9,Team, rebound offensivedeadball"), None),
+RawGameEvent(Some("14:00:00,7-9,Anthony Cowan, 3pt jumpshot 2ndchance missed"), None),
+
+LEGACY
+"team": "04:53,55-69,LAYMAN,JAKE Blocked Shot"
+"opponent": "04:53,55-69,TEAM Offensive Rebound"
+NOTE: check out the UMD-Kansas 2015 season ... all the blocks seem to
+      result in a change of event (with the next even missing from the data)
+      AND it's unclear why the next event is corrupt, eye balling it .. looks fine
+      https://stats.ncaa.org/game/play_by_play/4077212
+*/
+
+/*
+ANOTHER PROBLEM ... A FOUL DOESN'T CHANGE POSSESSIONS
+RawGameEvent(None, Some("13:36:00,7-9,Team, rebound offensivedeadball")),
+RawGameEvent(Some("13:36:00,7-9,Jalen Smith, foul personal shooting;2freethrow"), None)
+
+LEGACY:
+"opponent": "10:00,51-60,MYKHAILIUK,SVI Commits Foul"
+*/
+
+/*
+AND ANOTHER ONE ... JUMP BALLS
+RawGameEvent(None, Some("19:58:00,0-0,Kavell Bigby-Williams, jumpball lost")),
+RawGameEvent(Some("19:58:00,0-0,Bruno Fernando, jumpball won"), None),
+
+(no legacy equivalent)
+*/

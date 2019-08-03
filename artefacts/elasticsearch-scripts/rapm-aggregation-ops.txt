@@ -1,0 +1,44 @@
+#POST _data_frame/transforms/_preview
+PUT _data_frame/transforms/rapm_aggregator
+{
+  "source": {
+    "index": "rapm"
+  },
+  "pivot": {
+    "group_by": {
+      "name": {
+         "terms": {
+            "field": "name"
+         }
+      },
+      "team": {
+         "terms": {
+            "field": "team"
+         }
+      }
+    },
+    "aggregations": {
+            "combined": {
+               "scripted_metric": {
+                  "init_script": "//Add internal logic here\n//to keep the map/etc scripts\n//easier to follow.\n//Everything in here is \n//available to all other\n//scripts. Eg:\n//def myFunction(def param) {\n// return value   \n//}\n\nstate.collect = [:];\nstate.build_lists = params.build_lists;",
+                  "map_script": "//Add internal logic here\n//to keep the map/etc scripts\n//easier to follow.\n//Everything in here is \n//available to all other\n//scripts. Eg:\n//def myFunction(def param) {\n// return value   \n//}\n\n\ndef obj = state.collect;\ndef prefix = doc[\"yr\"].value.toLowerCase() + \"_\";\n\n// Complicated:\n\nif (null == obj.num_years) {\n   obj.num_years = new HashSet();\n}\nif (!obj.num_years.contains(prefix)) {\n   //(dup check)\n   obj.num_years.add(prefix);\n\nif (state.build_lists) {\n\nif (null == obj.missing_fields) {\n   obj.missing_fields = new HashSet();\n}\n\nif (null == obj.classes) {\n   obj.classes = new HashSet();\n}\nobj.classes.add(doc[\"yr\"].value);\n\nif (null == obj.positions) {\n   obj.positions = new HashSet();\n}\nif (doc[\"pos\"].size() > 0) {\nobj.positions.add(doc[\"pos\"].value);\n}\n}//END if (state.build_lists)\n\n\n// Simple:\n\ndef fields = [ \"year\", \"pos\", \"off\", \"def\", \"rapm\", \"gp\", \"mpg\", \"obpm\", \"dbpm\", \"bpm\" ];\n\nfor (def i: fields) {\n   if (doc[i].size() > 0) {\n   obj[prefix + i] = doc[i].value;\n   } else {\n      if (state.build_lists) {\n      obj.missing_fields.add(prefix + i);\n      obj.missing_fields.add(i);\n      }\n   }\n}//END for\n\n}//END if (!obj.num_years.contains(prefix))\n",
+                  "combine_script": "//Add internal logic here\n//to keep the map/etc scripts\n//easier to follow.\n//Everything in here is \n//available to all other\n//scripts. Eg:\n//def myFunction(def param) {\n// return value   \n//}\n\n\ndef fields = [ \"missing_fields\", \"positions\", \"num_years\", \"classes\" ];\nfor (def kk: fields) {\n    state.collect[kk] = new ArrayList(state.collect[kk]);\n}\n\nreturn state.collect;",
+                  "params": {
+                     "build_lists": true,
+                     "_name_": "composite"
+                  },
+                  "reduce_script": "//Add internal logic here\n//to keep the map/etc scripts\n//easier to follow.\n//Everything in here is \n//available to all other\n//scripts. Eg:\n//def myFunction(def param) {\n// return value   \n//}\n\n\ndef finalObj = [:];\n\nfor (def o: states) {\n   for (def kk: o.keySet()) {\n      if ((kk == \"missing_fields\") || (kk == \"positions\") || (kk == \"num_years\") || (kk == \"classes\")) {\n         if (null == finalObj[kk]) {\n            finalObj[kk] = new HashSet();\n         }\n         finalObj[kk].addAll(o[kk]);         }\n      else {\n         finalObj[kk] = o[kk];\n      }\n   }\n}\n\nfinalObj.num_years = finalObj.num_years.size();\nif ((null != finalObj.missing_fields) && (finalObj.missing_fields.size() > 0)) {\nfinalObj.is_valid = false;\n}\n\nfinalObj.transferred = (null == finalObj.fr_mpg);\n\n\nreturn finalObj;"
+               }
+            }
+    }
+  },
+  "dest": {
+    "index": "combined_rapm"
+  }
+}
+
+POST _data_frame/transforms/rapm_aggregator/_start
+POST _data_frame/transforms/rapm_aggregator/_stop?force
+DELETE _data_frame/transforms/rapm_aggregator
+GET _data_frame/transforms/rapm_aggregator
+GET _data_frame/transforms/rapm_aggregator/_stats

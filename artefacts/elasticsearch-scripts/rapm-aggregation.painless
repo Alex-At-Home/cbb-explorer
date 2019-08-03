@@ -1,0 +1,108 @@
+//////////////////////////////////////////////////////////////
+//
+// Params
+
+{
+  "build_lists": true, //(needs to be false if running inside elasticsearch-sheets)
+   "_name_": "composite"
+}
+
+//////////////////////////////////////////////////////////////
+//
+// Init
+
+state.collect = [:];
+state.build_lists = params.build_lists;
+
+//////////////////////////////////////////////////////////////
+//
+// Map
+
+def obj = state.collect;
+def prefix = doc["yr"].value.toLowerCase() + "_";
+
+// Complicated:
+
+if (null == obj.num_years) {
+   obj.num_years = new HashSet();
+}
+if (!obj.num_years.contains(prefix)) {
+   //(dup check)
+   obj.num_years.add(prefix);
+
+  if (state.build_lists) {
+
+    if (null == obj.missing_fields) {
+       obj.missing_fields = new HashSet();
+    }
+
+    if (null == obj.classes) {
+       obj.classes = new HashSet();
+    }
+    obj.classes.add(doc["yr"].value);
+
+    if (null == obj.positions) {
+       obj.positions = new HashSet();
+    }
+    if (doc["pos"].size() > 0) {
+       obj.positions.add(doc["pos"].value);
+    }
+  }//END if (state.build_lists)
+
+  // Simple:
+
+  def fields = [ "year", "pos", "off", "def", "rapm", "gp", "mpg", "obpm", "dbpm", "bpm" ];
+
+  for (def i: fields) {
+     if (doc[i].size() > 0) {
+        obj[prefix + i] = doc[i].value;
+     } else {
+        if (state.build_lists) {
+           obj.missing_fields.add(prefix + i);
+           obj.missing_fields.add(i);
+        }
+     }
+  }//END for
+
+}//END if (!obj.num_years.contains(prefix))
+
+//(IMPORTANT NOTE: can't ship multi-shard HashSet from map/combine -> reduce)
+
+//////////////////////////////////////////////////////////////
+//
+// Combine
+
+def fields = [ "missing_fields", "positions", "num_years", "classes" ];
+for (def kk: fields) {
+    state.collect[kk] = new ArrayList(state.collect[kk]);
+}
+return state.collect;
+
+//////////////////////////////////////////////////////////////
+//
+// Reduce
+
+def finalObj = [:];
+
+for (def o: states) {
+   for (def kk: o.keySet()) {
+      if ((kk == "missing_fields") || (kk == "positions") || (kk == "num_years") || (kk == "classes")) {
+         if (null == finalObj[kk]) {
+            finalObj[kk] = new HashSet();
+         }
+         finalObj[kk].addAll(o[kk]);
+      }
+      else {
+         finalObj[kk] = o[kk];
+      }
+   }
+}
+
+finalObj.num_years = finalObj.num_years.size();
+if ((null != finalObj.missing_fields) && (finalObj.missing_fields.size() > 0)) {
+  finalObj.is_valid = false;
+}
+
+finalObj.transferred = (null == finalObj.fr_mpg);
+
+return finalObj;

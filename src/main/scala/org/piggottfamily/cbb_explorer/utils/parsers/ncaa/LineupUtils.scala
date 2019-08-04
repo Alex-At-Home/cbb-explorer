@@ -10,7 +10,7 @@ trait LineupUtils {
   def enrich_lineup(lineup: LineupEvent): LineupEvent = {
     val scored = lineup.score_info.end.scored - lineup.score_info.start.scored
     val allowed = lineup.score_info.end.allowed - lineup.score_info.start.allowed
-    val (team_possessions, opp_possessions) = calculate_possessions(lineup.raw_game_events)
+    val (team_possessions, opp_possessions, proc_events) = calculate_possessions(lineup.raw_game_events)
     lineup.copy(
       team_stats = lineup.team_stats.copy(
         num_events = lineup.raw_game_events.filter(_.team.isDefined).size,
@@ -23,12 +23,16 @@ trait LineupUtils {
         num_possessions = opp_possessions,
         pts = allowed,
         plus_minus = allowed - scored
-      )
+      ),
+      raw_game_events = proc_events
     )
   }
 
   /** Returns team and opponent possessions based on the raw event data */
-  protected def calculate_possessions(raw_events: Seq[LineupEvent.RawGameEvent]): (Int, Int) = {
+  protected def calculate_possessions(
+    raw_events: Seq[LineupEvent.RawGameEvent]
+  ): (Int, Int, List[LineupEvent.RawGameEvent]) =
+  {
     def is_substitution_event(event_str: String): Boolean = {
       //TOOD: should use PlayByPlayParser.ParseTeamSubIn and PlayByPlayParser.ParseTeamSubOut)
       val normalized_event_str = event_str.toLowerCase()
@@ -48,31 +52,40 @@ trait LineupUtils {
     object Direction extends Enumeration {
       val Init, Team, Opponent = Value
     }
-    case class PossState(team: Int, opponent: Int, direction: Direction.Value)
+    case class PossState(
+      team: Int, opponent: Int,
+      events: List[LineupEvent.RawGameEvent],
+      direction: Direction.Value
+    )
 
-    (raw_events.foldLeft(PossState(0, 0, Direction.Init)) {
-      case (state, LineupEvent.RawGameEvent(_, Some(opp_info))) if is_ignorable_event(opp_info) =>
-        state //(ignore sub data)
-      case (state @ PossState(_, _, Direction.Init), LineupEvent.RawGameEvent(None, Some(opp_info))) =>
-        state.copy(opponent = 1, direction = Direction.Opponent)
-      case (state @ PossState(_, _, Direction.Init), LineupEvent.RawGameEvent(Some(team_info), None)) =>
-        state.copy(team = 1, direction = Direction.Team)
-      case (state @ PossState(_, opp_poss, Direction.Team), LineupEvent.RawGameEvent(None, Some(opp_info))) =>
-        state.copy(opponent = opp_poss + 1, direction = Direction.Opponent)
-      case (state @ PossState(team_poss, _, Direction.Opponent), LineupEvent.RawGameEvent(Some(team_info), None)) =>
-        state.copy(team = team_poss + 1, direction = Direction.Team)
-      case (state, _) =>
-        state //(all other cases just do nothing)
+    /** Adds the possession count to the event */
+    def enrich(state: PossState, ev: LineupEvent.RawGameEvent): PossState = {
+      val enriched_event = ev.copy(
+        team_possession = if (state.direction == Direction.Team) Some(state.team) else None,
+        opponent_possession = if (state.direction == Direction.Opponent) Some(state.opponent) else None
+      )
+      state.copy(events = enriched_event :: state.events)
+    }
+
+    (raw_events.foldLeft(PossState(0, 0, Nil, Direction.Init)) {
+      case (state, ev @ LineupEvent.RawGameEvent.Opponent(opp_info)) if is_ignorable_event(opp_info) =>
+        enrich(state, ev) //(ignore sub data)
+      case (state @ PossState(_, _, _, Direction.Init), ev @ LineupEvent.RawGameEvent.Opponent(_)) =>
+        enrich(state.copy(opponent = 1, direction = Direction.Opponent), ev)
+      case (state @ PossState(_, _, _, Direction.Init), ev @ LineupEvent.RawGameEvent.Team(_)) =>
+        enrich(state.copy(team = 1, direction = Direction.Team), ev)
+      case (state @ PossState(_, opp_poss, _, Direction.Team), ev @ LineupEvent.RawGameEvent.Opponent(_)) =>
+        enrich(state.copy(opponent = opp_poss + 1, direction = Direction.Opponent), ev)
+      case (state @ PossState(team_poss, _, _, Direction.Opponent), ev @ LineupEvent.RawGameEvent.Team(_)) =>
+        enrich(state.copy(team = team_poss + 1, direction = Direction.Team), ev)
+      case (state, ev) =>
+        enrich(state, ev) //(all other cases just do nothing)
     }) match {
-      case PossState(team, opp, _) => (team, opp)
+      case PossState(team, opp, events, _) => (team, opp, events.reverse)
     }
   }
 }
 object LineupUtils extends LineupUtils
-
-//TODO: I should probably be building "possession events" so that I can
-// a) validate the results
-// b) build a separate possession events table
 
 /*
 EXAMPLE PROBLEM: THIS ISN'T 2 POSSESSIONS I THINK, THE BLOCK RESULTS IN AN ORB?

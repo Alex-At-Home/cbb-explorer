@@ -39,11 +39,21 @@ case class LineupEvent(
 object LineupEvent {
 
   /** List of game events, categorized by whether it was "for" the team or its opponent */
-  case class RawGameEvent(team: Option[String] = None, opponent: Option[String] = None)
-
+  case class RawGameEvent(
+    team: Option[String] = None,
+    opponent: Option[String] = None,
+    team_possession: Option[Int] = None,
+    opponent_possession: Option[Int] = None
+  )
   object RawGameEvent {
     def team(s: String): RawGameEvent = RawGameEvent(Some(s), None)
     def opponent(s: String): RawGameEvent = RawGameEvent(None, Some(s))
+    object Team {
+      def unapply(x: RawGameEvent): Option[String] = x.team
+    }
+    object Opponent {
+      def unapply(x: RawGameEvent): Option[String] = x.opponent
+    }
   }
 
   /** Info about the score at the start and end of the event */

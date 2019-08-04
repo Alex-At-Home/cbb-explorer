@@ -269,7 +269,7 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
         TestUtils.with_doc(sample_team_event_new_format) { doc =>
           TestUtils.inside(parse_desc_game_time(doc.body)) {
             case Right(("15:00:50", t)) =>
-              "%.2f".format(t) ==> "15.00"
+              "%.1f".format(t) ==> "15.0"
           }
         }
       }

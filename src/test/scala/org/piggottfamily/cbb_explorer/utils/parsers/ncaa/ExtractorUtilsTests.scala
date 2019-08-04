@@ -168,8 +168,8 @@ object ExtractorUtilsTests extends TestSuite {
                 LineupEvent.LineupId(lineup_id), players,
                 List(`player6`), List(`player1`),
                 List(
-                  LineupEvent.RawGameEvent(Some("event1a"), None),
-                  LineupEvent.RawGameEvent(Some("event2a"), None)
+                  LineupEvent.RawGameEvent.Team("event1a"),
+                  LineupEvent.RawGameEvent.Team("event2a")
                 ),
                 _, _
               ) =>
@@ -189,10 +189,10 @@ object ExtractorUtilsTests extends TestSuite {
                 LineupEvent.LineupId(lineup_id), players,
                 List(`player1`, `player7`), List(player2_with_mods, `player4`),
                 List(
-                  LineupEvent.RawGameEvent(None, Some("event1b")),
-                  LineupEvent.RawGameEvent(None, Some("event2b")),
-                  LineupEvent.RawGameEvent(Some("event3a"), None),
-                  LineupEvent.RawGameEvent(Some("event4a"), None)
+                  LineupEvent.RawGameEvent.Opponent("event1b"),
+                  LineupEvent.RawGameEvent.Opponent("event2b"),
+                  LineupEvent.RawGameEvent.Team("event3a"),
+                  LineupEvent.RawGameEvent.Team("event4a")
                 ),
                 _, _
               ) =>
@@ -212,8 +212,8 @@ object ExtractorUtilsTests extends TestSuite {
                 LineupEvent.LineupId(lineup_id), players,
                 List(`player6`), List(`player1`),
                 List(
-                  LineupEvent.RawGameEvent(None, Some("PlayerA Leaves Game")),
-                  LineupEvent.RawGameEvent(None, Some("PlayerB, substitution in"))
+                  LineupEvent.RawGameEvent.Opponent("PlayerA Leaves Game"),
+                  LineupEvent.RawGameEvent.Opponent("PlayerB, substitution in")
                 ),
                 _, _
               ) =>
@@ -249,8 +249,8 @@ object ExtractorUtilsTests extends TestSuite {
                 LineupEvent.LineupId(lineup_id), players,
                 List(), List(),
                 List(
-                  LineupEvent.RawGameEvent(None, Some("event3b")),
-                  LineupEvent.RawGameEvent(Some("event5a"), None)
+                  LineupEvent.RawGameEvent.Opponent("event3b"),
+                  LineupEvent.RawGameEvent.Team("event5a")
                 ),
                 _, _
               ) =>
@@ -267,8 +267,8 @@ object ExtractorUtilsTests extends TestSuite {
                 LineupEvent.LineupId(lineup_id), players,
                 List(player6), List(player1),
                 List(
-                  LineupEvent.RawGameEvent(Some("event6a"), None),
-                  LineupEvent.RawGameEvent(None, Some("event4b"))
+                  LineupEvent.RawGameEvent.Team("event6a"),
+                  LineupEvent.RawGameEvent.Opponent("event4b")
                 ),
                 _, _
               ) =>

@@ -189,9 +189,9 @@ trait PlayByPlayParser {
           builders.event_team_finder(el, target_team_first),
           builders.event_opponent_finder(el, target_team_first)
         ) match {
-          case ParseTeamSubIn(player) =>
+          case EventUtils.ParseTeamSubIn(player) =>
             Right(Model.SubInEvent(time_mins, player))
-          case ParseTeamSubOut(player) =>
+          case EventUtils.ParseTeamSubOut(player) =>
             Right(Model.SubOutEvent(time_mins, player))
 
           case (Some(team), None) =>
@@ -239,16 +239,12 @@ trait PlayByPlayParser {
     : Either[ParseError, (String, Double)] =
   {
     val `game_time` = "game_time"
-    val time_regex = "([0-9]+):([0-9]+)(?:[:]([0-9]+))?".r
     builders.event_time_finder(el) match {
       case None =>
         Left(ParseUtils.build_sub_error(`game_time`)(
           s"Could not find time in [$el]"
         ))
-      case Some(str @ time_regex(min, secs, maybe_csecs)) =>
-        val descending_mins =
-          min.toInt*1.0 + secs.toInt/60.0
-          + Option(maybe_csecs).map(_.toInt).getOrElse(0)/6000.0
+      case Some(str @ EventUtils.ParseGameTime(descending_mins)) =>
         Right((str, descending_mins))
       case Some(str) =>
         Left(ParseUtils.build_sub_error(`game_time`)(
@@ -257,26 +253,6 @@ trait PlayByPlayParser {
     }
   }
 
-  // Very low-level parser
-
-  protected object ParseTeamSubIn {
-    private val sub_regex_in = "(.+) +Enters Game".r
-    private val sub_regex_in_new_format = "(.+), +substitution in".r
-    def unapply(x: (Option[String], Option[String])): Option[String] = x match {
-      case (Some(sub_regex_in(player)), None) => Some(player)
-      case (Some(sub_regex_in_new_format(player)), None) => Some(player)
-      case _ => None
-    }
-  }
-  protected object ParseTeamSubOut {
-    private val sub_regex_out = "(.+) +Leaves Game".r
-    private val sub_regex_in_out_format = "(.+), +substitution out".r
-    def unapply(x: (Option[String], Option[String])): Option[String] = x match {
-      case (Some(sub_regex_out(player)), None) => Some(player)
-      case (Some(sub_regex_in_out_format(player)), None) => Some(player)
-      case _ => None
-    }
-  }
 
 }
 object PlayByPlayParser extends PlayByPlayParser

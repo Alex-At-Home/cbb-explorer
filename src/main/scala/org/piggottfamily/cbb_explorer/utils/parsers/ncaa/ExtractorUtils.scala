@@ -352,7 +352,7 @@ object ExtractorUtils {
   object Model {
     private val SUB_SAFETY_DELTA_MINS = 4.0/60 //4s
 
-    /* State for building raw line-up data */
+    /** State for building raw line-up data */
     private [ExtractorUtils] case class LineupBuildingState(
       curr: LineupEvent,
       prev: List[LineupEvent]

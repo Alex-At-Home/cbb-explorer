@@ -5,6 +5,7 @@ package org.piggottfamily.cbb_explorer.models.ncaa
  */
 case class LineupEventStats(
   num_events: Int = 0,
+  num_possessions: Int = 0,
 
   fg: LineupEventStats.FieldGoalStats = LineupEventStats.FieldGoalStats(),
   fg_rim: LineupEventStats.FieldGoalStats = LineupEventStats.FieldGoalStats(),

@@ -43,8 +43,8 @@ trait BoxscoreParser {
       (doc >?> elementList("div#contentarea table.mytable[width=50%] td[align=right]"))
         .getOrElse(Nil).map(_.text)
 
-    def date_finder(doc: Document): Option[Element] =
-      (doc >?> element("td.boldtext:contains(Game Date:) + td"))
+    def date_finder(doc: Document): Option[String] =
+      (doc >?> element("td.boldtext:contains(Game Date:) + td")).map(_.text)
 
     def boxscore_finder(doc: Document, target_team_first: Boolean): Option[List[Element]] = target_team_first match {
       case true =>
@@ -76,11 +76,19 @@ trait BoxscoreParser {
 
       (team, opponent, target_team_first) = team_info //SI-5589
 
+      maybe_date_str = builders.date_finder(doc)
+
       date <- parse_date(
-        builders.date_finder(doc)
+        maybe_date_str
       ).left.map(single_error_completer)
 
       year = Year(if (date.monthOfYear.get >= 6) date.year.get else (date.year.get - 1))
+
+      location_type = maybe_date_str match {
+        case Some(date_str) if neutral_game_dates.contains(date_str) => Game.LocationType.Neutral
+        case _ if target_team_first => Game.LocationType.Away
+        case _ if !target_team_first => Game.LocationType.Home
+      }
 
       final_score <- parse_final_score(
         builders.score_finder(doc), target_team_first
@@ -92,7 +100,7 @@ trait BoxscoreParser {
 
     } yield LineupEvent(
       date,
-      location_type = if (target_team_first) Game.LocationType.Away else Game.LocationType.Home, //TODO: handle neutral
+      location_type,
       start_min = start_time_from_period(period),
       end_min = start_time_from_period(period),
       duration_mins = 0.0,
@@ -126,12 +134,12 @@ trait BoxscoreParser {
   }
 
   /** Parses dates of the format '12/03/2017' */
-  protected def parse_date(date: Option[Element]):
+  protected def parse_date(date: Option[String]):
     Either[ParseError, DateTime] =
   {
     val formatter  = DateTimeFormat.forPattern("MM/dd/yyyy")
 
-    date.map(_.text).map(_.trim).map { date_str =>
+    date.map(_.trim).map { date_str =>
       Try(
         //(the split gets rid of the optional time at the end of the date)
         Right(

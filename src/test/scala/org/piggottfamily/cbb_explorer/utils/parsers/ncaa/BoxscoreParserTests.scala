@@ -55,7 +55,9 @@ object BoxscoreParserTests extends TestSuite with BoxscoreParser {
               score ==> LineupEvent.ScoreInfo(Game.Score(0,0),Game.Score(92,91),0,0)
           }
           // Away
-          TestUtils.inside(get_box_lineup(s"test_p$period.html", lineup_html, TeamId("TeamB"))) {
+          TestUtils.inside(
+            get_box_lineup(s"test_p$period.html", lineup_html, TeamId("TeamB"), Set("date_mismatch"))
+          ) {
             case Right(LineupEvent(
               date, Game.LocationType.Home, `mins`, `mins`, 0.0, score,
               TeamSeasonId(TeamId("TeamB"), Year(2018)),
@@ -78,6 +80,17 @@ object BoxscoreParserTests extends TestSuite with BoxscoreParser {
               }.map(build_player_code).sortBy(_.code)
 
               score ==> LineupEvent.ScoreInfo(Game.Score(0,0),Game.Score(91,92),0,0)
+          }
+          // Neutral
+          TestUtils.inside(
+            get_box_lineup(s"test_p$period.html", lineup_html, TeamId("TeamA"), Set("12/10/2018"))
+          ) {
+            case Right(LineupEvent(
+              _, Game.LocationType.Neutral, _, _, _, _,
+              _,
+              _,
+              _, _, _, _, _, _, _
+            )) =>
           }
         }
       }

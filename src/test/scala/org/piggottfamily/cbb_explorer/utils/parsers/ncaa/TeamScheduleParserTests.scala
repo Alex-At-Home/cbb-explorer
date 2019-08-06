@@ -29,8 +29,11 @@ object TeamScheduleParserTests extends TestSuite with TeamScheduleParser {
   val tests = Tests {
     "TeamScheduleParser" - {
       "get_neutral_games" - {
-        TestUtils.inside(get_neutral_games("test_schedule.html", schedule_html).map(_.toList)) {
-          case Right(List("12/08/2018", "01/26/2019", "03/23/2019", "03/21/2019", "03/14/2019")) =>
+        TestUtils.inside(get_neutral_games("test_schedule.html", schedule_html)) {
+          case Right(
+            (TeamId("TEAM_NAME"), date_set)
+          ) =>
+            date_set.toList ==> List("12/08/2018", "01/26/2019", "03/23/2019", "03/21/2019", "03/14/2019")
         }
       }
     }

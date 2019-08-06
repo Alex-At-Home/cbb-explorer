@@ -25,6 +25,8 @@ import scala.util.{Try, Success, Failure}
 /** Parses the game HTML (or game subsets of the team HTML) */
 trait TeamScheduleParser {
 
+  import ExtractorUtils._
+
   // Useful documentation for JSoup:
   // https://jsoup.org/cookbook/extracting-data/selector-syntax
 
@@ -32,6 +34,9 @@ trait TeamScheduleParser {
 
   // Holds all the HTML parsing logic
   protected object builders {
+    def team_name_finder(doc: Document): Option[String] =
+      (doc >?> element("fieldset > legend > img[alt]")).map(_.attr("alt"))
+
     def neutral_game_finder(doc: Document): List[String] =
       (doc >?> elementList(
         "legend:contains(Schedule/Results) + table " +
@@ -40,7 +45,7 @@ trait TeamScheduleParser {
   }
 
   /** Gets a list of neutral game dates from the team schedule */
-  def get_neutral_games(filename: String, in: String): Either[List[ParseError], Set[String]] = {
+  def get_neutral_games(filename: String, in: String): Either[List[ParseError], (TeamId, Set[String])] = {
 
     val browser = JsoupBrowser()
 
@@ -51,11 +56,17 @@ trait TeamScheduleParser {
     for {
       doc <- doc_request_builder(browser.parseString(in))
 
+      team <- builders.team_name_finder(doc) match {
+        case Some(team) => Right(TeamId(team))
+        case None =>
+          Left(ParseUtils.build_sub_error(`parent_fills_in`)(
+            s"Failed to find team name in image alt"
+          )).left.map(single_error_completer)
+      }
+
       candidate_neutral_games = builders.neutral_game_finder(doc)
 
-    } yield candidate_neutral_games.toSet //TODO collect on regex
+    } yield team -> candidate_neutral_games.toSet //TODO collect on regex
   }
-
-  import ExtractorUtils._
 }
 object TeamScheduleParser extends TeamScheduleParser

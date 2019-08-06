@@ -53,6 +53,7 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
 
         val box_lineup = LineupEvent(
           date = new DateTime(),
+          location_type = Game.LocationType.Home,
           start_min = 0.0,
           end_min = -100.0,
           duration_mins = 0.0,

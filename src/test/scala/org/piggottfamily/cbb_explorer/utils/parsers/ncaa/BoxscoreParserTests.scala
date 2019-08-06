@@ -33,7 +33,7 @@ object BoxscoreParserTests extends TestSuite with BoxscoreParser {
           // Home
           TestUtils.inside(get_box_lineup(s"test_p$period.html", lineup_html, TeamId("TeamA"))) {
             case Right(LineupEvent(
-              date, `mins`, `mins`, 0.0, _,
+              date, Game.LocationType.Away, `mins`, `mins`, 0.0, score,
               TeamSeasonId(TeamId("TeamA"), Year(2018)),
               TeamSeasonId(TeamId("TeamB"), Year(2018)),
               _, lineup, Nil, Nil, Nil, _, _
@@ -51,11 +51,13 @@ object BoxscoreParserTests extends TestSuite with BoxscoreParser {
                 "S9rname, F9rstname TeamA" ::
                 Nil
               }.map(build_player_code).sortBy(_.code)
+
+              score ==> LineupEvent.ScoreInfo(Game.Score(0,0),Game.Score(92,91),0,0)
           }
           // Away
           TestUtils.inside(get_box_lineup(s"test_p$period.html", lineup_html, TeamId("TeamB"))) {
             case Right(LineupEvent(
-              date, `mins`, `mins`, 0.0, _,
+              date, Game.LocationType.Home, `mins`, `mins`, 0.0, score,
               TeamSeasonId(TeamId("TeamB"), Year(2018)),
               TeamSeasonId(TeamId("TeamA"), Year(2018)),
               _, lineup, Nil, Nil, Nil, _, _
@@ -74,7 +76,33 @@ object BoxscoreParserTests extends TestSuite with BoxscoreParser {
                 "SArname, FArstname TeamB" ::
                 Nil
               }.map(build_player_code).sortBy(_.code)
+
+              score ==> LineupEvent.ScoreInfo(Game.Score(0,0),Game.Score(91,92),0,0)
           }
+        }
+      }
+      "parse_final_score" - {
+        // Some low level checking (HTML parsing is tested by get_lineup)
+        TestUtils.inside(parse_final_score(List(), target_team_first = true)) {
+          case Left(_) =>
+        }
+        TestUtils.inside(parse_final_score(List("1"), target_team_first = true)) {
+          case Left(_) =>
+        }
+        TestUtils.inside(parse_final_score(List("1", "2"), target_team_first = true)) {
+          case Right(Game.Score(1, 2)) =>
+        }
+        TestUtils.inside(parse_final_score(List("1", "2", "3"), target_team_first = true)) {
+          case Left(_) =>
+        }
+        TestUtils.inside(parse_final_score(List("1", "2", "3", "4"), target_team_first = false)) {
+          case Right(Game.Score(4, 2)) =>
+        }
+        TestUtils.inside(parse_final_score(List("1", "rabbit", "3", "4"), target_team_first = true)) {
+          case Left(_) =>
+        }
+        TestUtils.inside(parse_final_score(List("1", "2", "3", "4", "5", "6"), target_team_first = true)) {
+          case Right(Game.Score(3, 6)) =>
         }
       }
     }

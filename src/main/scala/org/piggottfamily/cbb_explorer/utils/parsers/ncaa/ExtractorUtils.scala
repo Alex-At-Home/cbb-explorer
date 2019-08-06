@@ -305,6 +305,7 @@ object ExtractorUtils {
   ): LineupEvent = {
     LineupEvent(
       date = prev.date.plusMillis((prev.duration_mins*60000.0).toInt),
+      location_type = prev.location_type,
       start_min = prev.end_min,
       end_min = prev.end_min, //(updates with every event)
       duration_mins = 0.0, //(fill in at end of event)

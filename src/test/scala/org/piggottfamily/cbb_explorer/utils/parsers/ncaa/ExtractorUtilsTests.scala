@@ -88,6 +88,7 @@ object ExtractorUtilsTests extends TestSuite {
         val other_team = TeamSeasonId(TeamId("TestTeam2"), Year(2017))
         val box_lineup = LineupEvent(
           date = now,
+          location_type = Game.LocationType.Home,
           start_min = 0.0,
           end_min = -100.0,
           duration_mins = 0.0,
@@ -149,7 +150,8 @@ object ExtractorUtilsTests extends TestSuite {
           case List(event_1, event_2, event_3, event_4, event_5, event_6, event_7) =>
             TestUtils.inside(event_1) {
               case LineupEvent(
-                `now`, 0.0, 0.1, delta, score, `my_team`, `other_team`,
+                `now`, Game.LocationType.Home,
+                0.0, 0.1, delta, score, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(), List(),
                 List(),
@@ -164,7 +166,8 @@ object ExtractorUtilsTests extends TestSuite {
             }
             TestUtils.inside(event_2) {
               case LineupEvent(
-                new_time, 0.1, 0.4, delta, score, `my_team`, `other_team`,
+                new_time, Game.LocationType.Home,
+                0.1, 0.4, delta, score, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(`player6`), List(`player1`),
                 List(
@@ -185,7 +188,7 @@ object ExtractorUtilsTests extends TestSuite {
             }
             TestUtils.inside(event_3) {
               case LineupEvent(
-                _, 0.4, 20.0, delta, score, `my_team`, `other_team`,
+                _, _, 0.4, 20.0, delta, score, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(`player1`, `player7`), List(player2_with_mods, `player4`),
                 List(
@@ -208,7 +211,7 @@ object ExtractorUtilsTests extends TestSuite {
             }
             TestUtils.inside(event_4) {
               case LineupEvent(
-                _, 20.0, 20.4, delta, score, `my_team`, `other_team`,
+                _, _, 20.0, 20.4, delta, score, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(`player6`), List(`player1`),
                 List(
@@ -228,7 +231,7 @@ object ExtractorUtilsTests extends TestSuite {
             }
             TestUtils.inside(event_5) {
               case LineupEvent(
-                _, 20.4, 40.0, delta, score, `my_team`, `other_team`,
+                _, _, 20.4, 40.0, delta, score, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(`player1`, `player7`), List(`player2`, `player4`),
                 List(),
@@ -245,7 +248,7 @@ object ExtractorUtilsTests extends TestSuite {
             }
             TestUtils.inside(event_6) {
               case LineupEvent(
-                _, 40.0, 40.5, delta, score, `my_team`, `other_team`,
+                _, _, 40.0, 40.5, delta, score, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(), List(),
                 List(
@@ -263,7 +266,7 @@ object ExtractorUtilsTests extends TestSuite {
             }
             TestUtils.inside(event_7) {
               case LineupEvent(
-                _, 40.5, 45.0, delta, score, `my_team`, `other_team`,
+                _, _, 40.5, 45.0, delta, score, `my_team`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(player6), List(player1),
                 List(
@@ -290,7 +293,7 @@ object ExtractorUtilsTests extends TestSuite {
             val my_team_2018 = box_lineup_2018.team
             TestUtils.inside(event_4) {
               case LineupEvent(
-                _, _, _, _, score, `my_team_2018`, `other_team`,
+                _, _, _, _, _, score, `my_team_2018`, `other_team`,
                 LineupEvent.LineupId(lineup_id), players,
                 List(`player6`), List(`player1`),
                 _,

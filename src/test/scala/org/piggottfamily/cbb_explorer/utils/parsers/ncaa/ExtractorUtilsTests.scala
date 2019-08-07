@@ -143,6 +143,7 @@ object ExtractorUtilsTests extends TestSuite {
           ).map(build_player_code)
 
         val my_team = TeamSeasonId(TeamId("TestTeam1"), Year(2017))
+        val my_team_2018 = my_team.copy(year = Year(2018))
         val other_team = TeamSeasonId(TeamId("TestTeam2"), Year(2017))
         val box_lineup = LineupEvent(
           date = now,
@@ -164,7 +165,9 @@ object ExtractorUtilsTests extends TestSuite {
         val starting_lineup = box_lineup.copy(players = box_lineup.players.take(5))
         val test_events =
           // First event - sub immediately after game start
-          Model.SubInEvent(0.1, player6.id.name) ::
+          Model.SubInEvent(0.1, player6.id.name.toUpperCase) ::
+          //(note player6 being all upper case for 2017- and lower case for 2018 is
+          // important to this test because we latch format on the first name found)
           Model.SubOutEvent(0.1, player1.id.name) ::
           Model.OtherTeamEvent(0.2, Game.Score(1, 0), "event1a") ::
           Model.OtherTeamEvent(0.2, Game.Score(2, 0), "event2a") ::
@@ -204,151 +207,159 @@ object ExtractorUtilsTests extends TestSuite {
           Model.GameEndEvent(45.0) ::
           Nil
 
-        TestUtils.inside(build_partial_lineup_list(test_events.reverse.toIterator, box_lineup)) {
-          case List(event_1, event_2, event_3, event_4, event_5, event_6, event_7) =>
-            TestUtils.inside(event_1) {
-              case LineupEvent(
-                `now`, Game.LocationType.Home,
-                0.0, 0.1, delta, score, `my_team`, `other_team`,
-                LineupEvent.LineupId(lineup_id), players,
-                List(), List(),
-                List(),
-                _, _
-              ) =>
-                "%.1f".format(delta) ==> "0.1"
-                score ==> LineupEvent.ScoreInfo(
-                  Game.Score(0, 0), Game.Score(0, 0), 0, 0
-                )
-                lineup_id ==> players.map(_.code).mkString("_")
-                players ==> starting_lineup.players.sortBy(_.code)
-            }
-            TestUtils.inside(event_2) {
-              case LineupEvent(
-                new_time, Game.LocationType.Home,
-                0.1, 0.4, delta, score, `my_team`, `other_team`,
-                LineupEvent.LineupId(lineup_id), players,
-                List(`player6`), List(`player1`),
-                List(
-                  LineupEvent.RawGameEvent.Team("event1a"),
-                  LineupEvent.RawGameEvent.Team("event2a")
-                ),
-                _, _
-              ) =>
-                new_time ==> now.plusMillis(6000)
-                "%.1f".format(delta) ==> "0.3"
-                score ==> LineupEvent.ScoreInfo(
-                  Game.Score(0, 0), Game.Score(2, 0), 0, 2
-                )
-                lineup_id ==> players.map(_.code).mkString("_")
-                players ==>  {
-                  event_1.players.toSet + player6 - player1
-                }.toList.sortBy(_.code)
-            }
-            TestUtils.inside(event_3) {
-              case LineupEvent(
-                _, _, 0.4, 20.0, delta, score, `my_team`, `other_team`,
-                LineupEvent.LineupId(lineup_id), players,
-                List(`player1`, `player7`), List(player2_with_mods, `player4`),
-                List(
-                  LineupEvent.RawGameEvent.Opponent("event1b"),
-                  LineupEvent.RawGameEvent.Opponent("event2b"),
-                  LineupEvent.RawGameEvent.Team("event3a"),
-                  LineupEvent.RawGameEvent.Team("event4a")
-                ),
-                _, _
-              ) =>
-                "%.1f".format(delta) ==> "19.6"
-                score ==> LineupEvent.ScoreInfo(
-                  Game.Score(2, 0), Game.Score(4, 2), 2, 2
-                )
-                lineup_id ==> players.map(_.code).mkString("_")
-                players ==>  {
-                  event_2.players.toSet + player1 + player7 - player2 - player4
-                }.toList.sortBy(_.code)
-                player2_with_mods.code ==> `player2`.code // (we corrupted the id)
-            }
-            TestUtils.inside(event_4) {
-              case LineupEvent(
-                _, _, 20.0, 20.4, delta, score, `my_team`, `other_team`,
-                LineupEvent.LineupId(lineup_id), players,
-                List(`player6`), List(`player1`),
-                List(
-                  LineupEvent.RawGameEvent.Opponent("PlayerA Leaves Game"),
-                  LineupEvent.RawGameEvent.Opponent("PlayerB, substitution in")
-                ),
-                _, _
-              ) =>
-                "%.1f".format(delta) ==> "0.4"
-                score ==> LineupEvent.ScoreInfo(
-                  Game.Score(4, 2), Game.Score(4, 2), 2, 2
-                )
-                lineup_id ==> players.map(_.code).mkString("_")
-                players ==>  {
-                  starting_lineup.players.toSet + player6 - player1
-                }.toList.sortBy(_.code)
-            }
-            TestUtils.inside(event_5) {
-              case LineupEvent(
-                _, _, 20.4, 40.0, delta, score, `my_team`, `other_team`,
-                LineupEvent.LineupId(lineup_id), players,
-                List(`player1`, `player7`), List(`player2`, `player4`),
-                List(),
-                _, _
-              ) =>
-                "%.1f".format(delta) ==> "19.6"
-                score ==> LineupEvent.ScoreInfo(
-                  Game.Score(4, 2), Game.Score(4, 2), 2, 2
-                )
-                lineup_id ==> players.map(_.code).mkString("_")
-                players ==>  {
-                  event_4.players.toSet + player1 + player7 - player2 - player4
-                }.toList.sortBy(_.code)
-            }
-            TestUtils.inside(event_6) {
-              case LineupEvent(
-                _, _, 40.0, 40.5, delta, score, `my_team`, `other_team`,
-                LineupEvent.LineupId(lineup_id), players,
-                List(), List(),
-                List(
-                  LineupEvent.RawGameEvent.Opponent("event3b"),
-                  LineupEvent.RawGameEvent.Team("event5a")
-                ),
-                _, _
-              ) =>
-                "%.1f".format(delta) ==> "0.5"
-                score ==> LineupEvent.ScoreInfo(
-                  Game.Score(4, 2), Game.Score(5, 3), 2, 2
-                )
-                lineup_id ==> players.map(_.code).mkString("_")
-                players ==> starting_lineup.players.sortBy(_.code)
-            }
-            TestUtils.inside(event_7) {
-              case LineupEvent(
-                _, _, 40.5, 45.0, delta, score, `my_team`, `other_team`,
-                LineupEvent.LineupId(lineup_id), players,
-                List(player6), List(player1),
-                List(
-                  LineupEvent.RawGameEvent.Team("event6a"),
-                  LineupEvent.RawGameEvent.Opponent("event4b")
-                ),
-                _, _
-              ) =>
-                "%.1f".format(delta) ==> "4.5"
-                score ==> LineupEvent.ScoreInfo(
-                  Game.Score(5, 3), Game.Score(6, 4), 2, 2
-                )
-                lineup_id ==> players.map(_.code).mkString("_")
-                players ==>  {
-                  event_7.players.toSet + player6 - player1
-                }.toList.sortBy(_.code)
-            }
-        }
+        List(my_team, my_team_2018).foreach { old_format_team =>
+          val old_format_lineup = box_lineup.copy(team = old_format_team)
+
+          // With old format, we should get the same results for both 2017 and 2018
+          TestUtils.inside(build_partial_lineup_list(test_events.reverse.toIterator, old_format_lineup)) {
+            case List(event_1, event_2, event_3, event_4, event_5, event_6, event_7) =>
+              TestUtils.inside(event_1) {
+                case LineupEvent(
+                  `now`, Game.LocationType.Home,
+                  0.0, 0.1, delta, score, `old_format_team`, `other_team`,
+                  LineupEvent.LineupId(lineup_id), players,
+                  List(), List(),
+                  List(),
+                  _, _
+                ) =>
+                  "%.1f".format(delta) ==> "0.1"
+                  score ==> LineupEvent.ScoreInfo(
+                    Game.Score(0, 0), Game.Score(0, 0), 0, 0
+                  )
+                  lineup_id ==> players.map(_.code).mkString("_")
+                  players ==> starting_lineup.players.sortBy(_.code)
+              }
+              TestUtils.inside(event_2) {
+                case LineupEvent(
+                  new_time, Game.LocationType.Home,
+                  0.1, 0.4, delta, score, `old_format_team`, `other_team`,
+                  LineupEvent.LineupId(lineup_id), players,
+                  List(`player6`), List(`player1`),
+                  List(
+                    LineupEvent.RawGameEvent.Team("event1a"),
+                    LineupEvent.RawGameEvent.Team("event2a")
+                  ),
+                  _, _
+                ) =>
+                  new_time ==> now.plusMillis(6000)
+                  "%.1f".format(delta) ==> "0.3"
+                  score ==> LineupEvent.ScoreInfo(
+                    Game.Score(0, 0), Game.Score(2, 0), 0, 2
+                  )
+                  lineup_id ==> players.map(_.code).mkString("_")
+                  players ==>  {
+                    event_1.players.toSet + player6 - player1
+                  }.toList.sortBy(_.code)
+              }
+              TestUtils.inside(event_3) {
+                case LineupEvent(
+                  _, _, 0.4, 20.0, delta, score, `old_format_team`, `other_team`,
+                  LineupEvent.LineupId(lineup_id), players,
+                  List(`player1`, `player7`), List(player2_with_mods, `player4`),
+                  List(
+                    LineupEvent.RawGameEvent.Opponent("event1b"),
+                    LineupEvent.RawGameEvent.Opponent("event2b"),
+                    LineupEvent.RawGameEvent.Team("event3a"),
+                    LineupEvent.RawGameEvent.Team("event4a")
+                  ),
+                  _, _
+                ) =>
+                  "%.1f".format(delta) ==> "19.6"
+                  score ==> LineupEvent.ScoreInfo(
+                    Game.Score(2, 0), Game.Score(4, 2), 2, 2
+                  )
+                  lineup_id ==> players.map(_.code).mkString("_")
+                  players ==>  {
+                    event_2.players.toSet + player1 + player7 - player2 - player4
+                  }.toList.sortBy(_.code)
+                  player2_with_mods.code ==> `player2`.code // (we corrupted the id)
+              }
+              TestUtils.inside(event_4) {
+                case LineupEvent(
+                  _, _, 20.0, 20.4, delta, score, `old_format_team`, `other_team`,
+                  LineupEvent.LineupId(lineup_id), players,
+                  List(`player6`), List(`player1`),
+                  List(
+                    LineupEvent.RawGameEvent.Opponent("PlayerA Leaves Game"),
+                    LineupEvent.RawGameEvent.Opponent("PlayerB, substitution in")
+                  ),
+                  _, _
+                ) =>
+                  "%.1f".format(delta) ==> "0.4"
+                  score ==> LineupEvent.ScoreInfo(
+                    Game.Score(4, 2), Game.Score(4, 2), 2, 2
+                  )
+                  lineup_id ==> players.map(_.code).mkString("_")
+                  players ==>  {
+                    starting_lineup.players.toSet + player6 - player1
+                  }.toList.sortBy(_.code)
+              }
+              TestUtils.inside(event_5) {
+                case LineupEvent(
+                  _, _, 20.4, 40.0, delta, score, `old_format_team`, `other_team`,
+                  LineupEvent.LineupId(lineup_id), players,
+                  List(`player1`, `player7`), List(`player2`, `player4`),
+                  List(),
+                  _, _
+                ) =>
+                  "%.1f".format(delta) ==> "19.6"
+                  score ==> LineupEvent.ScoreInfo(
+                    Game.Score(4, 2), Game.Score(4, 2), 2, 2
+                  )
+                  lineup_id ==> players.map(_.code).mkString("_")
+                  players ==>  {
+                    event_4.players.toSet + player1 + player7 - player2 - player4
+                  }.toList.sortBy(_.code)
+              }
+              TestUtils.inside(event_6) {
+                case LineupEvent(
+                  _, _, 40.0, 40.5, delta, score, `old_format_team`, `other_team`,
+                  LineupEvent.LineupId(lineup_id), players,
+                  List(), List(),
+                  List(
+                    LineupEvent.RawGameEvent.Opponent("event3b"),
+                    LineupEvent.RawGameEvent.Team("event5a")
+                  ),
+                  _, _
+                ) =>
+                  "%.1f".format(delta) ==> "0.5"
+                  score ==> LineupEvent.ScoreInfo(
+                    Game.Score(4, 2), Game.Score(5, 3), 2, 2
+                  )
+                  lineup_id ==> players.map(_.code).mkString("_")
+                  players ==> starting_lineup.players.sortBy(_.code)
+              }
+              TestUtils.inside(event_7) {
+                case LineupEvent(
+                  _, _, 40.5, 45.0, delta, score, `old_format_team`, `other_team`,
+                  LineupEvent.LineupId(lineup_id), players,
+                  List(player6), List(player1),
+                  List(
+                    LineupEvent.RawGameEvent.Team("event6a"),
+                    LineupEvent.RawGameEvent.Opponent("event4b")
+                  ),
+                  _, _
+                ) =>
+                  "%.1f".format(delta) ==> "4.5"
+                  score ==> LineupEvent.ScoreInfo(
+                    Game.Score(5, 3), Game.Score(6, 4), 2, 2
+                  )
+                  lineup_id ==> players.map(_.code).mkString("_")
+                  players ==>  {
+                    event_7.players.toSet + player6 - player1
+                  }.toList.sortBy(_.code)
+              }
+          }
+        } //(end loop over 2017/8)
+
         // Test format change for 2018, builds post-half lineup from pre-half lineup
         // (instead of starting lineup)
-        val box_lineup_2018 = box_lineup.copy(team = TeamSeasonId(TeamId("Maryland"), Year(2018)))
-        TestUtils.inside(build_partial_lineup_list(test_events.reverse.toIterator, box_lineup_2018)) {
+        val new_format_test_events = Model.SubInEvent(0.1, player6.id.name) :: test_events.tail
+
+        TestUtils.inside(build_partial_lineup_list(
+          new_format_test_events.reverse.toIterator, box_lineup.copy(team = my_team_2018)
+        )) {
           case List(_, _, event_3, event_4, _, _, _) =>
-            val my_team_2018 = box_lineup_2018.team
             TestUtils.inside(event_4) {
               case LineupEvent(
                 _, _, _, _, _, score, `my_team_2018`, `other_team`,

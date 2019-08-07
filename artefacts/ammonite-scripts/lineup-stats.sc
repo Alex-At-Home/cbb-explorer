@@ -5,11 +5,12 @@ val md_team = TeamId("Maryland")
 // Create a file containing a single game's data
 val game_id = "4743212".r //(find this from the website, eg the play_by_play/boxscore_parser page)
 val md_games = ncaa_lineup_controller.build_team_lineups(root_YEAR, md_team, Some(game_id))
+storage_controller.write_lineups(md_games.right.get._1) //(stores the data in ~/.cbb-explorer/.lineups.ndjson)
 
 // Create a file containing a season of games' data
 val md_games = ncaa_lineup_controller.build_team_lineups(root_YEAR, md_team)
+storage_controller.write_lineups(md_games) //(stores the data in ~/.cbb-explorer/.lineups.ndjson)
 
-storage_controller.write_lineups(md_games.right.get._1) //(stores the data in ~/.cbb-explorer/.lineups.ndjson)
 
 // For debugging bad lineups:
 val neutral_games = Set()

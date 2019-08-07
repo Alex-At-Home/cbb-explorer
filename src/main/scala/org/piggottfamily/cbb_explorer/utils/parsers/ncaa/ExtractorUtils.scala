@@ -27,13 +27,19 @@ object ExtractorUtils {
     // Use this to render player names in their more readable format
     val all_players_map = box_lineup.players.map(p => p.code -> p.id.name).toMap
 
-    val starting_state = Model.LineupBuildingState(starters_only, Nil)
+    val starting_state = Model.LineupBuildingState(starters_only)
     val partial_events = reorder_and_reverse(reversed_partial_events)
     val end_state = partial_events.foldLeft(starting_state) { (state, event) =>
       def tidy_player(p: String): String =
         all_players_map
           .get(build_player_code(p).code)
           .getOrElse(p)
+
+      /** Detect old format the first time a player name is encountered by looking for all upper case */
+      def is_old_format(p: String, s: Model.LineupBuildingState): Option[Boolean] = s.old_format match {
+        case None => Some(!p.exists(_.isLower))
+        case _ => s.old_format //latched
+      }
 
       event match {
         case Model.SubInEvent(min, player_name) if state.is_active(min) =>
@@ -43,7 +49,8 @@ object ExtractorUtils {
             curr = new_lineup_event(
               completed_curr, in = Some(tidier_player_name)
             ),
-            prev = completed_curr :: state.prev
+            prev = completed_curr :: state.prev,
+            old_format = is_old_format(player_name, state)
           )
         case Model.SubOutEvent(min, player_name) if state.is_active(min) =>
           val tidier_player_name = tidy_player(player_name)
@@ -52,17 +59,22 @@ object ExtractorUtils {
             curr = new_lineup_event(
               completed_curr, out = Some(tidier_player_name)
             ),
-            prev = completed_curr :: state.prev
+            prev = completed_curr :: state.prev,
+            old_format = is_old_format(player_name, state)
           )
         case Model.SubInEvent(min, player_name) => // !state.is_active
-            // Keep adding sub events
-            val tidier_player_name = tidy_player(player_name)
-            state.with_player_in(tidier_player_name)
+          // Keep adding sub events
+          val tidier_player_name = tidy_player(player_name)
+          state.with_player_in(tidier_player_name).copy(
+            old_format = is_old_format(player_name, state)
+          )
 
         case Model.SubOutEvent(min, player_name) => // !state.is_active
           // Keep adding sub events
           val tidier_player_name = tidy_player(player_name)
-          state.with_player_out(tidier_player_name)
+          state.with_player_out(tidier_player_name).copy(
+            old_format = is_old_format(player_name, state)
+          )
 
         case Model.OtherTeamEvent(min, score, event_string) =>
           state.with_team_event(min, event_string).with_latest_score(score)
@@ -72,13 +84,12 @@ object ExtractorUtils {
 
         case Model.GameBreakEvent(min) =>
           val completed_curr = complete_lineup(state.curr, min)
-          val (new_lineup_id, new_players) = starters_only.team.year match {
-            // Looks like the behavior changed from 2017 to 2018?
-            case Year(y) if y <= 2017 =>
+          val (new_lineup_id, new_players) =
+            if (state.old_format.getOrElse(box_lineup.team.year.value < 2018)) {
               (starters_only.lineup_id, starters_only.players)
-            case _ => // 2018+
+            } else { // 2018+
               (completed_curr.lineup_id, completed_curr.players)
-          }
+            }
           state.copy(
             curr = new_lineup_event(completed_curr).copy(
               lineup_id = new_lineup_id,
@@ -367,7 +378,8 @@ object ExtractorUtils {
     /** State for building raw line-up data */
     private [ExtractorUtils] case class LineupBuildingState(
       curr: LineupEvent,
-      prev: List[LineupEvent]
+      prev: List[LineupEvent] = Nil,
+      old_format: Option[Boolean] = None // most 2018+ is new format but there are a few exceptions
     ) {
       def build(): List[LineupEvent] = {
         (curr :: prev).reverse

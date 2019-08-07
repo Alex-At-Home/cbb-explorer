@@ -82,11 +82,11 @@ class LineupController(d: Dependencies = Dependencies())
     Either[List[ParseError], (List[LineupEvent], List[LineupEvent])] =
   {
     val playbyplay_filename = s"$game_id.html"
-    val boxcore_filename = s"${game_id}42b2.html" //(encoding of 1st period box score)
-    val box_html = d.file_manager.read_file(root_dir / boxscore_dir / boxcore_filename)
+    val boxscore_filename = s"${game_id}42b2.html" //(encoding of 1st period box score)
+    val box_html = d.file_manager.read_file(root_dir / boxscore_dir / boxscore_filename)
     val play_by_play_html = d.file_manager.read_file(root_dir / play_by_play_dir / playbyplay_filename)
     for {
-      box_lineup <- d.boxscore_parser.get_box_lineup(boxcore_filename, box_html, team, neutral_game_dates)
+      box_lineup <- d.boxscore_parser.get_box_lineup(boxscore_filename, box_html, team, neutral_game_dates)
       _ = d.logger.info(s"Parsed box score: opponent=[${box_lineup.opponent}] venue=[${box_lineup.location_type}]")
       events <- d.playbyplay_parser.create_lineup_data(playbyplay_filename, play_by_play_html, box_lineup)
     } yield events

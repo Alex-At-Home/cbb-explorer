@@ -116,18 +116,29 @@ object ExtractorUtils {
     }
   }
 
+  /** Possible ways in which a lineup can be declared invalid */
+  object ValidationError extends Enumeration {
+    val WrongNumberOfPlayers, UnknownPlayers = Value
+  }
+
   /** Pulls out inconsistent lineups (self healing seems harder
     * based on cases I've seen, eg
     * player B enters game+player A leaves game ...
     * ... A makes shot...player A enters game)
    */
   def validate_lineup(
-    lineup_event: LineupEvent
-  ): Boolean = {
+    lineup_event: LineupEvent, valid_player_codes: Set[String]
+  ): Set[ValidationError.Value] = {
+    // Check the right number of players:
     val right_number_of_players = lineup_event.players.size == 5
     // We also see cases where players not in a lineup make plays
-    //TODO we're going to ignore those for the moment
-    right_number_of_players
+    val all_players_known = lineup_event.players.forall {
+      case LineupEvent.PlayerCodeId(code, _) => valid_player_codes(code)
+    }
+
+    Set(ValidationError.WrongNumberOfPlayers).filterNot(_ => right_number_of_players) ++
+    Set(ValidationError.UnknownPlayers).filterNot(_ => all_players_known) ++
+    Set() // (terminator)
   }
 
   /** Gets the start time from the period - ie 2x 20 minute halves, then 5m overtimes */

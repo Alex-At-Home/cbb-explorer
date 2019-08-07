@@ -45,7 +45,7 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
           "S4rname, F4rstname TeamA" ::
           "S5rname, F5rstname TeamA" ::
           "S6rname, F6rstname TeamA" ::
-          //"S7rname, F7rstname TeamA" :: //(deliberately exclude this to check it gets handled)
+          "S7rname, F7rstname TeamA" :: 
           "S8rname, F8rstname TeamA" ::
           "S9rname, F9rstname TeamA" ::
           Nil
@@ -80,8 +80,7 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
 
             TestUtils.inside(lineup_events.drop(1).headOption) {
               case Some(event: LineupEvent) =>
-              // Check names get substituted for names in the lineup (but will fallback if not)
-                event.players.map(_.id.name).contains("F7rstname TeamA S7rname") ==> true
+              // Check names get substituted for names in the lineup
                 event.players.map(_.id.name).contains("S6rname, F6rstname TeamA") ==> true
                 // Basic enriched scores
                 //TODO: unlucky coincidence all the team/oppo stats are the same!

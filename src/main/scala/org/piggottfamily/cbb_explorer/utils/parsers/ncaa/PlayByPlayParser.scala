@@ -69,6 +69,8 @@ trait PlayByPlayParser {
     in: String,
     box_lineup: LineupEvent
   ): Either[List[ParseError], (List[LineupEvent], List[LineupEvent])] = {
+    val player_codes = box_lineup.players.map(_.code).toSet
+
     parse_game_events(filename, in, box_lineup.team.team).map { reversed_events =>
       // There is a weird bug that has happened one time where the scores got swapped
       // So we'll identify and fix this case
@@ -76,7 +78,7 @@ trait PlayByPlayParser {
         build_partial_lineup_list(reversed_events.toIterator, box_lineup), box_lineup
       )
     }.map {
-      _.map(enrich_lineup).partition(validate_lineup)
+      _.map(enrich_lineup).partition(e => validate_lineup(e, player_codes).isEmpty)
     }
   }
 

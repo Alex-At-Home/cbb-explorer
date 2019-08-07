@@ -82,15 +82,18 @@ object BoxscoreParserTests extends TestSuite with BoxscoreParser {
               score ==> LineupEvent.ScoreInfo(Game.Score(0,0),Game.Score(91,92),0,0)
           }
           // Neutral
-          TestUtils.inside(
-            get_box_lineup(s"test_p$period.html", lineup_html, TeamId("TeamA"), Set("12/10/2018"))
-          ) {
-            case Right(LineupEvent(
-              _, Game.LocationType.Neutral, _, _, _, _,
-              _,
-              _,
-              _, _, _, _, _, _, _
-            )) =>
+          val adjusted_lineup_html = lineup_html.replace("12/10/2018", "12/10/2018 17:00")
+          List(lineup_html, adjusted_lineup_html).foreach { html =>
+            TestUtils.inside(
+              get_box_lineup(s"test_p$period.html", html, TeamId("TeamA"), Set("12/10/2018"))
+            ) {
+              case Right(LineupEvent(
+                _, Game.LocationType.Neutral, _, _, _, _,
+                _,
+                _,
+                _, _, _, _, _, _, _
+              )) =>
+            }
           }
         }
       }

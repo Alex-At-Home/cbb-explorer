@@ -46,11 +46,10 @@ class LineupController(d: Dependencies = Dependencies())
     val lineups = for {
       game <- d.file_manager.list_files(root_dir / play_by_play_dir, Some("html")).iterator
 
-      _ = d.logger.info(s"Reading [$game]")
       game_id = game.last.split("[.]")(0)
-
       if game_id_filter.forall(_.findFirstIn(game_id).isDefined)
-      _ = d.logger.info(s"Reading [$game_id]")
+
+      _ = d.logger.info(s"Reading [$game]: [$game_id]")
 
       lineup = Try { build_game_lineups(root_dir, game_id, team, neutral_games) } match {
         case Success(res) => res.left.map { errs => ParserError(game, errs) }
@@ -79,7 +78,7 @@ class LineupController(d: Dependencies = Dependencies())
   }
 
   /** Given a game/team id, returns good and bad paths for that game */
-  protected def build_game_lineups(root_dir: Path, game_id: String, team: TeamId, neutral_game_dates: Set[String]):
+  def build_game_lineups(root_dir: Path, game_id: String, team: TeamId, neutral_game_dates: Set[String]):
     Either[List[ParseError], (List[LineupEvent], List[LineupEvent])] =
   {
     val playbyplay_filename = s"$game_id.html"
@@ -88,6 +87,7 @@ class LineupController(d: Dependencies = Dependencies())
     val play_by_play_html = d.file_manager.read_file(root_dir / play_by_play_dir / playbyplay_filename)
     for {
       box_lineup <- d.boxscore_parser.get_box_lineup(boxcore_filename, box_html, team, neutral_game_dates)
+      _ = d.logger.info(s"Parsed box score: opponent=[${box_lineup.opponent}] venue=[${box_lineup.location_type}]")
       events <- d.playbyplay_parser.create_lineup_data(playbyplay_filename, play_by_play_html, box_lineup)
     } yield events
   }
@@ -97,8 +97,8 @@ class LineupController(d: Dependencies = Dependencies())
 object LineupController {
 
   val teams_dir = RelPath("teams")
-  val play_by_play_dir = RelPath("games") / RelPath("play_by_play")
-  val boxscore_dir = RelPath("games") / RelPath("box_score")
+  val play_by_play_dir = RelPath("game") / RelPath("play_by_play")
+  val boxscore_dir = RelPath("game") / RelPath("box_score")
 
   /** Dependency injection */
   case class Dependencies(

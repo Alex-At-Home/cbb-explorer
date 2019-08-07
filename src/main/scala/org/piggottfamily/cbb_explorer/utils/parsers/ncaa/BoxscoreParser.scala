@@ -84,7 +84,7 @@ trait BoxscoreParser {
 
       year = Year(if (date.monthOfYear.get >= 6) date.year.get else (date.year.get - 1))
 
-      location_type = maybe_date_str match {
+      location_type = maybe_date_str.map(_.split(" ")(0)) match { //(get rid of optiomnal time)
         case Some(date_str) if neutral_game_dates.contains(date_str) => Game.LocationType.Neutral
         case _ if target_team_first => Game.LocationType.Away
         case _ if !target_team_first => Game.LocationType.Home

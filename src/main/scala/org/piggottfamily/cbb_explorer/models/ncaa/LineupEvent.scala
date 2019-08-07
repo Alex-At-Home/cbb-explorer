@@ -21,6 +21,7 @@ import org.joda.time.DateTime
  */
 case class LineupEvent(
   date: DateTime,
+  location_type: Game.LocationType.Value,
   start_min: Double,
   end_min: Double,
   duration_mins: Double,

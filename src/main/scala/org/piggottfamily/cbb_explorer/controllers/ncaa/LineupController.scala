@@ -16,19 +16,42 @@ import scala.util.{Try, Success, Failure}
 class LineupController(d: Dependencies = Dependencies())
 {
   /** Builds up a list of a team's good lineups (logging but otherwise ignoring errors) */
-  def build_team_lineups(root_dir: Path, team: TeamId): List[LineupEvent] = {
+  def build_team_lineups(root_dir: Path, team: TeamId, game_id_filter: Option[Regex] = None)
+    : List[LineupEvent] =
+  {
     sealed trait LineupError
     case class FileError(f: Path, ex: Throwable) extends LineupError
     case class ParserError(f: Path, l: List[ParseError]) extends LineupError
 
+    // Get neutral game dates
+    val neutral_games = (for {
+      team_filename <- d.file_manager.list_files(root_dir / teams_dir, Some("html")).iterator
+      team_html = d.file_manager.read_file(team_filename)
+
+      results <- TeamScheduleParser.get_neutral_games(team_filename.last, team_html) match {
+        case Left(error) =>
+          d.logger.info(s"Failed to parse neutral games: [$error]")
+          None //(carry on)
+        case Right((checked_team, neutral_set)) if checked_team == team =>
+          d.logger.info(s"Neutral game dates: [$neutral_set]")
+          Some(neutral_set)
+        case _ => //(not the right team, ignore)
+          None
+      }
+    } yield results).take(1).toList.headOption.getOrElse {
+      d.logger.info(s"Failed to find any neutral games")
+      Set[String]()
+    }
+
     val lineups = for {
       game <- d.file_manager.list_files(root_dir / play_by_play_dir, Some("html")).iterator
 
-      _ = d.logger.info(s"Reading [$game]")
       game_id = game.last.split("[.]")(0)
-      _ = d.logger.info(s"Reading [$game_id]")
+      if game_id_filter.forall(_.findFirstIn(game_id).isDefined)
 
-      lineup = Try { build_game_lineups(root_dir, game_id, team) } match {
+      _ = d.logger.info(s"Reading [$game]: [$game_id]")
+
+      lineup = Try { build_game_lineups(root_dir, game_id, team, neutral_games) } match {
         case Success(res) => res.left.map { errs => ParserError(game, errs) }
         case Failure(ex) => Left(FileError(game, ex))
       }
@@ -55,7 +78,7 @@ class LineupController(d: Dependencies = Dependencies())
   }
 
   /** Given a game/team id, returns good and bad paths for that game */
-  def build_game_lineups(root_dir: Path, game_id: String, team: TeamId):
+  def build_game_lineups(root_dir: Path, game_id: String, team: TeamId, neutral_game_dates: Set[String]):
     Either[List[ParseError], (List[LineupEvent], List[LineupEvent])] =
   {
     val playbyplay_filename = s"$game_id.html"
@@ -63,7 +86,8 @@ class LineupController(d: Dependencies = Dependencies())
     val box_html = d.file_manager.read_file(root_dir / boxscore_dir / boxcore_filename)
     val play_by_play_html = d.file_manager.read_file(root_dir / play_by_play_dir / playbyplay_filename)
     for {
-      box_lineup <- d.boxscore_parser.get_box_lineup(boxcore_filename, box_html, team)
+      box_lineup <- d.boxscore_parser.get_box_lineup(boxcore_filename, box_html, team, neutral_game_dates)
+      _ = d.logger.info(s"Parsed box score: opponent=[${box_lineup.opponent}] venue=[${box_lineup.location_type}]")
       events <- d.playbyplay_parser.create_lineup_data(playbyplay_filename, play_by_play_html, box_lineup)
     } yield events
   }
@@ -72,8 +96,9 @@ class LineupController(d: Dependencies = Dependencies())
 
 object LineupController {
 
-  val play_by_play_dir = RelPath("play_by_play")
-  val boxscore_dir = RelPath("box_score")
+  val teams_dir = RelPath("teams")
+  val play_by_play_dir = RelPath("game") / RelPath("play_by_play")
+  val boxscore_dir = RelPath("game") / RelPath("box_score")
 
   /** Dependency injection */
   case class Dependencies(

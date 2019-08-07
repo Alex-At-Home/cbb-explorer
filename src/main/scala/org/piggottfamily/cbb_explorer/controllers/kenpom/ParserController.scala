@@ -24,7 +24,7 @@ class ParserController(d: Dependencies = Dependencies())
     val teams_or_errors = for {
       file <- d.file_manager.list_files(root_team_path, Some("html"))
       filename = file.last
-      if filename_filter.flatMap(_.findFirstIn(filename)).isDefined
+      if filename_filter.flatMap(_.findFirstIn(filename)).isDefined //TODO: forall(_.findFirstIn(game_id).isDefined) no?
       _ = display_vars.num_files += 1
       _ = d.logger.info(s"Reading [$filename]")
       team_or_error = {

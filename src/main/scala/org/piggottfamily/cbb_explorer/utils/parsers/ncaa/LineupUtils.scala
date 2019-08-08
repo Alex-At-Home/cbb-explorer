@@ -36,8 +36,9 @@ trait LineupUtils {
     lineup.copy(
       team_stats = lineup.team_stats.copy(
         num_events = lineup.raw_game_events.filter(_.team.isDefined).size,
-        num_possessions = team_possessions //TODO
-        + adjusted_prev_lineup.map(_.team_stats.num_possessions).getOrElse(0)
+        num_possessions = team_possessions
+//(haven't decided if I want running possession counts yet, if I did it would look like:)        
+//        + adjusted_prev_lineup.map(_.team_stats.num_possessions).getOrElse(0)
         ,
         pts = scored,
         plus_minus = scored - allowed

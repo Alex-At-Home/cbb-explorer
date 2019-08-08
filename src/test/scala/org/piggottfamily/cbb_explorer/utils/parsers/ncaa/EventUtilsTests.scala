@@ -65,7 +65,7 @@ object EventUtilsTests extends TestSuite {
       }
       "ParseFoulInfo" - {
         TestUtils.inside(Some("02:28:00,27-38,Jalen Smith, foulon")) {
-          case EventUtils.ParseTechnicalFoul("Jalen Smith") =>
+          case EventUtils.ParseFoulInfo("Jalen Smith") =>
         }
       }
     }

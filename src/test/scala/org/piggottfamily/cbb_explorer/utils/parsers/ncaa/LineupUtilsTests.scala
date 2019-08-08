@@ -10,6 +10,76 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
 
   val tests = Tests {
     "LineupUtils" - {
+      "enrich_lineup" - {
+        val test_events_1 = LineupEvent.RawGameEvent(Some("19:58:00,0-0,team1.1"), None, Some(1), None) :: Nil
+        val test_events_2 = LineupEvent.RawGameEvent(None, Some("19:58:00,0-0,opp1.1"), None, Some(1)) :: Nil
+
+        val base_lineup = LineupEvent(
+          date = new DateTime(),
+          location_type = Game.LocationType.Home,
+          start_min = 0.0,
+          end_min = -100.0,
+          duration_mins = 0.0,
+          score_info = LineupEvent.ScoreInfo(
+            Game.Score(1, 1), Game.Score(3, 2), 2, 1
+          ),
+          team = TeamSeasonId(TeamId("TeamA"), Year(2017)),
+          opponent = TeamSeasonId(TeamId("TeamB"), Year(2017)),
+          lineup_id = LineupEvent.LineupId.unknown,
+          players = Nil,
+          players_in = Nil,
+          players_out = Nil,
+          raw_game_events = Nil,
+          team_stats = LineupEventStats.empty,
+          opponent_stats = LineupEventStats.empty
+        )
+
+        val test_lineup_1 = base_lineup.copy(raw_game_events = test_events_1)
+        val test_lineup_2 = base_lineup.copy(raw_game_events = test_events_2)
+
+        TestUtils.inside(enrich_lineup(test_lineup_1, None)) {
+          case (enriched_lineup, None) =>
+            enriched_lineup.team_stats.num_events ==> 1
+            enriched_lineup.team_stats.num_possessions ==> 1
+            enriched_lineup.team_stats.pts ==> 2
+            enriched_lineup.team_stats.plus_minus ==> 1
+
+            enriched_lineup.opponent_stats.num_events ==> 0
+            enriched_lineup.opponent_stats.num_possessions ==> 0
+            enriched_lineup.opponent_stats.pts ==> 1
+            enriched_lineup.opponent_stats.plus_minus ==> -1
+        }
+        TestUtils.inside(enrich_lineup(test_lineup_1, Some(test_lineup_2))) {
+          case (enriched_lineup, Some(`test_lineup_2`)) =>
+            //(we're just validating that we correctly leave the prev lineup alone)
+        }
+
+        TestUtils.inside(enrich_lineup(test_lineup_1, Some(test_lineup_1))) {
+          case (enriched_lineup, Some(adjusted_lineup)) =>
+            enriched_lineup.team_stats.num_possessions ==> 1
+            enriched_lineup.opponent_stats.num_possessions ==> 0
+
+            // The important bit:
+            adjusted_lineup.team_stats.num_possessions ==> -1
+            adjusted_lineup.opponent_stats.num_possessions ==> 0
+        }
+        TestUtils.inside(enrich_lineup(test_lineup_2, Some(test_lineup_1))) {
+          case (enriched_lineup, Some(`test_lineup_1`)) =>
+          enriched_lineup.team_stats.num_events ==> 0
+          enriched_lineup.team_stats.num_possessions ==> 0
+          enriched_lineup.opponent_stats.num_events ==> 1
+          enriched_lineup.opponent_stats.num_possessions ==> 1
+        }
+        TestUtils.inside(enrich_lineup(test_lineup_2, Some(test_lineup_2))) {
+          case (enriched_lineup, Some(adjusted_lineup)) =>
+            enriched_lineup.team_stats.num_possessions ==> 0
+            enriched_lineup.opponent_stats.num_possessions ==> 1
+
+            // The important bit:
+            adjusted_lineup.team_stats.num_possessions ==> 0
+            adjusted_lineup.opponent_stats.num_possessions ==> -1
+        }
+      }
       "calculate_possessions" - {
         val test_events_1 = //(set expected possession -1)
           LineupEvent.RawGameEvent(Some("19:58:00,0-0,player, jumpball lost"), None, None, None) ::
@@ -25,8 +95,8 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
           LineupEvent.RawGameEvent(None, Some("19:58:00,0-0,opp2.1"), None, Some(1)) ::
           LineupEvent.RawGameEvent(Some("19:58:00,0-0,team3.1"), None, Some(2), None) ::
           Nil
-        TestUtils.inside(calculate_possessions(test_events_1)) {
-          case (3, 2, events) =>
+        TestUtils.inside(calculate_possessions(test_events_1, None)) {
+          case (3, 2, events, false) =>
             events ==> test_events_1.map(e => e.copy(
               team_possession = e.team_possession.map(_ + 1),
               opponent_possession = e.opponent_possession.map(_ + 1),
@@ -34,9 +104,9 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
         }
 
         val test_events_2 = LineupEvent.RawGameEvent(None, Some("19:58:00,0-0,opp1.1")) :: Nil
-        TestUtils.inside(calculate_possessions(test_events_2)) {
-          case (0, 1, events) =>
-            events.map(_.copy(team_possession = Some(1)))
+        TestUtils.inside(calculate_possessions(test_events_2, None)) {
+          case (0, 1, events, false) =>
+            events ==> events.map(_.copy(opponent_possession = Some(1)))
         }
 
         val jumpball_event = Some("19:58:00,0-0,player, jumpball lost")
@@ -50,21 +120,39 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
           LineupEvent.RawGameEvent(None, personal_foul_event, Some(0), None) ::
           LineupEvent.RawGameEvent(None, technical_foul_event, Some(0), None) ::
           LineupEvent.RawGameEvent(Some("19:58:00,0-0,player, team1.2"), None, Some(0), None) ::
-          LineupEvent.RawGameEvent(None, Some("19:58:00,0-0,player, oppo1.1"), None, Some(0)) ::
+          LineupEvent.RawGameEvent(None, Some("19:58:00,0-0,player, opp1.1"), None, Some(0)) ::
           LineupEvent.RawGameEvent(jumpball_event, None, None, Some(0)) ::
           LineupEvent.RawGameEvent(block_event, None, None, Some(0)) ::
           LineupEvent.RawGameEvent(personal_foul_event, None, None, Some(0)) ::
           LineupEvent.RawGameEvent(technical_foul_event, None, None, Some(0)) ::
-          LineupEvent.RawGameEvent(None, Some("19:58:00,0-0,player, oppo1.2"), None, Some(0)) ::
+          LineupEvent.RawGameEvent(None, Some("19:58:00,0-0,player, opp1.2"), None, Some(0)) ::
           Nil
-        TestUtils.inside(calculate_possessions(test_events_3)) {
-          case (1, 1, events) =>
+        TestUtils.inside(calculate_possessions(test_events_3, None)) {
+          case (1, 1, events, false) =>
             events ==> test_events_3.map(e => e.copy(
               team_possession = e.team_possession.map(_ + 1),
               opponent_possession = e.opponent_possession.map(_ + 1),
             ))
         }
 
+        // Check adjustments to previous lineup:
+        val misc_team_event =
+          LineupEvent.RawGameEvent(Some("19:58:00,0-0,player, team1.2"), None, Some(0), None)
+        val misc_opponent_event =
+          LineupEvent.RawGameEvent(Some("19:58:00,0-0,player, team1.2"), None, None, Some(0))
+
+        TestUtils.inside(calculate_possessions(test_events_1, Some(misc_team_event))) {
+          case (_, _, _, true) =>
+        }
+        TestUtils.inside(calculate_possessions(test_events_1, Some(misc_opponent_event))) {
+          case (_, _, _, false) =>
+        }
+        TestUtils.inside(calculate_possessions(test_events_2, Some(misc_team_event))) {
+          case (_, _, _, false) =>
+        }
+        TestUtils.inside(calculate_possessions(test_events_2, Some(misc_opponent_event))) {
+          case (_, _, _, true) =>
+        }
       }
       "fix_possible_score_swap_bug" - {
         // Data taken from https://stats.ncaa.org/gaame/box_score/4690813?period_no=1

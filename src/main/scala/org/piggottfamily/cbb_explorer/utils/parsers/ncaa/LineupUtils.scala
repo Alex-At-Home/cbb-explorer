@@ -8,11 +8,16 @@ trait LineupUtils {
   import ExtractorUtils._
 
   /** TODO build the stats from the game events */
-  def enrich_lineup(lineup: LineupEvent): LineupEvent = {
+  def enrich_lineup(lineup: LineupEvent, prev_lineup: Option[LineupEvent])
+    : (LineupEvent, Option[LineupEvent]) =
+  {
     val scored = lineup.score_info.end.scored - lineup.score_info.start.scored
     val allowed = lineup.score_info.end.allowed - lineup.score_info.start.allowed
-    val (team_possessions, opp_possessions, proc_events) = calculate_possessions(lineup.raw_game_events)
-    lineup.copy(
+    val last_game_event =  prev_lineup.flatMap(_.raw_game_events.lastOption)
+    val (team_possessions, opp_possessions, proc_events, adjust_prev_lineup) =
+      calculate_possessions(lineup.raw_game_events, last_game_event)
+
+    (lineup.copy(
       team_stats = lineup.team_stats.copy(
         num_events = lineup.raw_game_events.filter(_.team.isDefined).size,
         num_possessions = team_possessions,
@@ -26,7 +31,22 @@ trait LineupUtils {
         plus_minus = allowed - scored
       ),
       raw_game_events = proc_events
-    )
+    ),
+    prev_lineup.map { prev => (last_game_event, adjust_prev_lineup) match {
+      case (Some(last_ev), true) if last_ev.team_possession.nonEmpty =>
+        prev.copy(
+          team_stats = prev.team_stats.copy(
+            num_possessions = prev.team_stats.num_possessions - 1
+          )
+        )
+      case (Some(last_ev), true) if last_ev.opponent_possession.nonEmpty =>
+        prev.copy(
+          opponent_stats = prev.opponent_stats.copy(
+            num_possessions = prev.opponent_stats.num_possessions - 1
+          )
+        )
+      case _ => prev
+    }})
   }
 
   /** There is a weird bug that has happened one time where the scores got swapped */
@@ -71,8 +91,8 @@ trait LineupUtils {
 
   /** Returns team and opponent possessions based on the raw event data */
   protected def calculate_possessions(
-    raw_events: Seq[LineupEvent.RawGameEvent]
-  ): (Int, Int, List[LineupEvent.RawGameEvent]) =
+    raw_events: Seq[LineupEvent.RawGameEvent], last_event: Option[LineupEvent.RawGameEvent]
+  ): (Int, Int, List[LineupEvent.RawGameEvent], Boolean) =
   {
     def is_substitution_event(event_str: String): Boolean = {
       (Some(event_str), None) match {
@@ -122,7 +142,8 @@ trait LineupUtils {
     case class PossState(
       team: Int, opponent: Int,
       events: List[LineupEvent.RawGameEvent],
-      direction: Direction.Value
+      direction: Direction.Value,
+      adjust_prev_lineup: Boolean
     )
 
     /** Adds the possession count to the event */
@@ -133,24 +154,43 @@ trait LineupUtils {
       )
       state.copy(events = enriched_event :: state.events)
     }
+    /** First non-ignorable event ... are we "stealing" the last lineup's final possession */
+    def check_for_prev_lineup_adjustment(
+      ev: LineupEvent.RawGameEvent, prev_event: Option[LineupEvent.RawGameEvent]
+    ): Boolean = (ev, prev_event) match {
+      case (LineupEvent.RawGameEvent.Team(_), Some(prev)) if prev.team_possession.nonEmpty =>
+        true
+      case (LineupEvent.RawGameEvent.Opponent(_), Some(prev)) if prev.opponent_possession.nonEmpty =>
+        true
+      case _ => false
+    }
 
-    (raw_events.foldLeft(PossState(0, 0, Nil, Direction.Init)) {
+    (raw_events.foldLeft(PossState(0, 0, Nil, Direction.Init, false)) {
       case (state, ev @ LineupEvent.RawGameEvent.Opponent(opp_info)) if is_ignorable_event(opp_info) =>
         enrich(state, ev) //(ignore sub data or selected game data - see above)
       case (state, ev @ LineupEvent.RawGameEvent.Team(team_info)) if is_ignorable_game_event(team_info) =>
         enrich(state, ev) //(ignore selected game data - see above)
-      case (state @ PossState(_, _, _, Direction.Init), ev @ LineupEvent.RawGameEvent.Opponent(_)) =>
-        enrich(state.copy(opponent = 1, direction = Direction.Opponent), ev)
-      case (state @ PossState(_, _, _, Direction.Init), ev @ LineupEvent.RawGameEvent.Team(_)) =>
-        enrich(state.copy(team = 1, direction = Direction.Team), ev)
-      case (state @ PossState(_, opp_poss, _, Direction.Team), ev @ LineupEvent.RawGameEvent.Opponent(_)) =>
+
+      case (state @ PossState(_, _, _, Direction.Init, _), ev @ LineupEvent.RawGameEvent.Opponent(_)) =>
+        enrich(state.copy(
+          opponent = 1, direction = Direction.Opponent,
+          adjust_prev_lineup = check_for_prev_lineup_adjustment(ev, last_event)
+        ), ev)
+      case (state @ PossState(_, _, _, Direction.Init, _), ev @ LineupEvent.RawGameEvent.Team(_)) =>
+        enrich(state.copy(
+          team = 1, direction = Direction.Team,
+          adjust_prev_lineup = check_for_prev_lineup_adjustment(ev, last_event)
+        ), ev)
+
+      case (state @ PossState(_, opp_poss, _, Direction.Team, _), ev @ LineupEvent.RawGameEvent.Opponent(_)) =>
         enrich(state.copy(opponent = opp_poss + 1, direction = Direction.Opponent), ev)
-      case (state @ PossState(team_poss, _, _, Direction.Opponent), ev @ LineupEvent.RawGameEvent.Team(_)) =>
+      case (state @ PossState(team_poss, _, _, Direction.Opponent, _), ev @ LineupEvent.RawGameEvent.Team(_)) =>
         enrich(state.copy(team = team_poss + 1, direction = Direction.Team), ev)
       case (state, ev) =>
         enrich(state, ev) //(all other cases just do nothing)
     }) match {
-      case PossState(team, opp, events, _) => (team, opp, events.reverse)
+      case PossState(team, opp, events, _, adjust_prev_lineup) =>
+        (team, opp, events.reverse, adjust_prev_lineup)
     }
   }
 }

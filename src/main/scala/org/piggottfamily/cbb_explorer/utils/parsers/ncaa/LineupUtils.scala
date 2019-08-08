@@ -17,22 +17,7 @@ trait LineupUtils {
     val (team_possessions, opp_possessions, proc_events, adjust_prev_lineup) =
       calculate_possessions(lineup.raw_game_events, last_game_event)
 
-    (lineup.copy(
-      team_stats = lineup.team_stats.copy(
-        num_events = lineup.raw_game_events.filter(_.team.isDefined).size,
-        num_possessions = team_possessions,
-        pts = scored,
-        plus_minus = scored - allowed
-      ),
-      opponent_stats = lineup.opponent_stats.copy(
-        num_events = lineup.raw_game_events.filter(_.opponent.isDefined).size, //TODO exclude subs
-        num_possessions = opp_possessions,
-        pts = allowed,
-        plus_minus = allowed - scored
-      ),
-      raw_game_events = proc_events
-    ),
-    prev_lineup.map { prev => (last_game_event, adjust_prev_lineup) match {
+    val adjusted_prev_lineup = prev_lineup.map { prev => (last_game_event, adjust_prev_lineup) match {
       case (Some(last_ev), true) if last_ev.team_possession.nonEmpty =>
         prev.copy(
           team_stats = prev.team_stats.copy(
@@ -46,7 +31,25 @@ trait LineupUtils {
           )
         )
       case _ => prev
-    }})
+    }}
+
+    lineup.copy(
+      team_stats = lineup.team_stats.copy(
+        num_events = lineup.raw_game_events.filter(_.team.isDefined).size,
+        num_possessions = team_possessions //TODO
+        + adjusted_prev_lineup.map(_.team_stats.num_possessions).getOrElse(0)
+        ,
+        pts = scored,
+        plus_minus = scored - allowed
+      ),
+      opponent_stats = lineup.opponent_stats.copy(
+        num_events = lineup.raw_game_events.filter(_.opponent.isDefined).size, //TODO exclude subs
+        num_possessions = opp_possessions,
+        pts = allowed,
+        plus_minus = allowed - scored
+      ),
+      raw_game_events = proc_events
+    ) -> adjusted_prev_lineup
   }
 
   /** There is a weird bug that has happened one time where the scores got swapped */
@@ -104,10 +107,13 @@ trait LineupUtils {
     def is_ignorable_game_event(event_str: String): Boolean = Some(event_str) match {
 
       // Different cases:
-      // 1] Jump ball
+      // 1.1] Jump ball
       case EventUtils.ParseJumpballWonOrLost(_) => true
 
-      // 2] Blocks (wait for rebound to decide if the possession changes)
+      // 1.2] Timeout
+      case EventUtils.ParseTimeout(_) => true
+
+      // 2.1] Blocks (wait for rebound to decide if the possession changes)
       // New:
       //RawGameEvent(Some("14:11:00,7-9,Darryl Morsell, 2pt layup blocked missed"), None),
       //RawGameEvent(None, Some("14:11:00,7-9,Emmitt Williams, block")),
@@ -117,7 +123,10 @@ trait LineupUtils {
       //"opponent": "04:53,55-69,TEAM Offensive Rebound"
       case EventUtils.ParseShotBlocked(_) => true
 
-      // 3] Fouls
+      // 2.2] Steals - possession always changes but we'll wait for the offensive action
+      case EventUtils.ParseStolen(_) => true
+
+      // 3.1] Personal Fouls
       // New:
       //RawGameEvent(None, Some("13:36:00,7-9,Team, rebound offensivedeadball")),
       //RawGameEvent(Some("13:36:00,7-9,Jalen Smith, foul personal shooting;2freethrow"), None)
@@ -125,10 +134,14 @@ trait LineupUtils {
       //"opponent": "10:00,51-60,MYKHAILIUK,SVI Commits Foul"
       case EventUtils.ParsePersonalFoul(_) => true
 
-      // 3b] Technical fouls
+      // 3.2] Technical fouls
       // We're going to treat the technical foul like an additional possession
       // because otherwise it's going to be complicated
       case EventUtils.ParseTechnicalFoul(_) => true
+
+      // 3.3] Foul info
+      // Contains no possession related value
+      case EventUtils.ParseFoulInfo(_) => true
 
       case _ => false
     }

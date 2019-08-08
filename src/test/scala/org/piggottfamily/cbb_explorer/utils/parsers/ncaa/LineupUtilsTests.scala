@@ -110,21 +110,30 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
         }
 
         val jumpball_event = Some("19:58:00,0-0,player, jumpball lost")
+        val timeout_event = Some("19:58:00,0-0,player, team, timeout short")
         val block_event = Some("19:58:00,0-0,player Blocked Shot")
+        val steal_event = Some("19:58:00,0-0,player Steal")
         val personal_foul_event = Some("19:58:00,0-0,player, foul personal; info")
         val technical_foul_event = Some("19:58:00,0-0,player, foul technical classa; info")
+        val foul_info_event = Some("19:58:00,0-0,player, foulon")
         val test_events_3 = //(set expected possession -1)
           LineupEvent.RawGameEvent(Some("19:58:00,0-0,player, team1.1"), None, Some(0), None) ::
           LineupEvent.RawGameEvent(None, jumpball_event, Some(0), None) ::
+          LineupEvent.RawGameEvent(None, timeout_event, Some(0), None) ::
           LineupEvent.RawGameEvent(None, block_event, Some(0), None) ::
+          LineupEvent.RawGameEvent(None, steal_event, Some(0), None) ::
           LineupEvent.RawGameEvent(None, personal_foul_event, Some(0), None) ::
           LineupEvent.RawGameEvent(None, technical_foul_event, Some(0), None) ::
+          LineupEvent.RawGameEvent(None, foul_info_event, Some(0), None) ::
           LineupEvent.RawGameEvent(Some("19:58:00,0-0,player, team1.2"), None, Some(0), None) ::
           LineupEvent.RawGameEvent(None, Some("19:58:00,0-0,player, opp1.1"), None, Some(0)) ::
           LineupEvent.RawGameEvent(jumpball_event, None, None, Some(0)) ::
+          LineupEvent.RawGameEvent(timeout_event, None, None, Some(0)) ::
           LineupEvent.RawGameEvent(block_event, None, None, Some(0)) ::
+          LineupEvent.RawGameEvent(steal_event, None, None, Some(0)) ::
           LineupEvent.RawGameEvent(personal_foul_event, None, None, Some(0)) ::
           LineupEvent.RawGameEvent(technical_foul_event, None, None, Some(0)) ::
+          LineupEvent.RawGameEvent(foul_info_event, None, None, Some(0)) ::
           LineupEvent.RawGameEvent(None, Some("19:58:00,0-0,player, opp1.2"), None, Some(0)) ::
           Nil
         TestUtils.inside(calculate_possessions(test_events_3, None)) {

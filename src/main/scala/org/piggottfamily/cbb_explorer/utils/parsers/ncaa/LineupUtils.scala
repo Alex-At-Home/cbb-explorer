@@ -1,11 +1,23 @@
 package org.piggottfamily.cbb_explorer.utils.parsers.ncaa
 
+import org.piggottfamily.utils.StateUtils
 import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.models.ncaa._
 
 /** Utilities related to building up the lineup stats */
 trait LineupUtils {
+  import StateUtils.StateTypes._
   import ExtractorUtils._
+
+  /** Useful scriptlet for checking results
+  // Show results
+  l.groupBy(t => (t.opponent, t.location_type)).mapValues(
+    _.foldLeft((0,0))
+    { (acc, v) => (acc._1 + v.team_stats.num_possessions,acc._2 + v.opponent_stats.num_possessions) }
+  )
+  // Compare to previous results
+  (x1 zip x2).map { case (k, v) => k._1 -> (k._2._1 - v._2._1, k._2._2 - v._2._2) }
+  */
 
   /** TODO build the stats from the game events */
   def enrich_lineup(lineup: LineupEvent, prev_lineup: Option[LineupEvent])
@@ -36,21 +48,13 @@ trait LineupUtils {
     lineup.copy(
       team_stats = lineup.team_stats.copy(
         num_events = lineup.raw_game_events.filter(_.team.isDefined).size,
-        num_possessions = team_possessions
-//TODO
-//(haven't decided if I want running possession counts yet, if I did it would look like:)
-//        + adjusted_prev_lineup.map(_.team_stats.num_possessions).getOrElse(0)
-        ,
+        num_possessions = team_possessions,
         pts = scored,
         plus_minus = scored - allowed
       ),
       opponent_stats = lineup.opponent_stats.copy(
         num_events = lineup.raw_game_events.filter(_.opponent.isDefined).size, //TODO exclude subs
-        num_possessions = opp_possessions
-//TODO
-//(haven't decided if I want running possession counts yet, if I did it would look like:)
-//+ adjusted_prev_lineup.map(_.opponent_stats.num_possessions).getOrElse(0)
-        ,
+        num_possessions = opp_possessions,
         pts = allowed,
         plus_minus = allowed - scored
       ),
@@ -166,40 +170,22 @@ trait LineupUtils {
     /** State for building possession events */
     case class PossState(
       team: Int, opponent: Int,
-      events: List[LineupEvent.RawGameEvent],
       direction: Direction.Value,
-      adjust_prev_lineup: Boolean,
-      concurrency: PossState.ConcurrencyState
+      adjust_prev_lineup: Boolean
     )
     object PossState {
       /** Starting state */
       def init: PossState  = PossState(
-        0, 0, Nil, Direction.Init, false, PossState.ConcurrencyState.init
+        0, 0, Direction.Init, false
       )
       /** Handles concurrency issues with the input data */
       case class ConcurrencyState(
-        last_date_str: String,
-        start_possession_events: List[LineupEvent.RawGameEvent],
-        end_possession_events: List[LineupEvent.RawGameEvent]
+        last_date_str: String
       )
       object ConcurrencyState {
         /** Starting state */
-        def init: ConcurrencyState = ConcurrencyState("", Nil, Nil)
+        def init: ConcurrencyState = ConcurrencyState("")
       }
-    }
-
-    /** Adds the possession count to the event */
-    def enrich(state: PossState, ev: LineupEvent.RawGameEvent): PossState = {
-      val enriched_event = ev.copy(
-        team_possession = if (state.direction == Direction.Team) Some(state.team) else None,
-        opponent_possession = if (state.direction == Direction.Opponent) Some(state.opponent) else None
-      )
-      state.copy(
-        events = enriched_event :: state.events,
-        concurrency = state.concurrency.copy(
-          last_date_str = ev.get_date_str
-        )
-      )
     }
 
     /** First non-ignorable event ... are we "stealing" the last lineup's final possession */
@@ -213,132 +199,116 @@ trait LineupUtils {
       case _ => false
     }
 
-    /** The events often come in the wrong order if they have the same timestamp,
-        so we'll catch that case and then re-order them into something saner
-        (basically - if an event will cause a possession change then it goes at the end)
-    */
-    def concurrent_event_handler
-      : PartialFunction[(PossState, LineupEvent.RawGameEvent), PossState] =
-    {
-      // First time we see an event with the same timestamp as the previous one
-      case (state, ev)
-        if (ev.get_date_str == state.concurrency.last_date_str) &&
-            state.concurrency.start_possession_events.isEmpty
-      =>
-        // Pull the last element out and re-run
-        concurrent_event_handler(state.copy(
-          events = state.events.tail, // exists by construction
-          concurrency = state.concurrency.copy(
-            start_possession_events = state.events.head :: Nil // exists by construction
-          )
-        ), ev) //(can't recurse >1 by construction)
+    /** Identify concurrent events (easy) */
+    def check_for_concurrent_event(
+      ev: Clumper.Event[PossState, PossState.ConcurrencyState, LineupEvent.RawGameEvent]
+    ): (PossState.ConcurrencyState, Boolean) = ev match {
+      case Clumper.Event(_, cs, Nil, ev) => //(first event always gens a clump, possibly of size 1)
+        (cs.copy(last_date_str = ev.get_date_str), true)
+      case Clumper.Event(_, cs, _, ev) if ev.get_date_str == cs.last_date_str =>
+        (cs, true)
+      case Clumper.Event(_, cs, _, ev) =>
+        (cs.copy(last_date_str = ev.get_date_str), false)
+    }
 
-      // Once we're in a concurrency event:
+    /** Rearrange concurrent events to be a bit saner:
+     *  (basically - if an event will cause a possession change then it goes at the end)
+     */
+    def rearrange_concurrent_event(
+      s: PossState, cs: PossState.ConcurrencyState, reverse_clump: List[LineupEvent.RawGameEvent]
+    ): List[LineupEvent.RawGameEvent] = {
+      if (s.direction == Direction.Init) {
+        reverse_clump.reverse
+      } else {
+        case class RearrangeState(
+          start_possession_events: List[LineupEvent.RawGameEvent],
+          end_possession_events: List[LineupEvent.RawGameEvent]
+        ) {
+          def direction(
+            actual_dir: Direction.Value, ev: LineupEvent.RawGameEvent
+          ): RearrangeState = {
+            if (s.direction == actual_dir) {
+              copy(start_possession_events = ev :: start_possession_events)
+            } else {
+              copy(end_possession_events = ev :: end_possession_events)
+            }
+          }
+        }
+        (reverse_clump.foldRight(RearrangeState(Nil, Nil)) {
 
-      case (state, ev) if (ev.get_date_str == state.concurrency.last_date_str) => (ev match {
+          // Always put "ignorable" events in the order they were received
+          case (ev, state) if is_ignorable_game_event(ev.info.getOrElse("")) =>
+            state.direction(s.direction, ev)
 
-        // Obvious cases: if this event is in the "expected" direction
+          //  Normal processing:
+          case (ev @ LineupEvent.RawGameEvent.Opponent(_), state) =>
+            state.direction(Direction.Opponent, ev)
+          case (ev @ LineupEvent.RawGameEvent.Team(_), state) =>
+            state.direction(Direction.Team, ev)
 
-        case ev @ LineupEvent.RawGameEvent.Opponent(opp_info)
-          if (state.direction == Direction.Opponent)
-        =>
-          state.concurrency.copy(
-            start_possession_events = ev :: state.concurrency.start_possession_events
-          )
-
-        case ev @ LineupEvent.RawGameEvent.Team(opp_info)
-          if (state.direction == Direction.Team)
-        =>
-          state.concurrency.copy(
-            start_possession_events = ev :: state.concurrency.start_possession_events
-          )
-
-        // If the event is in the "unexpected" direction but is ignorable then don't reorder
-
-        case ev @ LineupEvent.RawGameEvent.Opponent(opp_info)
-          if (state.direction == Direction.Team) && is_ignorable_event(opp_info)
-        =>
-          state.concurrency.copy(
-            start_possession_events = ev :: state.concurrency.start_possession_events
-          )
-
-        case ev @ LineupEvent.RawGameEvent.Team(team_info)
-          if (state.direction == Direction.Opponent) && is_ignorable_game_event(team_info)
-        =>
-          state.concurrency.copy(
-            start_possession_events = ev :: state.concurrency.start_possession_events
-          )
-
-        // Otherwise we're going to put it in the opposite direction
-
-        case _ =>
-          state.concurrency.copy(
-            end_possession_events = ev :: state.concurrency.end_possession_events
-          )
-      }) match {
-        case new_concurrency =>
-          state.copy(concurrency = new_concurrency)
+        }) match {
+          case RearrangeState(start_possession_events, end_possession_events) =>
+            start_possession_events.reverse ++ end_possession_events.reverse
+        }
       }
     }
 
-    /** We have a complete set of events with the same timestamp, re-order them */
-    def complete_concurrency_event(state: PossState): List[LineupEvent.RawGameEvent] = {
-      state.concurrency.start_possession_events.reverse ++ state.concurrency.end_possession_events.reverse
+    /** Manages splitting stream into concurrent chunks and then re-arranging them */
+    val concurrent_event_handler = Clumper(
+      PossState.ConcurrencyState.init,
+      check_for_concurrent_event _,
+      rearrange_concurrent_event _
+    )
+
+    /** Adds the possession count to the event */
+    def enrich(state: PossState, ev: LineupEvent.RawGameEvent): (PossState, LineupEvent.RawGameEvent) = {
+      val enriched_event = ev.copy(
+        team_possession = if (state.direction == Direction.Team) Some(state.team) else None,
+        opponent_possession = if (state.direction == Direction.Opponent) Some(state.opponent) else None
+      )
+      (state, enriched_event)
     }
 
     /** Handles state transitions to the possession list as events come in */
-    def normal_state_transition: (PossState, LineupEvent.RawGameEvent) => PossState =
+    def normal_state_transition: (PossState, LineupEvent.RawGameEvent) => (PossState, LineupEvent.RawGameEvent) =
     {
       case (state, ev @ LineupEvent.RawGameEvent.Opponent(opp_info)) if is_ignorable_event(opp_info) =>
         enrich(state, ev) //(ignore sub data or selected game data - see above)
       case (state, ev @ LineupEvent.RawGameEvent.Team(team_info)) if is_ignorable_game_event(team_info) =>
         enrich(state, ev) //(ignore selected game data - see above)
 
-      case (state @ PossState(_, _, _, Direction.Init, _, _), ev @ LineupEvent.RawGameEvent.Opponent(_)) =>
+      case (state @ PossState(_, _, Direction.Init, _), ev @ LineupEvent.RawGameEvent.Opponent(_)) =>
         enrich(state.copy(
           opponent = 1, direction = Direction.Opponent,
           adjust_prev_lineup = check_for_prev_lineup_adjustment(ev, last_event)
         ), ev)
-      case (state @ PossState(_, _, _, Direction.Init, _, _), ev @ LineupEvent.RawGameEvent.Team(_)) =>
+      case (state @ PossState(_, _, Direction.Init, _), ev @ LineupEvent.RawGameEvent.Team(_)) =>
         enrich(state.copy(
           team = 1, direction = Direction.Team,
           adjust_prev_lineup = check_for_prev_lineup_adjustment(ev, last_event)
         ), ev)
 
-      case (state @ PossState(_, opp_poss, _, Direction.Team, _, _), ev @ LineupEvent.RawGameEvent.Opponent(_)) =>
+      case (state @ PossState(_, opp_poss, Direction.Team, _), ev @ LineupEvent.RawGameEvent.Opponent(_)) =>
         enrich(state.copy(opponent = opp_poss + 1, direction = Direction.Opponent), ev)
-      case (state @ PossState(team_poss, _, _, Direction.Opponent, _, _), ev @ LineupEvent.RawGameEvent.Team(_)) =>
+      case (state @ PossState(team_poss, _, Direction.Opponent, _), ev @ LineupEvent.RawGameEvent.Team(_)) =>
         enrich(state.copy(team = team_poss + 1, direction = Direction.Team), ev)
       case (state, ev) =>
         enrich(state, ev) //(all other cases just do nothing)
     }
 
-    /** Once all the events are complete, "flush" the remaining concurrent events */
-    def complete_lineup_events: PossState => PossState = {
-      case state @ PossState(team, opp, events, _, adjust_prev_lineup, concurrency)
-        if concurrency.start_possession_events.nonEmpty
-      =>
-        complete_concurrency_event(state).foldLeft(state)(normal_state_transition)
+    (StateUtils.foldLeft(raw_events, PossState.init, concurrent_event_handler) {
+      case StateEvent.Next(ctx, state, event) => // Standard processing
+        val (new_state, enriched_event) = normal_state_transition(state, event)
+        ctx.stateChange(new_state, enriched_event)
 
-      case state => state
-    }
-
-    ((raw_events.foldLeft(PossState.init) { (state, ev) =>
-      if (concurrent_event_handler.isDefinedAt(state, ev)) {
-        // event has the same timestamp as the previous one, so we may need to do some re-ordering
-        concurrent_event_handler(state, ev)
-      } else {
-        normal_state_transition(
-          // Process any concurrent events that precede this one
-          complete_concurrency_event(state).foldLeft(state)(normal_state_transition), ev
-        )
-      }
+      case StateEvent.Complete(ctx, _) => //(no additional processing when element list complete)
+        ctx.noChange
     }) match {
-      case state =>
-        complete_lineup_events(state)
-    }) match {
-      case PossState(team, opp, events, _, adjust_prev_lineup, _) =>
-        (team, opp, events.reverse, adjust_prev_lineup)
+      case FoldStateComplete(
+        PossState(team, opp, _, adjust_prev_lineup),
+        events
+      ) =>
+        (team, opp, events, adjust_prev_lineup)
     }
   }
 }

@@ -48,9 +48,12 @@ object LineupEvent {
     team_possession: Option[Int] = None,
     opponent_possession: Option[Int] = None
   ) {
+    /** Gets the event information (either from team or opponent - can't be both) */
+    def info: Option[String] = team.orElse(opponent)
+
     /** Gets the date string associated with the event */
-    def get_date_str: String = team.orElse(opponent).map { ev_str =>
-      ev_str.split(",", 1)(0)
+    def get_date_str: String = info.map { ev_str =>
+      ev_str.split(',')(0)
     }.getOrElse("")
   }
   object RawGameEvent {

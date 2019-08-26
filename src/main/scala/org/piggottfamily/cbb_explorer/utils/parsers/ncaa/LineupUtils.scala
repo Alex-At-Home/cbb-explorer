@@ -178,14 +178,6 @@ trait LineupUtils {
       def init: PossState  = PossState(
         0, 0, Direction.Init, false
       )
-      /** Handles concurrency issues with the input data */
-      case class ConcurrencyState(
-        last_date_str: String
-      )
-      object ConcurrencyState {
-        /** Starting state */
-        def init: ConcurrencyState = ConcurrencyState("")
-      }
     }
 
     /** First non-ignorable event ... are we "stealing" the last lineup's final possession */
@@ -198,67 +190,6 @@ trait LineupUtils {
         true
       case _ => false
     }
-
-    /** Identify concurrent events (easy) */
-    def check_for_concurrent_event(
-      ev: Clumper.Event[PossState, PossState.ConcurrencyState, LineupEvent.RawGameEvent]
-    ): (PossState.ConcurrencyState, Boolean) = ev match {
-      case Clumper.Event(_, cs, Nil, ev) => //(first event always gens a clump, possibly of size 1)
-        (cs.copy(last_date_str = ev.get_date_str), true)
-      case Clumper.Event(_, cs, _, ev) if ev.get_date_str == cs.last_date_str =>
-        (cs, true)
-      case Clumper.Event(_, cs, _, ev) =>
-        (cs.copy(last_date_str = ev.get_date_str), false)
-    }
-
-    /** Rearrange concurrent events to be a bit saner:
-     *  (basically - if an event will cause a possession change then it goes at the end)
-     */
-    def rearrange_concurrent_event(
-      s: PossState, cs: PossState.ConcurrencyState, reverse_clump: List[LineupEvent.RawGameEvent]
-    ): List[LineupEvent.RawGameEvent] = {
-      if (s.direction == Direction.Init) {
-        reverse_clump.reverse
-      } else {
-        case class RearrangeState(
-          start_possession_events: List[LineupEvent.RawGameEvent],
-          end_possession_events: List[LineupEvent.RawGameEvent]
-        ) {
-          def direction(
-            actual_dir: Direction.Value, ev: LineupEvent.RawGameEvent
-          ): RearrangeState = {
-            if (s.direction == actual_dir) {
-              copy(start_possession_events = ev :: start_possession_events)
-            } else {
-              copy(end_possession_events = ev :: end_possession_events)
-            }
-          }
-        }
-        (reverse_clump.foldRight(RearrangeState(Nil, Nil)) {
-
-          // Always put "ignorable" events in the order they were received
-          case (ev, state) if is_ignorable_game_event(ev.info.getOrElse("")) =>
-            state.direction(s.direction, ev)
-
-          //  Normal processing:
-          case (ev @ LineupEvent.RawGameEvent.Opponent(_), state) =>
-            state.direction(Direction.Opponent, ev)
-          case (ev @ LineupEvent.RawGameEvent.Team(_), state) =>
-            state.direction(Direction.Team, ev)
-
-        }) match {
-          case RearrangeState(start_possession_events, end_possession_events) =>
-            start_possession_events.reverse ++ end_possession_events.reverse
-        }
-      }
-    }
-
-    /** Manages splitting stream into concurrent chunks and then re-arranging them */
-    val concurrent_event_handler = Clumper(
-      PossState.ConcurrencyState.init,
-      check_for_concurrent_event _,
-      rearrange_concurrent_event _
-    )
 
     /** Adds the possession count to the event */
     def enrich(state: PossState, ev: LineupEvent.RawGameEvent): (PossState, LineupEvent.RawGameEvent) = {
@@ -296,7 +227,7 @@ trait LineupUtils {
         enrich(state, ev) //(all other cases just do nothing)
     }
 
-    (StateUtils.foldLeft(raw_events, PossState.init, concurrent_event_handler) {
+    (StateUtils.foldLeft(raw_events, PossState.init) {
       case StateEvent.Next(ctx, state, event) => // Standard processing
         val (new_state, enriched_event) = normal_state_transition(state, event)
         ctx.stateChange(new_state, enriched_event)

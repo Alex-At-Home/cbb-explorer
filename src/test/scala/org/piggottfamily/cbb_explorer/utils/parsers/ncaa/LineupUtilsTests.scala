@@ -162,35 +162,6 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
         TestUtils.inside(calculate_possessions(test_events_2, Some(misc_opponent_event))) {
           case (_, _, _, true) =>
         }
-
-        // Test the code that re-orders events with the same times
-
-        val concurrent_test_events @
-            (t11 :: o11 :: t12 :: o12 :: it1 :: t21 :: o13 :: o14 :: t22 :: o21 :: Nil)
-          = //(set expected possession -1)
-            LineupEvent.RawGameEvent(Some("19:58:02,0-0,team1.1"), None, Some(0), None) ::
-            LineupEvent.RawGameEvent(None, Some("19:58:04,0-0,oppo1.1"), None, Some(0)) ::
-            //^(change in time but _next_ event has concurrent time so will get re-ordered)
-            LineupEvent.RawGameEvent(Some("19:58:04,0-0,team1.2"), None, Some(0), None) ::
-            LineupEvent.RawGameEvent(None, Some("19:58:05,0-0,opp1.2"), None, Some(0)) ::
-            LineupEvent.RawGameEvent(Some("19:58:57,0-0,player Blocked Shot"), None, None, Some(1)) ::
-            //(^ignorable so won't get re-ordered)
-            LineupEvent.RawGameEvent(Some("19:58:57,0-0, team2.1"), None, Some(1), None) ::
-            //^(won't change possession because O13 is lurking)
-            LineupEvent.RawGameEvent(None, Some("19:58:57,0-0,opp1.3"), None, Some(1)) ::
-            LineupEvent.RawGameEvent(None, Some("19:58:57,0-0,opp1.4"), None, Some(1)) ::
-            LineupEvent.RawGameEvent(Some("19:58:07,0-0, team2.2"), None, Some(1), None) ::
-            LineupEvent.RawGameEvent(None, Some("19:58:10,0-0,opp2.1"), None, Some(1)) ::
-            Nil
-
-        TestUtils.inside(calculate_possessions(concurrent_test_events, None)) {
-          case (2, 2, events, false) =>
-            def fmt(l: List[LineupEvent.RawGameEvent]) =
-              l.map(_.info.getOrElse(",,").split(',')(2)).mkString("|")
-            fmt(events) ==> fmt(
-              t11 :: t12 :: o11 :: o12 :: it1 :: o13 :: o14 :: t21 :: t22 :: o21 :: Nil
-            )
-        }
       }
       "fix_possible_score_swap_bug" - {
         // Data taken from https://stats.ncaa.org/gaame/box_score/4690813?period_no=1

@@ -22,6 +22,15 @@ object EventUtilsTests extends TestSuite {
           case EventUtils.ParseJumpballWonOrLost("Bruno Fernando") =>
         }
       }
+      // Timeout
+      "ParseTimeout" - {
+        TestUtils.inside(Some("04:04:00,26-33,Ignored, timeout short")) {
+          case EventUtils.ParseTimeout("Team") =>
+        }
+        TestUtils.inside(Some("00:21,59-62,IGNORED 30 Second Timeout")) {
+          case EventUtils.ParseTimeout("TEAM") =>
+        }
+      }
       // Blocks
       "ParseShotBlocked" - {
         TestUtils.inside(Some("14:11:00,7-9,Emmitt Williams, block")) {
@@ -29,6 +38,15 @@ object EventUtilsTests extends TestSuite {
         }
         TestUtils.inside(Some("04:53,55-69,LAYMAN,JAKE Blocked Shot")) {
           case EventUtils.ParseShotBlocked("LAYMAN,JAKE") =>
+        }
+      }
+      // Steals
+      "ParseStolen" - {
+        TestUtils.inside(Some("08:44:00,20-23,Jacob Cushing, steal")) {
+          case EventUtils.ParseStolen("Jacob Cushing") =>
+        }
+        TestUtils.inside(Some("05:10,55-68,MASON III,FRANK Steal")) {
+          case EventUtils.ParseStolen("MASON III,FRANK") =>
         }
       }
       // Fouls
@@ -43,6 +61,11 @@ object EventUtilsTests extends TestSuite {
       "ParseTechnicalFoul" - {
         TestUtils.inside(Some("06:43:00,55-79,Bruno Fernando, foul technical classa;2freethrow")) {
           case EventUtils.ParseTechnicalFoul("Bruno Fernando") =>
+        }
+      }
+      "ParseFoulInfo" - {
+        TestUtils.inside(Some("02:28:00,27-38,Jalen Smith, foulon")) {
+          case EventUtils.ParseFoulInfo("Jalen Smith") =>
         }
       }
     }

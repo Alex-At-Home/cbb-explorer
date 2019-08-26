@@ -65,12 +65,33 @@ object EventUtils {
     //RawGameEvent(Some("19:58:00,0-0,Bruno Fernando, jumpball won"), None),
     // Legacy: (none)
     private val jumpball_regex = "[^,]+,[^,]+,(.+), +jumpball (?:won|lost)".r
-//    private val jumpball_regex = "(.+), +jumpball (won|lost)".r
     def unapply(x: Option[String]): Option[String] = x match {
       case Some(jumpball_regex(player)) => Some(player)
       case _ => None
     }
   }
+
+  /** Blocked shot (hardwire "Team" as return value)*/
+  object ParseTimeout {
+    // New:
+    //RawGameEvent(None, Some("04:04:00,26-33,Team, timeout short")),
+    // Legacy:
+    //"team": ""00:21,59-62,TEAM 30 Second Timeout""
+    private val timeout_regex = "[^,]+,[^,]+,(.+) +Timeout".r
+    private val timeout_regex_new = "[^,]+,[^,]+,(.+), +timeout.*".r
+    def unapply(x: Option[String]): Option[String] = x match {
+      case Some(timeout_regex(_)) => Some("TEAM")
+      case Some(timeout_regex_new(_)) => Some("Team")
+      case _ => None
+    }
+  }
+
+/*
+  TestUtils.inside(Some("04:04:00,26-33,Team, timeout short")) {
+    case EventUtils.ParseTimeout("Team") =>
+  }
+  TestUtils.inside(Some("00:21,59-62,TEAM 30 Second Timeout")) {
+*/
 
   /** Blocked shot */
   object ParseShotBlocked {
@@ -83,6 +104,21 @@ object EventUtils {
     def unapply(x: Option[String]): Option[String] = x match {
       case Some(blocked_shot_regex(player)) => Some(player)
       case Some(blocked_shot_regex_new(player)) => Some(player)
+      case _ => None
+    }
+  }
+
+  /** Blocked shot */
+  object ParseStolen {
+    // New:
+    //RawGameEvent(None, Some("08:44:00,20-23,Jacob Cushing, steal")),
+    // Legacy:
+    //"team": "05:10,55-68,MASON III,FRANK Steal"
+    private val stolen_regex = "[^,]+,[^,]+,(.+) +Steal".r
+    private val stolen_regex_new = "[^,]+,[^,]+,(.+), +steal".r
+    def unapply(x: Option[String]): Option[String] = x match {
+      case Some(stolen_regex(player)) => Some(player)
+      case Some(stolen_regex_new(player)) => Some(player)
       case _ => None
     }
   }
@@ -111,6 +147,21 @@ object EventUtils {
     private val technical_foul_regex_new = "[^,]+,[^,]+,(.+), +foul technical.*".r
     def unapply(x: Option[String]): Option[String] = x match {
       case Some(technical_foul_regex_new(player)) => Some(player)
+      case _ => None
+    }
+  }
+
+  //TODO: offensive foul
+
+  /** Who was fouled? */
+  object ParseFoulInfo {
+    // New:
+    //RawGameEvent(None, Some(02:28:00,27-38,Jalen Smith, foulon), None, Some(1))
+    // Legacy:
+    //(haven't found any yet)
+    private val foul_info_regex_new = "[^,]+,[^,]+,(.+), +foulon".r
+    def unapply(x: Option[String]): Option[String] = x match {
+      case Some(foul_info_regex_new(player)) => Some(player)
       case _ => None
     }
   }

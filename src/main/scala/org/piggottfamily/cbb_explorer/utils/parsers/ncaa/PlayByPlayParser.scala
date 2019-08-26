@@ -77,8 +77,22 @@ trait PlayByPlayParser {
       fix_possible_score_swap_bug(
         build_partial_lineup_list(reversed_events.toIterator, box_lineup), box_lineup
       )
-    }.map {
-      _.map(enrich_lineup).partition(e => validate_lineup(e, player_codes).isEmpty)
+    }.map { events =>
+      // Slightly complicated because we need to transform the lineup events in pairs
+      // ie the contents of eventN can change the contents of eventN_1
+      // (specifically: we don't know if a possession has ended until we look at the first
+      //  raw event of the next lineup)
+      val processed_events = {
+        case class EvState(results: List[LineupEvent], last_event: Option[LineupEvent])
+
+        (events.foldLeft(EvState(Nil, None)) { (state, event) =>
+          val (processed_event, maybe_completed_event) = enrich_lineup(event, state.last_event)
+          EvState(maybe_completed_event.toList ++ state.results, Some(processed_event))
+        }) match {
+          case EvState(results, maybe_final_event) => (maybe_final_event.toList ++ results).reverse
+        }
+      }
+      processed_events.partition(e => validate_lineup(e, player_codes).isEmpty)
     }
   }
 

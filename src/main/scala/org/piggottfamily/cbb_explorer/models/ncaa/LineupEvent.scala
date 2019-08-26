@@ -41,11 +41,21 @@ object LineupEvent {
 
   /** List of game events, categorized by whether it was "for" the team or its opponent */
   case class RawGameEvent(
+    /** The format is date,time,event*/
     team: Option[String] = None,
+    /** The format is date,time,event*/
     opponent: Option[String] = None,
     team_possession: Option[Int] = None,
     opponent_possession: Option[Int] = None
-  )
+  ) {
+    /** Gets the event information (either from team or opponent - can't be both) */
+    def info: Option[String] = team.orElse(opponent)
+
+    /** Gets the date string associated with the event */
+    def get_date_str: String = info.map { ev_str =>
+      ev_str.split(',')(0)
+    }.getOrElse("")
+  }
   object RawGameEvent {
     def team(s: String): RawGameEvent = RawGameEvent(Some(s), None)
     def opponent(s: String): RawGameEvent = RawGameEvent(None, Some(s))

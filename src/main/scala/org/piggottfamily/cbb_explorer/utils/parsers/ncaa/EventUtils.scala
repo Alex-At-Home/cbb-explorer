@@ -53,8 +53,6 @@ object EventUtils {
 
   // In-game events (NOTE: based on the combined time,score,event)
 
-  //TODO: always pull out the times here?
-
   // Jump ball
 
   /** We don't care if it was won or lost actually */
@@ -86,12 +84,112 @@ object EventUtils {
     }
   }
 
-/*
-  TestUtils.inside(Some("04:04:00,26-33,Team, timeout short")) {
-    case EventUtils.ParseTimeout("Team") =>
+  // All the different types of shot
+
+  /** Dunk or "alleyoop" success */
+  object ParseDunkMade {
+    // New:
+    //Bruno Fernando, 2pt dunk 2ndchance;pointsinthepaint made
+    //Bruno Fernando, 2pt alleyoop pointsinthepaint made
+    // Legacy:
+    // WATKINS,MIKE made Dunk
+
+    //TODO
   }
-  TestUtils.inside(Some("00:21,59-62,TEAM 30 Second Timeout")) {
-*/
+
+  /** Dunk or "alleyoop" missed */
+  object ParseDunkMissed {
+    //New:
+    //Bruno Fernando, 2pt dunk missed
+    // Legacy:
+    // Legacy:
+    // WATKINS,MIKE missed Dunk
+
+    //TODO
+  }
+
+  /** Layup, success */
+  object ParseLayupMade {
+    // New:
+    // Jalen Smith, 2pt layup 2ndchance;pointsinthepaint made
+    // Legacy:
+    // BOLTON,RASIR made Layup
+    // STEVENS,LAMAR made Tip In
+
+    //TODO
+  }
+  object ParseLayupMissed {
+    // New:
+    // Eric Carter, 2pt layup missed
+    // Legacy:
+    // TOMAIC,JOSHUA missed Layup
+
+    //TODO
+  }
+  object ParseMidrangeMade {
+    // New:
+    // Anthony Cowan, 2pt jumpshot fromturnover;fastbreak made
+    // Legacy:
+    // STEVENS,LAMAR made Two Point Jumper
+
+    //TODO
+  }
+  object ParseMidrangeMissed {
+    // New:
+    // Ricky Lindo Jr., 2pt jumpshot missed
+    // Legacy:
+    // SMITH,JALEN missed Two Point Jumper
+
+    //TODO
+  }
+  object ParseThreePointerMade {
+    // New:
+    // Eric Ayala, 3pt jumpshot made
+    // Legacy:
+    // SMITH,JALEN made Three Point Jumper
+
+    //TODO
+  }
+  object ParseThreePointerMissed {
+    // New:
+    // Eric Ayala, 3pt jumpshot 2ndchance missed
+    // Legacy:
+    // DREAD,MYLES missed Three Point Jumper
+
+    //TODO
+  }
+
+  /** Umbrella for all made shots, union of the above */
+  object ParseShotMade {
+    // New:
+    // See above for all the combos, basically "(2pt|3pt) <other stuff> made"
+    // Old:
+    // See above for all the combos, basically "made {not Free Throw}"
+
+    private val shot_made_regex = "[^,]+,[^,]+,(.+) made +(?!Free Throw)".r
+    private val shot_made_regex_new = "[^,]+,[^,]+,(.+), +[23]pt +.* +made".r
+    def unapply(x: Option[String]): Option[String] = x match {
+      case Some(shot_made_regex(player)) => Some(player)
+      case Some(shot_made_regex_new(player)) => Some(player)
+      case _ => None
+    }
+  }
+
+  /** Umbrella for all made shots, union of the above */
+  object ParseShotMissed {
+    // New:
+    // See above for all the combos, basically "(2pt|3pt) <other stuff> (missed|blocked)""
+    // Old:
+    // See above for all the combos, basically "missed {not Free Throw}"
+
+    private val shot_missed_regex = "[^,]+,[^,]+,(.+) made +(?!Free Throw)".r
+    private val shot_missed_regex_new = "[^,]+,[^,]+,(.+), +[23]pt +.* +(missed|blocked)".r
+    def unapply(x: Option[String]): Option[String] = x match {
+      case Some(shot_missed_regex(player)) => Some(player)
+      case Some(shot_missed_regex_new(player)) => Some(player)
+      case _ => None
+    }
+  }
 
   /** Blocked shot */
   object ParseShotBlocked {
@@ -108,7 +206,79 @@ object EventUtils {
     }
   }
 
-  /** Blocked shot */
+  // Rebounding (can tell ORB vs DRB based on possession)
+
+  object Rebound {
+    // New:
+    // Darryl Morsell, rebound defensive
+    // Jalen Smith, rebound offensive
+    // Team, rebound offensive team
+    // Legacy:
+    // SMITH,JALEN Offensive Rebound
+    // HARRAR,JOHN Defensive Rebound
+
+    private val rebound_regex = "[^,]+,[^,]+,(.+) +(Offensive|Defensive) +Turnover".r
+    private val rebound_regex_new = "[^,]+,[^,]+,(.+), +rebound +.*".r
+    def unapply(x: Option[String]): Option[String] = x match {
+      case Some(rebound_regex(player)) => Some(player)
+      case Some(rebound_regex_new(player)) => Some(player)
+      case _ => None
+    }
+  }
+
+  //TODO: categorize ORB vs DRB for easier stats collection
+
+  // Free throws
+
+  object FreeThrowMade {
+    //DREAD,MYLES made Free Throw
+    // Kevin Anderson, freethrow 2of2 made
+    //Legacy:
+    //New: (warning .. free throws can come in the wrong order)
+    private val ft_made_regex = "[^,]+,[^,]+,(.+) made +Free Throw".r
+    private val ft_made_regex_new = "[^,]+,[^,]+,(.+), +freethrow ([0-9])of([0-9]) +.* +made".r
+    def unapply(x: Option[String]): Option[String] = x match {
+      case Some(ft_made_regex(player)) => Some(player)
+      case Some(ft_made_regex_new(player)) => Some(player)
+      case _ => None
+    }
+  }
+
+  object FreeThrowMissed {
+    //New: (warning .. free throws can come in the wrong order)
+    // Kevin Anderson, freethrow 1of2 missed
+    //Legacy:
+    //DREAD,MYLES missed Free Throw
+    private val ft_missed_regex = "[^,]+,[^,]+,(.+) missed +Free Throw".r
+    private val ft_missed_regex_new = "[^,]+,[^,]+,(.+), +freethrow ([0-9])of([0-9]) +.* +missed".r
+    def unapply(x: Option[String]): Option[String] = x match {
+      case Some(ft_missed_regex(player)) => Some(player)
+      case Some(ft_missed_regex_new(player)) => Some(player)
+      case _ => None
+    }
+  }
+
+  // Turnover events
+
+  object Turnover {
+      // New:
+      // Bruno Fernando, turnover badpass
+      // Joshua Tomaic, turnover lostball
+      // Jalen Smith, turnover offensive
+      // Kevin Anderson, turnover travel
+      // Legacy:
+      // MORSELL,DARRYL Turnover
+
+      private val turnover_regex = "[^,]+,[^,]+,(.+) +Turnover".r
+      private val turnover_regex_new = "[^,]+,[^,]+,(.+), +turnover +.*".r
+      def unapply(x: Option[String]): Option[String] = x match {
+        case Some(turnover_regex(player)) => Some(player)
+        case Some(turnover_regex_new(player)) => Some(player)
+        case _ => None
+      }
+  }
+
+  /** Steal */
   object ParseStolen {
     // New:
     //RawGameEvent(None, Some("08:44:00,20-23,Jacob Cushing, steal")),
@@ -122,6 +292,8 @@ object EventUtils {
       case _ => None
     }
   }
+
+  // Foul events
 
   /** Personal foul */
   object ParsePersonalFoul {
@@ -138,7 +310,7 @@ object EventUtils {
     }
   }
 
-  /** Personal foul */
+  /** Technical foul */
   object ParseTechnicalFoul {
     // New:
     //"team": "06:43:00,55-79,Bruno Fernando, foul technical classa;2freethrow"
@@ -150,8 +322,6 @@ object EventUtils {
       case _ => None
     }
   }
-
-  //TODO: offensive foul
 
   /** Who was fouled? */
   object ParseFoulInfo {

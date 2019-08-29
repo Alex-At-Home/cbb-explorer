@@ -334,4 +334,26 @@ object EventUtils {
       case _ => None
     }
   }
+
+  // Useful
+
+  /** An offensive event that tells us who is starting a possession */
+  object ParseCommonOffensiveEvent {
+    def unapply(x: String): Option[String] = x match {
+      case ParseTimeout(x) => Some(x)
+      case ParseShotMade(x) => Some(x)
+      case ParseShotMissed(x) => Some(x)
+      case ParseTurnover(x) => Some(x)
+    }
+  }
+
+  /** An offensive event that tells us who is starting a possession */
+  object ParseCommonDefensiveEvent {
+    def unapply(x: String): Option[String] = x match {
+      case ParsePersonalFoul(x) => Some(x)
+      case ParseStolen(x) => Some(x)
+      case ParseShotBlocked(x) => Some(x)
+    }
+  }
+
 }

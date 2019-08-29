@@ -19,42 +19,28 @@ trait LineupUtils {
   (x1 zip x2).map { case (k, v) => k._1 -> (k._2._1 - v._2._1, k._2._2 - v._2._2) }
   */
 
+/** TODO`
+val (team_possessions, opp_possessions, proc_events, adjust_prev_lineup) =
+  calculate_possessions(lineup.raw_game_events, last_game_event)
+*/
+
   /** TODO build the stats from the game events */
-  def enrich_lineup(lineup: LineupEvent, prev_lineup: Option[LineupEvent])
-    : (LineupEvent, Option[LineupEvent]) =
+  def enrich_lineup(lineup: LineupEvent): LineupEvent =
   {
     val scored = lineup.score_info.end.scored - lineup.score_info.start.scored
     val allowed = lineup.score_info.end.allowed - lineup.score_info.start.allowed
     val last_game_event =  prev_lineup.flatMap(_.raw_game_events.lastOption)
-    val (team_possessions, opp_possessions, proc_events, adjust_prev_lineup) =
-      calculate_possessions(lineup.raw_game_events, last_game_event)
-
-    val adjusted_prev_lineup = prev_lineup.map { prev => (last_game_event, adjust_prev_lineup) match {
-      case (Some(last_ev), true) if last_ev.team_possession.nonEmpty =>
-        prev.copy(
-          team_stats = prev.team_stats.copy(
-            num_possessions = prev.team_stats.num_possessions - 1
-          )
-        )
-      case (Some(last_ev), true) if last_ev.opponent_possession.nonEmpty =>
-        prev.copy(
-          opponent_stats = prev.opponent_stats.copy(
-            num_possessions = prev.opponent_stats.num_possessions - 1
-          )
-        )
-      case _ => prev
-    }}
 
     lineup.copy(
       team_stats = lineup.team_stats.copy(
         num_events = lineup.raw_game_events.filter(_.team.isDefined).size,
-        num_possessions = team_possessions,
+        num_possessions = 0, //TODO: enrich based on raw events
         pts = scored,
         plus_minus = scored - allowed
       ),
       opponent_stats = lineup.opponent_stats.copy(
         num_events = lineup.raw_game_events.filter(_.opponent.isDefined).size, //TODO exclude subs
-        num_possessions = opp_possessions,
+        num_possessions = 0, //TODO as above
         pts = allowed,
         plus_minus = allowed - scored
       ),
@@ -103,75 +89,28 @@ trait LineupUtils {
   }
 
   /** Returns team and opponent possessions based on the raw event data */
-  protected def calculate_possessions(
-    raw_events: Seq[LineupEvent.RawGameEvent], last_event: Option[LineupEvent.RawGameEvent]
-  ): (Int, Int, List[LineupEvent.RawGameEvent], Boolean) =
+  def calculate_possessions(
+    raw_events: Seq[LineupEvent.RawGameEvent]
+  ): List[LineupEvent.RawGameEvent] =
   {
-    /** (only "opponent events" can be these by construction) */
-    def is_substitution_event(event_str: String): Boolean = {
-      (Some(event_str), None) match {
-        case EventUtils.ParseTeamSubIn(_) => true
-        case EventUtils.ParseTeamSubOut(_) => true
-        case _ => false
-      }
-    }
-
-    /** Handles all the events that never indicate a change in possession */
-    def is_ignorable_game_event(event_str: String): Boolean = Some(event_str) match {
-
-      // Different cases:
-      // 1.1] Jump ball
-      case EventUtils.ParseJumpballWonOrLost(_) => true
-
-      // 1.2] Timeout
-      case EventUtils.ParseTimeout(_) => true
-
-      // 2.1] Blocks (wait for rebound to decide if the possession changes)
-      // New:
-      //RawGameEvent(Some("14:11:00,7-9,Darryl Morsell, 2pt layup blocked missed"), None),
-      //RawGameEvent(None, Some("14:11:00,7-9,Emmitt Williams, block")),
-      //RawGameEvent(Some("14:11:00,7-9,Team, rebound offensivedeadball"), None),
-      // Legacy:
-      //"team": "04:53,55-69,LAYMAN,JAKE Blocked Shot"
-      //"opponent": "04:53,55-69,TEAM Offensive Rebound"
-      case EventUtils.ParseShotBlocked(_) => true
-
-      // 2.2] Steals - possession always changes but we'll wait for the offensive action
-      case EventUtils.ParseStolen(_) => true
-
-      // 3.1] Personal Fouls
-      // New:
-      //RawGameEvent(None, Some("13:36:00,7-9,Team, rebound offensivedeadball")),
-      //RawGameEvent(Some("13:36:00,7-9,Jalen Smith, foul personal shooting;2freethrow"), None)
-      // Legacy:
-      //"opponent": "10:00,51-60,MYKHAILIUK,SVI Commits Foul"
-      case EventUtils.ParsePersonalFoul(_) => true
-
-      // 3.2] Technical fouls
-      // We're going to treat the technical foul like an additional possession
-      // because otherwise it's going to be complicated
-      case EventUtils.ParseTechnicalFoul(_) => true
-
-      // 3.3] Foul info
-      // Contains no possession related value
-      case EventUtils.ParseFoulInfo(_) => true
-
-      case _ => false
-    }
-
-    /** For "opponent events" we ignore subs _or_ "ignorable game events" */
-    def is_ignorable_event(event_str: String): Boolean =
-      is_substitution_event(event_str) || is_ignorable_game_event(event_str)
+    // Lots of data modelling:
 
     /** Which team is in possession */
     object Direction extends Enumeration {
       val Init, Team, Opponent = Value
+
+      /** Switch direction */
+      def opposite(dir: Direction.Value): Direction.Value = dir match {
+        case Direction.Init => dir
+        case Direction.Team = Direction.Opponent
+        case Direction.Opponent = Direction.Team
+      }
     }
     /** State for building possession events */
     case class PossState(
       team: Int, opponent: Int,
       direction: Direction.Value,
-      adjust_prev_lineup: Boolean
+      possession_unclear: Boolean
     )
     object PossState {
       /** Starting state */
@@ -180,67 +119,191 @@ trait LineupUtils {
       )
     }
 
-    /** First non-ignorable event ... are we "stealing" the last lineup's final possession */
-    def check_for_prev_lineup_adjustment(
-      ev: LineupEvent.RawGameEvent, prev_event: Option[LineupEvent.RawGameEvent]
-    ): Boolean = (ev, prev_event) match {
-      case (LineupEvent.RawGameEvent.Team(_), Some(prev)) if prev.team_possession.nonEmpty =>
-        true
-      case (LineupEvent.RawGameEvent.Opponent(_), Some(prev)) if prev.opponent_possession.nonEmpty =>
-        true
-      case _ => false
+    case class ConcurrentClump(evs: List[LineupEvent.RawGameEvent])
+
+    sealed trait PossessionStatus
+    case object PossessionUnclear extends PossessionStatus
+    case object PossessionContinues extends PossessionStatus
+    case class PossessionEnd(last_clump: Boolean = false) extends PossessionStatus
+
+    case class PossessionEvent(dir: Direction.Value) {
+      /** The team in possession */
+      object AttackingTeam {
+        def unapply(x: RawGameEvent): Option[String] = dir match {
+          case Direction.Team => x.team
+          case Direction.Opponent => x.opponent
+          case _ => None
+        }
+      }
+      /** The team not in possession */
+      object DefendingTeam {
+        def unapply(x: RawGameEvent): Option[String] = dir match {
+          case Direction.Team => x.opponent
+          case Direction.Opponent => x.opponent
+          case _ => None
+        }
+      }
     }
 
-    /** Adds the possession count to the event */
-    def enrich(state: PossState, ev: LineupEvent.RawGameEvent): (PossState, LineupEvent.RawGameEvent) = {
+    /** Adds possession count to raw event */
+    def enrich(state: PossState, ev: LineupEvent.RawGameEvent): LineupEvent.RawGameEvent = {
       val enriched_event = ev.copy(
         team_possession = if (state.direction == Direction.Team) Some(state.team) else None,
         opponent_possession = if (state.direction == Direction.Opponent) Some(state.opponent) else None
       )
-      (state, enriched_event)
+      enriched_event
     }
 
-    /** Handles state transitions to the possession list as events come in */
-    def normal_state_transition: (PossState, LineupEvent.RawGameEvent) => (PossState, LineupEvent.RawGameEvent) =
+    /** Figure out who has possession to start the game */
+    def first_possession_status(evs: List[LineupEvent.RawGameEvent]): Option[Direction.Value] = {
+      evs.collect {
+        case RawGameEvent.Team(EventUtils.ParseCommonOffensiveEvent(_)) =>
+          Some(Direction.Team)
+        case RawGameEvent.Team(EventUtils.ParseCommonDefensiveEvent(_)) =>
+          Some(Direction.Opponent)
+        case RawGameEvent.Opponent(EventUtils.ParseCommonOffensiveEvent(_)) =>
+          Some(Direction.Opponent)
+        case RawGameEvent.Opponent(EventUtils.ParseCommonDefensiveEvent(_)) =>
+          Some(Direction.Team)
+      }.headOption
+    }
+
+    /** Process the events within a concurrent clump to see if the possession is changing/has changed */
+    def clump_possession_status(
+      state: PossState,
+      evs: List[LineupEvent.RawGameEvent]
+    ): PossessionStatus =
     {
-      case (state, ev @ LineupEvent.RawGameEvent.Opponent(opp_info)) if is_ignorable_event(opp_info) =>
-        enrich(state, ev) //(ignore sub data or selected game data - see above)
-      case (state, ev @ LineupEvent.RawGameEvent.Team(team_info)) if is_ignorable_game_event(team_info) =>
-        enrich(state, ev) //(ignore selected game data - see above)
+      val dir = state.direction
+      /** This is the highest prio .. if the defending team rebounds it, they now have possession */
+      def defensive_rebound(evs: List[LineupEvent.RawGameEvent]): Boolean = {
+        evs.collect {
+          case PossessionEvent(dir).DefendingTeam(EventUtils.Rebound(_)) =>
+        }.nonEmpty
+      }
 
-      case (state @ PossState(_, _, Direction.Init, _), ev @ LineupEvent.RawGameEvent.Opponent(_)) =>
-        enrich(state.copy(
-          opponent = 1, direction = Direction.Opponent,
-          adjust_prev_lineup = check_for_prev_lineup_adjustment(ev, last_event)
-        ), ev)
-      case (state @ PossState(_, _, Direction.Init, _), ev @ LineupEvent.RawGameEvent.Team(_)) =>
-        enrich(state.copy(
-          team = 1, direction = Direction.Team,
-          adjust_prev_lineup = check_for_prev_lineup_adjustment(ev, last_event)
-        ), ev)
+      def offensive_rebound(evs: List[LineupEvent.RawGameEvent]): Boolean = {
+        evs.collect {
+          case PossessionEvent(dir).AttackingTeam(EventUtils.Rebound(_)) =>
+        }.nonEmpty
+      }
 
-      case (state @ PossState(_, opp_poss, Direction.Team, _), ev @ LineupEvent.RawGameEvent.Opponent(_)) =>
-        enrich(state.copy(opponent = opp_poss + 1, direction = Direction.Opponent), ev)
-      case (state @ PossState(team_poss, _, Direction.Opponent, _), ev @ LineupEvent.RawGameEvent.Team(_)) =>
-        enrich(state.copy(team = team_poss + 1, direction = Direction.Team), ev)
-      case (state, ev) =>
-        enrich(state, ev) //(all other cases just do nothing)
+      /** Offensive turnover */
+      def offensive_turnover(evs: List[LineupEvent.RawGameEvent]): Boolean = {
+        evs.collect {
+          case PossessionEvent(dir).AttackingTeam(EventUtils.Turnover(_)) =>
+        }.nonEmpty
+      }
+
+      /** Made shot and missed the and one ... need to wait for DRB */
+      def made_shot_and_missed_and_one(evs: List[LineupEvent.RawGameEvent]): Boolean = {
+        made_shot(evs) &&
+        ev.collect {
+          case PossessionEvent(dir).AttackingTeam(EventUtils.ParseFreeThrowMissed(_)) =>
+        }.nonEmpty
+      }
+
+      /** Made shot (use order of clauses to ensure there was no missed and-1) */
+      def made_shot(evs: List[LineupEvent.RawGameEvent]): Boolean = {
+        evs.collect {
+          case PossessionEvent(dir).AttackingTeam(EventUtils.ParseShotMade(_)) =>
+        }.nonEmpty
+      }
+
+      /** Took free throws and hit at least one of them */
+      def fts_some_made(evs: List[LineupEvent.RawGameEvent]): Boolean = {
+        evs.collect {
+          case PossessionEvent(dir).ParseFreeThrowMade(EventUtils.ParseShotMade(_)) =>
+        }.nonEmpty
+      }
+
+      /** Took free throws and missed at least one of them */
+      def fts_some_missed(evs: List[LineupEvent.RawGameEvent]): Boolean = {
+        evs.collect {
+          case PossessionEvent(dir).ParseFreeThrowMade(EventUtils.ParseShotMissed(_)) =>
+        }.nonEmpty
+      }
+
+      //TODO: end of period
+
+      //TODO: error on inconsistencies rather than silently give the wrong possession count
+
+      evs match {
+        case _ if defensive_rebound(evs) => PossessionEnd(last_clump = true)
+        case _ if state.possession_unclear && !offensive_rebound(evs) => PossessionEnd(last_clump = true)
+
+        case _ if offensive_turnover(evs) => PossessionEnd()
+        case _ if made_shot_and_missed_and_one(evs) => PossessionContinues //(wait for the rebound)
+        case _ if made_shot(evs) => PossessionEnd()
+
+        case _ if fts_some_missed(evs) && fts_some_made(evs) => PossessionUnclear
+          //(the problem here is that with legacy data we don't know if the last one missed ...
+          // what happens is if there's no rebound on either side then possession changes
+          // if there's a DRB possession changes are per usual, and otherwise (==ORB) possession continues)
+
+        case _ if fts_some_missed(evs) => PossessionContinues //(all FTs missed => last FT missed => wait for the rebound)
+        case _ if fts_some_made(evs) => PossessionEnd()
+        case _ => PossessionContinues
+      }
     }
 
-    (StateUtils.foldLeft(raw_events, PossState.init) {
-      case StateEvent.Next(ctx, state, event) => // Standard processing
-        val (new_state, enriched_event) = normal_state_transition(state, event)
-        ctx.stateChange(new_state, enriched_event)
+    /** Sort out state if possession changes */
+    def switch_state(state: PossState): PossState = {
+      if (state.direction == Direction.Team) {
+        state.copy(
+          opponent = state.opponent + 1, direction = Direction.Opponent,
+          possession_unclear = false
+        )
+      } else { //(must be Opponent, not Init, by construction)
+        state.copy(
+          team = state.team + 1, direction = Direction.Team,
+          possession_unclear = false
+        )
+      }
+    }
+
+    /** Updates the state and enriches the events with poss number based on incoming clump */
+    def handle_clump(
+      state: PossState, evs: List[LineupEvent.RawGameEvent]
+    ): (PossState, List[LineupEvent.RawGameEvent]) = clump_possession_status(state, evs) match {
+      case PossessionEnd(true) =>
+        val new_state = switch_state(state)
+        handle_clump(new_state, evs) //(can't recurse more than once by construction)
+      case PossessionEnd(false) =>
+        val new_state = switch_state(state)
+        (new_state, evs.map(ev => enrich(new_state, ev)))
+      case PossessionUnclear =>
+        (state.copy(possession_unclear = true), evs.map(ev => enrich(state, ev)))
+      case PossessionContinues =>
+        (state.copy(possession_unclear = false), evs.map(ev => enrich(state, ev)))
+    }
+
+    //TODO: clumper
+    val clumped_events = raw_events.map(ev => ConcurrentClump(List(ev)))
+    (StateUtils.foldLeft(clumped_events, PossState.init, classOf[LineupEvent.RawGameEvent]) {
+
+      case StateEvent.Next(ctx, state, ConcurrentClump(evs)) if state.direction == Direction.Init =>
+        // First state, who has the first possession?
+        first_possession_status(evs) match {
+          case Some(dir) =>
+            val new_state = switch_state(state.copy(direction = Direction.opposite(dir)))
+            handle_clump(new_state, evs)
+          case _ =>
+            (state, ev) //(do nothing, wait for next clump)
+        }
+
+      case StateEvent.Next(ctx, state, ConcurrentClump(evs)) => // Standard processing
+        val (new_state, enriched_evs) = handle_clump(state, evs)
+        ctx.stateChange(new_state, enriched_evs)
 
       case StateEvent.Complete(ctx, _) => //(no additional processing when element list complete)
         ctx.noChange
+
     }) match {
-      case FoldStateComplete(
-        PossState(team, opp, _, adjust_prev_lineup),
+      case FoldStateComplete(_, events) =>
         events
-      ) =>
-        (team, opp, events, adjust_prev_lineup)
     }
-  }
+
+  } //(end calculate_possessions)
 }
 object LineupUtils extends LineupUtils

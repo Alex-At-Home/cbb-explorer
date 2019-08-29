@@ -63,7 +63,7 @@ object EventUtils {
     //RawGameEvent(Some("19:58:00,0-0,Bruno Fernando, jumpball won"), None),
     // Legacy: (none)
     private val jumpball_regex = "[^,]+,[^,]+,(.+), +jumpball (?:won|lost)".r
-    def unapply(x: Option[String]): Option[String] = x match {
+    def unapply(x: String): Option[String] = Option(x) match {
       case Some(jumpball_regex(player)) => Some(player)
       case _ => None
     }
@@ -77,7 +77,7 @@ object EventUtils {
     //"team": ""00:21,59-62,TEAM 30 Second Timeout""
     private val timeout_regex = "[^,]+,[^,]+,(.+) +Timeout".r
     private val timeout_regex_new = "[^,]+,[^,]+,(.+), +timeout.*".r
-    def unapply(x: Option[String]): Option[String] = x match {
+    def unapply(x: String): Option[String] = Option(x) match {
       case Some(timeout_regex(_)) => Some("TEAM")
       case Some(timeout_regex_new(_)) => Some("Team")
       case _ => None
@@ -101,7 +101,6 @@ object EventUtils {
   object ParseDunkMissed {
     //New:
     //Bruno Fernando, 2pt dunk missed
-    // Legacy:
     // Legacy:
     // WATKINS,MIKE missed Dunk
 
@@ -166,9 +165,9 @@ object EventUtils {
     // Old:
     // See above for all the combos, basically "made {not Free Throw}"
 
-    private val shot_made_regex = "[^,]+,[^,]+,(.+) made +(?!Free Throw)".r
-    private val shot_made_regex_new = "[^,]+,[^,]+,(.+), +[23]pt +.* +made".r
-    def unapply(x: Option[String]): Option[String] = x match {
+    private val shot_made_regex = "[^,]+,[^,]+,(.+) made +(?!Free Throw).*".r
+    private val shot_made_regex_new = "[^,]+,[^,]+,(.+), +[23]pt +(?:.* +)?made".r
+    def unapply(x: String): Option[String] = Option(x) match {
       case Some(shot_made_regex(player)) => Some(player)
       case Some(shot_made_regex_new(player)) => Some(player)
       case _ => None
@@ -182,9 +181,9 @@ object EventUtils {
     // Old:
     // See above for all the combos, basically "missed {not Free Throw}"
 
-    private val shot_missed_regex = "[^,]+,[^,]+,(.+) made +(?!Free Throw)".r
-    private val shot_missed_regex_new = "[^,]+,[^,]+,(.+), +[23]pt +.* +(missed|blocked)".r
-    def unapply(x: Option[String]): Option[String] = x match {
+    private val shot_missed_regex = "[^,]+,[^,]+,(.+) missed +(?!Free Throw).*".r
+    private val shot_missed_regex_new = "[^,]+,[^,]+,(.+), +[23]pt +(?:.* +)?(?:missed|blocked)".r
+    def unapply(x: String): Option[String] = Option(x) match {
       case Some(shot_missed_regex(player)) => Some(player)
       case Some(shot_missed_regex_new(player)) => Some(player)
       case _ => None
@@ -199,7 +198,7 @@ object EventUtils {
     //"team": "04:53,55-69,LAYMAN,JAKE Blocked Shot"
     private val blocked_shot_regex = "[^,]+,[^,]+,(.+) +Blocked Shot".r
     private val blocked_shot_regex_new = "[^,]+,[^,]+,(.+), +block".r
-    def unapply(x: Option[String]): Option[String] = x match {
+    def unapply(x: String): Option[String] = Option(x) match {
       case Some(blocked_shot_regex(player)) => Some(player)
       case Some(blocked_shot_regex_new(player)) => Some(player)
       case _ => None
@@ -208,7 +207,7 @@ object EventUtils {
 
   // Rebounding (can tell ORB vs DRB based on possession)
 
-  object Rebound {
+  object ParseRebound {
     // New:
     // Darryl Morsell, rebound defensive
     // Jalen Smith, rebound offensive
@@ -217,9 +216,9 @@ object EventUtils {
     // SMITH,JALEN Offensive Rebound
     // HARRAR,JOHN Defensive Rebound
 
-    private val rebound_regex = "[^,]+,[^,]+,(.+) +(Offensive|Defensive) +Turnover".r
+    private val rebound_regex = "[^,]+,[^,]+,(.+) +(?:Offensive|Defensive) +Rebound".r
     private val rebound_regex_new = "[^,]+,[^,]+,(.+), +rebound +.*".r
-    def unapply(x: Option[String]): Option[String] = x match {
+    def unapply(x: String): Option[String] = Option(x) match {
       case Some(rebound_regex(player)) => Some(player)
       case Some(rebound_regex_new(player)) => Some(player)
       case _ => None
@@ -230,28 +229,28 @@ object EventUtils {
 
   // Free throws
 
-  object FreeThrowMade {
-    //DREAD,MYLES made Free Throw
+  object ParseFreeThrowMade {
+    //New: (warning .. free throws can come in the wrong order)
     // Kevin Anderson, freethrow 2of2 made
     //Legacy:
-    //New: (warning .. free throws can come in the wrong order)
+    //DREAD,MYLES made Free Throw
     private val ft_made_regex = "[^,]+,[^,]+,(.+) made +Free Throw".r
-    private val ft_made_regex_new = "[^,]+,[^,]+,(.+), +freethrow ([0-9])of([0-9]) +.* +made".r
-    def unapply(x: Option[String]): Option[String] = x match {
+    private val ft_made_regex_new = "[^,]+,[^,]+,(.+), +freethrow [0-9]of[0-9] +(?:.* +)?made".r
+    def unapply(x: String): Option[String] = Option(x) match {
       case Some(ft_made_regex(player)) => Some(player)
       case Some(ft_made_regex_new(player)) => Some(player)
       case _ => None
     }
   }
 
-  object FreeThrowMissed {
+  object ParseFreeThrowMissed {
     //New: (warning .. free throws can come in the wrong order)
     // Kevin Anderson, freethrow 1of2 missed
     //Legacy:
     //DREAD,MYLES missed Free Throw
     private val ft_missed_regex = "[^,]+,[^,]+,(.+) missed +Free Throw".r
-    private val ft_missed_regex_new = "[^,]+,[^,]+,(.+), +freethrow ([0-9])of([0-9]) +.* +missed".r
-    def unapply(x: Option[String]): Option[String] = x match {
+    private val ft_missed_regex_new = "[^,]+,[^,]+,(.+), +freethrow [0-9]of[0-9] +(?:.* +)?missed".r
+    def unapply(x: String): Option[String] = Option(x) match {
       case Some(ft_missed_regex(player)) => Some(player)
       case Some(ft_missed_regex_new(player)) => Some(player)
       case _ => None
@@ -260,7 +259,7 @@ object EventUtils {
 
   // Turnover events
 
-  object Turnover {
+  object ParseTurnover {
       // New:
       // Bruno Fernando, turnover badpass
       // Joshua Tomaic, turnover lostball
@@ -271,7 +270,7 @@ object EventUtils {
 
       private val turnover_regex = "[^,]+,[^,]+,(.+) +Turnover".r
       private val turnover_regex_new = "[^,]+,[^,]+,(.+), +turnover +.*".r
-      def unapply(x: Option[String]): Option[String] = x match {
+      def unapply(x: String): Option[String] = Option(x) match {
         case Some(turnover_regex(player)) => Some(player)
         case Some(turnover_regex_new(player)) => Some(player)
         case _ => None
@@ -286,7 +285,7 @@ object EventUtils {
     //"team": "05:10,55-68,MASON III,FRANK Steal"
     private val stolen_regex = "[^,]+,[^,]+,(.+) +Steal".r
     private val stolen_regex_new = "[^,]+,[^,]+,(.+), +steal".r
-    def unapply(x: Option[String]): Option[String] = x match {
+    def unapply(x: String): Option[String] = Option(x) match {
       case Some(stolen_regex(player)) => Some(player)
       case Some(stolen_regex_new(player)) => Some(player)
       case _ => None
@@ -303,7 +302,7 @@ object EventUtils {
     //"opponent": "10:00,51-60,MYKHAILIUK,SVI Commits Foul"
     private val personal_foul_regex = "[^,]+,[^,]+,(.+) +Commits Foul".r
     private val personal_foul_regex_new = "[^,]+,[^,]+,(.+), +foul personal.*".r
-    def unapply(x: Option[String]): Option[String] = x match {
+    def unapply(x: String): Option[String] = Option(x) match {
       case Some(personal_foul_regex(player)) => Some(player)
       case Some(personal_foul_regex_new(player)) => Some(player)
       case _ => None
@@ -317,7 +316,7 @@ object EventUtils {
     // Legacy:
     //(haven't found any yet)
     private val technical_foul_regex_new = "[^,]+,[^,]+,(.+), +foul technical.*".r
-    def unapply(x: Option[String]): Option[String] = x match {
+    def unapply(x: String): Option[String] = Option(x) match {
       case Some(technical_foul_regex_new(player)) => Some(player)
       case _ => None
     }
@@ -330,7 +329,7 @@ object EventUtils {
     // Legacy:
     //(haven't found any yet)
     private val foul_info_regex_new = "[^,]+,[^,]+,(.+), +foulon".r
-    def unapply(x: Option[String]): Option[String] = x match {
+    def unapply(x: String): Option[String] = Option(x) match {
       case Some(foul_info_regex_new(player)) => Some(player)
       case _ => None
     }

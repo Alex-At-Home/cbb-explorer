@@ -51,18 +51,18 @@ object LineupEvent {
     /** Gets the event information (either from team or opponent - can't be both) */
     def get_info: Option[String] = team.orElse(opponent)
     /** Gets the event information (either from team or opponent - can't be both) */
-    def info: Option[String] = get_info.getOrElse("")
+    def info: String = get_info.getOrElse("")
 
     /** Gets the date string associated with the event */
-    def get_date_str: Option[String] = info.map { ev_str =>
+    def get_date_str: Option[String] = get_info.map { ev_str =>
       ev_str.split(',')(0)
     }
     /** Gets the date string associated with the event */
     def date_str: String = get_date_str.getOrElse("")
   }
   object RawGameEvent {
-    def team(s: String): RawGameEvent = RawGameEvent(Some(s), None)
-    def opponent(s: String): RawGameEvent = RawGameEvent(None, Some(s))
+    def team(s: String, poss: Int): RawGameEvent = RawGameEvent(Some(s), None, Some(poss))
+    def opponent(s: String, poss: Int): RawGameEvent = RawGameEvent(None, Some(s), None, Some(poss))
     object Team {
       def unapply(x: RawGameEvent): Option[String] = x.team
     }

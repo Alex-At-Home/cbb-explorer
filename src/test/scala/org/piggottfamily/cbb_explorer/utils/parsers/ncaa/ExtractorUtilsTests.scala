@@ -84,23 +84,23 @@ object ExtractorUtilsTests extends TestSuite {
         //  but want to demonstrate all the branches of this somewhat complex sub function)
 
         val event_list @ (event_list_1 :: event_list_2 :: event_list_rest) = List(
-          Model.OtherTeamEvent(0.4, Game.Score(0, 0), "pre-sub-1-no-ref"),
-          Model.OtherOpponentEvent(0.4, Game.Score(0, 0), "pre-sub-2-no-ref"),
-          Model.OtherTeamEvent(0.4, Game.Score(0, 0), "[player1] pre-sub-3-ref-p1"),
-          Model.OtherTeamEvent(0.4, Game.Score(0, 0), "[player2] pre-sub-4-ref-p2"),
-          Model.OtherOpponentEvent(0.4, Game.Score(0, 0), "[player1] pre-sub-5-ignore-p1"),
-          Model.OtherOpponentEvent(0.4, Game.Score(0, 0), "[player2] pre-sub-6-ignore-p2"),
+          Model.OtherTeamEvent(0.4, Game.Score(0, 0), 1, "pre-sub-1-no-ref"),
+          Model.OtherOpponentEvent(0.4, Game.Score(0, 0), 1, "pre-sub-2-no-ref"),
+          Model.OtherTeamEvent(0.4, Game.Score(0, 0), 2, "[player1] pre-sub-3-ref-p1"),
+          Model.OtherTeamEvent(0.4, Game.Score(0, 0), 2, "[player2] pre-sub-4-ref-p2"),
+          Model.OtherOpponentEvent(0.4, Game.Score(0, 0), 2, "[player1] pre-sub-5-ignore-p1"),
+          Model.OtherOpponentEvent(0.4, Game.Score(0, 0), 2, "[player2] pre-sub-6-ignore-p2"),
 
           Model.SubInEvent(0.4, "player1"),
-          Model.OtherTeamEvent(0.4, Game.Score(0, 0), "middle-event"),
+          Model.OtherTeamEvent(0.4, Game.Score(0, 0), 3, "middle-event"),
           Model.SubOutEvent(0.4, "player2"),
 
-          Model.OtherTeamEvent(0.4, Game.Score(0, 0), "post-sub-1-no-ref"),
-          Model.OtherOpponentEvent(0.4, Game.Score(0, 0), "post-sub-2-no-ref"),
-          Model.OtherTeamEvent(0.4, Game.Score(0, 0), "[player1] post-sub-3-ref-p1"),
-          Model.OtherTeamEvent(0.4, Game.Score(0, 0), "[player2] post-sub-4-ref-p2"),
-          Model.OtherOpponentEvent(0.4, Game.Score(0, 0), "[player1] post-sub-5-ignore-p1"),
-          Model.OtherOpponentEvent(0.4, Game.Score(0, 0), "[player2] post-sub-6-ignore-p2")
+          Model.OtherTeamEvent(0.4, Game.Score(0, 0), 3, "post-sub-1-no-ref"),
+          Model.OtherOpponentEvent(0.4, Game.Score(0, 0), 3, "post-sub-2-no-ref"),
+          Model.OtherTeamEvent(0.4, Game.Score(0, 0), 4, "[player1] post-sub-3-ref-p1"),
+          Model.OtherTeamEvent(0.4, Game.Score(0, 0), 4, "[player2] post-sub-4-ref-p2"),
+          Model.OtherOpponentEvent(0.4, Game.Score(0, 0), 4, "[player1] post-sub-5-ignore-p1"),
+          Model.OtherOpponentEvent(0.4, Game.Score(0, 0), 4, "[player2] post-sub-6-ignore-p2")
         )
 
         // (check trivial case )
@@ -169,8 +169,8 @@ object ExtractorUtilsTests extends TestSuite {
           //(note player6 being all upper case for 2017- and lower case for 2018 is
           // important to this test because we latch format on the first name found)
           Model.SubOutEvent(0.1, player1.id.name) ::
-          Model.OtherTeamEvent(0.2, Game.Score(1, 0), "event1a") ::
-          Model.OtherTeamEvent(0.2, Game.Score(2, 0), "event2a") ::
+          Model.OtherTeamEvent(0.2, Game.Score(1, 0), 1, "event1a") ::
+          Model.OtherTeamEvent(0.2, Game.Score(2, 0), 1, "event2a") ::
           // Second event
           Model.SubInEvent(0.4, player1.id.name) ::
           // confirm that all upper case names are returned to normal form:
@@ -178,16 +178,16 @@ object ExtractorUtilsTests extends TestSuite {
           // CHECK: we only care about "code" not "id":
           Model.SubOutEvent(0.4, player2.id.name.toUpperCase + " ii") ::
           Model.SubOutEvent(0.4, player4.id.name) ::
-          Model.OtherOpponentEvent(0.4, Game.Score(1, 1), "event1b") ::
-          Model.OtherOpponentEvent(0.4, Game.Score(1, 2), "event2b") ::
-          Model.OtherTeamEvent(0.4, Game.Score(3, 2), "event3a") ::
-          Model.OtherTeamEvent(0.4, Game.Score(4, 2), "event4a") ::
+          Model.OtherOpponentEvent(0.4, Game.Score(1, 1), 1, "event1b") ::
+          Model.OtherOpponentEvent(0.4, Game.Score(1, 2), 1, "event2b") ::
+          Model.OtherTeamEvent(0.4, Game.Score(3, 2), 2, "event3a") ::
+          Model.OtherTeamEvent(0.4, Game.Score(4, 2), 2, "event4a") ::
           // Half time! (third event)
           Model.GameBreakEvent(20.0) ::
           // (subs happen immediately after break)
           Model.SubOutEvent(20.0, player1.id.name) ::
-          Model.OtherOpponentEvent(20.0, Game.Score(4, 2), "PlayerA Leaves Game") :: //opponents can sub too....
-          Model.OtherOpponentEvent(20.0, Game.Score(4, 2), "PlayerB, substitution in") :: //(new format))
+          Model.OtherOpponentEvent(20.0, Game.Score(4, 2), 2, "PlayerA Leaves Game") :: //opponents can sub too....
+          Model.OtherOpponentEvent(20.0, Game.Score(4, 2), 2, "PlayerB, substitution in") :: //(new format))
           Model.SubInEvent(20.0, player6.id.name) ::
           // Fourth event  - sub-on-sub action
           Model.SubOutEvent(20.4, player2.id.name) ::
@@ -197,12 +197,12 @@ object ExtractorUtilsTests extends TestSuite {
           // Overtime! (first event)
           Model.GameBreakEvent(40.0) ::
           // Sixth event
-          Model.OtherOpponentEvent(40.4, Game.Score(4, 3), "event3b") ::
-          Model.OtherTeamEvent(40.4, Game.Score(5, 3), "event5a") ::
+          Model.OtherOpponentEvent(40.4, Game.Score(4, 3), 3, "event3b") ::
+          Model.OtherTeamEvent(40.4, Game.Score(5, 3), 3, "event5a") ::
           Model.SubInEvent(40.5, player6.id.name) ::
           Model.SubOutEvent(40.5, player1.id.name) ::
-          Model.OtherTeamEvent(40.6, Game.Score(6, 3), "event6a") ::
-          Model.OtherOpponentEvent(40.7, Game.Score(6, 4) , "event4b") ::
+          Model.OtherTeamEvent(40.6, Game.Score(6, 3), 3, "event6a") ::
+          Model.OtherOpponentEvent(40.7, Game.Score(6, 4) , 4, "event4b") ::
           // Fin (Seventh event)
           Model.GameEndEvent(45.0) ::
           Nil

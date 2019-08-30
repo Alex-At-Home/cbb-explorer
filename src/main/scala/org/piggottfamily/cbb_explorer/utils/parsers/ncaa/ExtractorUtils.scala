@@ -76,11 +76,11 @@ object ExtractorUtils {
             old_format = is_old_format(player_name, state)
           )
 
-        case Model.OtherTeamEvent(min, score, event_string) =>
-          state.with_team_event(min, event_string).with_latest_score(score)
+        case Model.OtherTeamEvent(min, score, poss, event_string) =>
+          state.with_team_event(min, poss, event_string).with_latest_score(score)
 
-        case Model.OtherOpponentEvent(min, score, event_string) =>
-          state.with_opponent_event(min, event_string).with_latest_score(score)
+        case Model.OtherOpponentEvent(min, score, poss, event_string) =>
+          state.with_opponent_event(min, poss, event_string).with_latest_score(score)
 
         case Model.GameBreakEvent(min) =>
           val completed_curr = complete_lineup(state.curr, min)
@@ -423,18 +423,18 @@ object ExtractorUtils {
           )
         )
       }
-      def with_team_event(min: Double, event_string: String): LineupBuildingState =
+      def with_team_event(min: Double, poss: Int, event_string: String): LineupBuildingState =
         copy(
           curr = curr.copy(
             end_min = min,
-            raw_game_events = LineupEvent.RawGameEvent.team(event_string) :: curr.raw_game_events
+            raw_game_events = LineupEvent.RawGameEvent.team(event_string, poss) :: curr.raw_game_events
           )
         )
-      def with_opponent_event(min: Double, event_string: String): LineupBuildingState =
+      def with_opponent_event(min: Double, poss: Int, event_string: String): LineupBuildingState =
         copy(
           curr = curr.copy(
             end_min = min,
-            raw_game_events = LineupEvent.RawGameEvent.opponent(event_string) :: curr.raw_game_events
+            raw_game_events = LineupEvent.RawGameEvent.opponent(event_string, poss) :: curr.raw_game_events
           )
         )
     }
@@ -450,6 +450,10 @@ object ExtractorUtils {
     sealed trait MiscGameEvent extends PlayByPlayEvent {
       /** The raw event string */
       def event_string: String
+      /** The possession number, once calculated */
+      def poss: Int
+      /** Updates the possession count */
+      def with_poss(new_poss: Int): MiscGameEvent
     }
     sealed trait SubEvent extends PlayByPlayEvent {
       /** The raw or processed substitute name */
@@ -463,11 +467,13 @@ object ExtractorUtils {
     case class SubOutEvent(min: Double, player_name: String) extends SubEvent {
       def with_min(new_min: Double): SubOutEvent = copy(min = new_min)
     }
-    case class OtherTeamEvent(min: Double, score: Game.Score, event_string: String) extends MiscGameEvent {
+    case class OtherTeamEvent(min: Double, score: Game.Score, poss: Int, event_string: String) extends MiscGameEvent {
       def with_min(new_min: Double): OtherTeamEvent = copy(min = new_min)
+      def with_poss(new_poss: Int): OtherTeamEvent = copy(poss = new_poss)
     }
-    case class OtherOpponentEvent(min: Double, score: Game.Score, event_string: String) extends MiscGameEvent {
+    case class OtherOpponentEvent(min: Double, score: Game.Score, poss: Int, event_string: String) extends MiscGameEvent {
       def with_min(new_min: Double): OtherOpponentEvent = copy(min = new_min)
+      def with_poss(new_poss: Int): OtherOpponentEvent = copy(poss = new_poss)
     }
     case class GameBreakEvent(min: Double) extends MiscGameBreak {
       def with_min(new_min: Double): GameBreakEvent = copy(min = new_min)

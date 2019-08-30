@@ -78,20 +78,7 @@ trait PlayByPlayParser {
         build_partial_lineup_list(reversed_events.toIterator, box_lineup), box_lineup
       )
     }.map { events =>
-      // Slightly complicated because we need to transform the lineup events in pairs
-      // ie the contents of eventN can change the contents of eventN_1
-      // (specifically: we don't know if a possession has ended until we look at the first
-      //  raw event of the next lineup)
-      val processed_events = {
-        case class EvState(results: List[LineupEvent], last_event: Option[LineupEvent])
-
-        (events.foldLeft(EvState(Nil, None)) { (state, event) =>
-          val (processed_event, maybe_completed_event) = enrich_lineup(event, state.last_event)
-          EvState(maybe_completed_event.toList ++ state.results, Some(processed_event))
-        }) match {
-          case EvState(results, maybe_final_event) => (maybe_final_event.toList ++ results).reverse
-        }
-      }
+      val processed_events = events.map(enrich_lineup _)
       processed_events.partition(e => validate_lineup(e, player_codes).isEmpty)
     }
   }
@@ -215,9 +202,9 @@ trait PlayByPlayParser {
             Right(Model.SubOutEvent(time_mins, player))
 
           case (Some(team), None) =>
-            Right(Model.OtherTeamEvent(time_mins, score, s"$time_str,$score_str,$team"))
+            Right(Model.OtherTeamEvent(time_mins, score, 0, s"$time_str,$score_str,$team"))
           case (None, Some(oppo)) =>
-            Right(Model.OtherOpponentEvent(time_mins, score, s"$time_str,$score_str,$oppo"))
+            Right(Model.OtherOpponentEvent(time_mins, score, 0, s"$time_str,$score_str,$oppo"))
 
           case (Some(team), Some(oppo)) =>
             Left(List(ParseUtils.build_sub_error(`ncaa.parse_playbyplay`)(

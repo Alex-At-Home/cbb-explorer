@@ -194,6 +194,7 @@ trait PossessionUtils {
 
       case _ if state.unclear && !offensive_rebound(evs) => PossessionEnd(last_clump = true)
         //(see the case that generates PossessionUnclear, below)
+//TODO: also need to handle a foul on the rebound? need to see what that counts as 
 
       case _ if offensive_turnover(evs) => PossessionEnd()
 

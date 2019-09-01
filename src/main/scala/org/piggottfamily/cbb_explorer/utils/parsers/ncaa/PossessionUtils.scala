@@ -27,12 +27,15 @@ trait PossessionUtils {
     team: Int, opponent: Int,
     direction: Direction.Value,
     possession_arrow: Direction.Value, //(who gets possession next game break)
-    possession_unclear: Boolean
-  )
+    status: PossState.Status.Value
+  ) {
+    def unclear: Boolean = status == PossState.Status.Unclear
+    def broken: Boolean = status == PossState.Status.Error
+  }
   protected object PossState {
     /** Starting state */
     def init: PossState  = PossState(
-      0, 0, Direction.Init, Direction.Init, false
+      0, 0, Direction.Init, Direction.Init, Status.Normal
     )
     /** Handles concurrency issues with the input data */
     case class ConcurrencyState(
@@ -42,6 +45,9 @@ trait PossessionUtils {
       /** Starting state */
       def init: ConcurrencyState = ConcurrencyState(-1.0)
     }
+    object Status extends Enumeration {
+      val Normal, Unclear, Error = Value
+    }
   }
 
   protected case class ConcurrentClump(evs: List[Model.PlayByPlayEvent])
@@ -49,6 +55,7 @@ trait PossessionUtils {
   protected sealed trait PossessionStatus
   protected case object PossessionArrowSwitch extends PossessionStatus
   protected case object PossessionUnclear extends PossessionStatus
+  protected case object PossessionError extends PossessionStatus
   protected case object PossessionContinues extends PossessionStatus
   protected case class PossessionEnd(last_clump: Boolean = false) extends PossessionStatus
 
@@ -100,6 +107,13 @@ trait PossessionUtils {
     ))
   }
 
+  /** Manages splitting stream into concurrent chunks and then combining them */
+  protected val concurrent_event_handler = Clumper(
+    PossState.ConcurrencyState.init,
+    check_for_concurrent_event _,
+    rearrange_concurrent_event _
+  )
+
   /** Figure out who has possession to start the game */
   protected def first_possession_status(evs: List[Model.PlayByPlayEvent]): Option[Direction.Value] = {
     evs.collect {
@@ -120,9 +134,14 @@ trait PossessionUtils {
     evs: List[Model.PlayByPlayEvent]
   ): PossessionStatus =
   {
-    val dir = state.direction
-    val defendingTeam = PossessionEvent(dir).DefendingTeam
-    val attackingTeam = PossessionEvent(dir).AttackingTeam
+    val defendingTeam = PossessionEvent(state.direction).DefendingTeam
+    val attackingTeam = PossessionEvent(state.direction).AttackingTeam
+
+    /** Error out if the possession information is inconsistent with events */
+    def invalid_possession_state(evs: List[Model.PlayByPlayEvent]): Boolean = evs.collect {
+      case attackingTeam(EventUtils.ParseCommonDefensiveEvent(_)) => ()
+      case defendingTeam(EventUtils.ParseCommonOffensiveEvent(_)) => ()
+    }.nonEmpty
 
     /** This is the highest prio .. if the defending team rebounds it, they now have possession */
     def defensive_rebound(evs: List[Model.PlayByPlayEvent]): Boolean = evs.collect {
@@ -166,19 +185,19 @@ trait PossessionUtils {
       case _: Model.MiscGameBreak => ()
     }.nonEmpty
 
-    //TODO: error on inconsistencies rather than silently give the wrong possession count
-
     evs match {
+      case _ if invalid_possession_state(evs) => PossessionError
+
       case _ if end_of_period(evs) => PossessionArrowSwitch
 
       case _ if defensive_rebound(evs) => PossessionEnd(last_clump = true)
 
-      case _ if state.possession_unclear && !offensive_rebound(evs) => PossessionEnd(last_clump = true)
+      case _ if state.unclear && !offensive_rebound(evs) => PossessionEnd(last_clump = true)
         //(see the case that generates PossessionUnclear, below)
 
       case _ if offensive_turnover(evs) => PossessionEnd()
 
-      case _ if technical_foul(evs) && (fts_some_missed(evs) || fts_some_made(evs)) => PossessionContinues
+      case _ if technical_foul(evs) => PossessionContinues
         //(if the defending team is called for a technical, the offensive team will get the ball back)
 
       case _ if made_shot(evs) && missed_and_one(evs) => PossessionContinues //(wait for the rebound)
@@ -214,12 +233,12 @@ trait PossessionUtils {
       if (state.direction == Direction.Team) {
         state.copy(
           opponent = state.opponent + 1, direction = Direction.Opponent,
-          possession_unclear = false
+          status = PossState.Status.Normal
         )
       } else { //(must be Opponent, not Init, by construction)
         state.copy(
           team = state.team + 1, direction = Direction.Team,
-          possession_unclear = false
+          status = PossState.Status.Normal
         )
       }
     }
@@ -228,6 +247,12 @@ trait PossessionUtils {
     def handle_clump(
       state: PossState, evs: List[Model.PlayByPlayEvent]
     ): (PossState, List[Model.PlayByPlayEvent]) = clump_possession_status(state, evs) match {
+
+      case PossessionError =>
+        val new_state = state.copy(status = PossState.Status.Error)
+        val dummy_event = Model.OtherTeamEvent(0.0, Game.Score(0, 0), 0, "00:00,0-0,POSSESSION_STATE_ERROR")
+        (new_state, dummy_event :: evs)
+
       case PossessionArrowSwitch =>
         val new_state = switch_state(state).copy(
           direction = state.possession_arrow,
@@ -245,22 +270,19 @@ trait PossessionUtils {
         (new_state, evs.map(ev => enrich(state, ev)))
         //(use the old stqte because it's the _next_ clump that belongs to the update possession count)
       case PossessionUnclear =>
-        (state.copy(possession_unclear = true), evs.map(ev => enrich(state, ev)))
+        (state.copy(status = PossState.Status.Unclear), evs.map(ev => enrich(state, ev)))
       case PossessionContinues =>
-        (state.copy(possession_unclear = false), evs.map(ev => enrich(state, ev)))
+        (state.copy(status = PossState.Status.Normal), evs.map(ev => enrich(state, ev)))
     }
 
-    /** Manages splitting stream into concurrent chunks and then combining them */
-    val concurrent_event_handler = Clumper(
-      PossState.ConcurrencyState.init,
-      check_for_concurrent_event _,
-      rearrange_concurrent_event _
-    )
-
-    val clumped_events = raw_events.map(ev => ConcurrentClump(List(ev)))
+    val clumped_events = raw_events.map(ev => ConcurrentClump(ev :: Nil))
     (StateUtils.foldLeft(
       clumped_events, PossState.init, classOf[Model.PlayByPlayEvent], concurrent_event_handler
     ) {
+      case StateEvent.Next(ctx, state, ConcurrentClump(evs)) if state.broken =>
+        // An error occurred so we're going to stop calculate possessions for this game
+        ctx.stateChange(state, evs)
+
       case StateEvent.Next(ctx, state, ConcurrentClump(evs)) if state.direction == Direction.Init =>
         // First state, who has the first possession?
         val (new_state, enriched_evs) = first_possession_status(evs) match {

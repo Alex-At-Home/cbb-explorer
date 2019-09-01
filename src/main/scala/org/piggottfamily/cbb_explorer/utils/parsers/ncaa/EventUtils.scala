@@ -344,6 +344,7 @@ object EventUtils {
       case ParseShotMade(x) => Some(x)
       case ParseShotMissed(x) => Some(x)
       case ParseTurnover(x) => Some(x)
+      case _ => None
     }
   }
 
@@ -353,6 +354,7 @@ object EventUtils {
       case ParsePersonalFoul(x) => Some(x)
       case ParseStolen(x) => Some(x)
       case ParseShotBlocked(x) => Some(x)
+      case _ => None
     }
   }
 

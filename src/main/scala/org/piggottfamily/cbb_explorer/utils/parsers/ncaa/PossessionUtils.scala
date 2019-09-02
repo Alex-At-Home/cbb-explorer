@@ -29,7 +29,6 @@ trait PossessionUtils {
     possession_arrow: Direction.Value, //(who gets possession next game break)
     status: PossState.Status.Value
   ) {
-    def unclear: Boolean = status == PossState.Status.Unclear
     def broken: Boolean = status == PossState.Status.Error
   }
   protected object PossState {
@@ -46,7 +45,7 @@ trait PossessionUtils {
       def init: ConcurrencyState = ConcurrencyState(-1.0)
     }
     object Status extends Enumeration {
-      val Normal, Unclear, Error = Value
+      val Normal, Error = Value
     }
   }
 
@@ -54,10 +53,10 @@ trait PossessionUtils {
 
   protected sealed trait PossessionStatus
   protected case object PossessionArrowSwitch extends PossessionStatus
-  protected case object PossessionUnclear extends PossessionStatus
   protected case object PossessionError extends PossessionStatus
   protected case object PossessionContinues extends PossessionStatus
-  protected case class PossessionEnd(last_clump: Boolean = false) extends PossessionStatus
+  /** compound_clump means that might have O and D possessions in the same clump */
+  protected case class PossessionEnd(compound_clump: Boolean = false) extends PossessionStatus
 
   protected case class PossessionEvent(dir: Direction.Value) {
     /** The team in possession */
@@ -77,6 +76,9 @@ trait PossessionUtils {
       }
     }
   }
+
+  /** We generate this if the possession calcuations go wrong */
+  val ERROR_EVENT = Model.OtherTeamEvent(0.0, Game.Score(0, 0), 0, "00:00,0-0,POSSESSION_STATE_ERROR")
 
   /** Util methods */
 
@@ -131,11 +133,17 @@ trait PossessionUtils {
   /** Process the events within a concurrent clump to see if the possession is changing/has changed */
   protected def clump_possession_status(
     state: PossState,
-    evs: List[Model.PlayByPlayEvent]
+    in_evs: List[Model.PlayByPlayEvent]
   ): PossessionStatus =
   {
     val defendingTeam = PossessionEvent(state.direction).DefendingTeam
     val attackingTeam = PossessionEvent(state.direction).AttackingTeam
+
+    /** Ignore any events that have already been processed */
+    def previously_processed: Model.PlayByPlayEvent => Boolean = {
+      case ev: Model.MiscGameEvent if ev.poss > 0 => true
+      case _ => false
+    }
 
     /** Error out if the possession information is inconsistent with events */
     def invalid_possession_state(evs: List[Model.PlayByPlayEvent]): Boolean = evs.collect {
@@ -143,13 +151,27 @@ trait PossessionUtils {
       case defendingTeam(EventUtils.ParseCommonOffensiveEvent(_)) => ()
     }.nonEmpty
 
-    /** This is the highest prio .. if the defending team rebounds it, they now have possession */
+    // A note on rebounding:
+    // Rebounds can be concurrent with missed shots ... for DRBs this is handled by the
+    // high prio of that case (but explains the logic below for assigning different team/offensive
+    // possesion numbers to the different events in the concurrentl clump), for ORBs this needs to
+    // be specifically handled
+    /** Example:
+    13:19:00	Ryan Cline, rebound defensive	8-7
+    13:19:00	Ryan Cline, block	8-7
+    13:19:00		8-7	Darryl Morsell, 2pt drivinglayup blocked missed
+    * And note you can have any of old-attacker/DRB/new-attacker in a single clump, eg
+    * (OA) shot, (OD) foul, (OA) missed, (OD) drb, (OA) foul, (OD) fts, etc -
+    * seems pretty unlikely you'd ever get more than 2 though, so can proceed on that basis
+    * (but note the code that ensures you only look at unenriched events, which prevents
+    *  an infinite recursion in that case ... we _should_ and do error out though)
+    */
+
+    /** This is the highest prio .. if the defending team rebounds it, they now have possession
+     * (note fouls on the defense following a missed shot/rebound do generate DRB events)
+    */
     def defensive_rebound(evs: List[Model.PlayByPlayEvent]): Boolean = evs.collect {
       case defendingTeam(EventUtils.ParseRebound(_)) => ()
-    }.nonEmpty
-
-    def offensive_rebound(evs: List[Model.PlayByPlayEvent]): Boolean = evs.collect {
-      case attackingTeam(EventUtils.ParseRebound(_)) => ()
     }.nonEmpty
 
     /** Offensive turnover */
@@ -177,7 +199,7 @@ trait PossessionUtils {
       case attackingTeam(EventUtils.ParseFreeThrowMissed(_)) => ()
     }.nonEmpty
 
-    def technical_foul(evs: List[Model.PlayByPlayEvent]): Boolean = evs.collect {
+    def technical_foul_defense(evs: List[Model.PlayByPlayEvent]): Boolean = evs.collect {
       case defendingTeam(EventUtils.ParseTechnicalFoul(_)) => ()
     }.nonEmpty
 
@@ -185,32 +207,56 @@ trait PossessionUtils {
       case _: Model.MiscGameBreak => ()
     }.nonEmpty
 
-    evs match {
-      case _ if invalid_possession_state(evs) => PossessionError
+    /** There's a bunch of different cases here:
+     * If the missed free throw is not the final one, then you will always see a "deadball rebound", eg:
+     (New) 04:28:00		52-59	Bruno Fernando, freethrow 1of2 missed [..]
+           04:28:00		52-59	Team, rebound offensivedeadball
+     (Old) 04:33,46-45,DAVISON,BRAD missed Free Throw
+           04:33,46-45,TEAM Deadball Rebound
+           04:33,47-45,DAVISON,BRAD made Free Throw
 
-      case _ if end_of_period(evs) => PossessionArrowSwitch
+     * If the missed free throw is the final one, you may or may not see a rebound (ie it might) be in
+     * the next clump (but then it's just like any other missed shot, ie "wait for the rebound")
+     * Unfortunately figuring out last vs intermediate free throws is only possible (in old format)
+     * by checking the scores
+     */
+    def handle_missed_freethrows(evs: List[Model.PlayByPlayEvent]): PossessionStatus = {
+      evs.collect {
+        case ev @ attackingTeam(EventUtils.ParseFreeThrowMade(_)) => ev
+        case ev @ attackingTeam(EventUtils.ParseFreeThrowMissed(_)) => ev
+      }.collect {
+        case ev: Model.MiscGameEvent => ev //(exposes .score, needed below)
+      }.sortBy(ev => Game.Score.unapply(ev.score)).reverse match { // reverse => highest first
+        case attackingTeam(EventUtils.ParseFreeThrowMade(_)) :: _ => //last free throw was made
+          PossessionEnd()
+        case attackingTeam(EventUtils.ParseFreeThrowMissed(_)) :: _ => //last free throw was missed
+          PossessionContinues
+      }
+    }
 
-      case _ if defensive_rebound(evs) => PossessionEnd(last_clump = true)
+    in_evs.filterNot(previously_processed) match {
+      case evs if end_of_period(evs) => PossessionArrowSwitch
 
-      case _ if state.unclear && !offensive_rebound(evs) => PossessionEnd(last_clump = true)
-        //(see the case that generates PossessionUnclear, below)
-//TODO: also need to handle a foul on the rebound? need to see what that counts as 
+      case evs if defensive_rebound(evs) => PossessionEnd(compound_clump = true)
+        // (note: defensive rebounds can be concurrent with misses)
 
-      case _ if offensive_turnover(evs) => PossessionEnd()
+      case evs if invalid_possession_state(evs) => PossessionError
+        //(it's a bit hard to parse out clumps with DRBs so we'll ignore them for invalid state checks)
 
-      case _ if technical_foul(evs) => PossessionContinues
-        //(if the defending team is called for a technical, the offensive team will get the ball back)
+      case evs if offensive_turnover(evs) => PossessionEnd()
 
-      case _ if made_shot(evs) && missed_and_one(evs) => PossessionContinues //(wait for the rebound)
-      case _ if made_shot(evs) => PossessionEnd()
+      case evs if technical_foul_defense(evs) => PossessionContinues
+        //(if the defending team is called for a technical, the offensive team will get the ball back,
+        // offensive technical fouls that result in a change of possession also generate an
+        // offensive turnover event, so can ignore)
 
-      case _ if fts_some_missed(evs) && fts_some_made(evs) => PossessionUnclear
-        //(the problem here is that with legacy data we don't know if the last one missed ...
-        // what happens is if there's no rebound on either side then possession changes
-        // if there's a DRB possession changes are per usual, and otherwise (==ORB) possession continues)
+      case evs if made_shot(evs) && missed_and_one(evs) => PossessionContinues //(wait for the rebound)
+        //(any free throws must be an and-1 because technical fouls are handled above)
+      case evs if made_shot(evs) => PossessionEnd() //(no and-1 because of order)
 
-      case _ if fts_some_missed(evs) => PossessionContinues //(all FTs missed => last FT missed => wait for the rebound)
-      case _ if fts_some_made(evs) => PossessionEnd()
+      case evs if fts_some_missed(evs) => handle_missed_freethrows(evs) //untangle what happened
+      case evs if fts_some_made(evs) => PossessionEnd() //(none missed because of order)
+
       case _ => PossessionContinues
     }
   }
@@ -222,9 +268,10 @@ trait PossessionUtils {
   {
     /** Adds possession count to raw event */
     def enrich(state: PossState, ev: Model.PlayByPlayEvent): Model.PlayByPlayEvent = ev match {
-      case game_ev: Model.MiscGameEvent if (state.direction == Direction.Team) =>
+      //(never overwrite a previous possession, ie ev_poss > 0)
+      case game_ev: Model.MiscGameEvent if (state.direction == Direction.Team) && game_ev.poss <= 0 =>
         game_ev.with_poss(state.team)
-      case game_ev: Model.MiscGameEvent if (state.direction == Direction.Opponent) =>
+      case game_ev: Model.MiscGameEvent if (state.direction == Direction.Opponent) && game_ev.poss <= 0 =>
         game_ev.with_poss(state.opponent)
       case _ => ev
     }
@@ -249,9 +296,9 @@ trait PossessionUtils {
       state: PossState, evs: List[Model.PlayByPlayEvent]
     ): (PossState, List[Model.PlayByPlayEvent]) = clump_possession_status(state, evs) match {
 
-      case PossessionError =>
+      case PossessionError => //latch the error state on, will stop trying to calc possessions
         val new_state = state.copy(status = PossState.Status.Error)
-        val dummy_event = Model.OtherTeamEvent(0.0, Game.Score(0, 0), 0, "00:00,0-0,POSSESSION_STATE_ERROR")
+        val dummy_event = ERROR_EVENT
         (new_state, dummy_event :: evs)
 
       case PossessionArrowSwitch =>
@@ -264,14 +311,19 @@ trait PossessionUtils {
         (new_state, evs.map(ev => enrich(state, ev)))
 
       case PossessionEnd(true) =>
+        val attackingTeam = PossessionEvent(state.direction).AttackingTeam
         val new_state = switch_state(state)
-        handle_clump(new_state, evs) //(can't recurse more than once by construction)
+        val partially_enriched_evs = evs.map {
+          case ev @ attackingTeam(_) => enrich(state, ev) //(use old state)
+          case ev => ev //(will get enriched next on the recursion below)
+        }
+        handle_clump(new_state, partially_enriched_evs)
+
       case PossessionEnd(false) =>
+        val attackingTeam = PossessionEvent(state.direction).AttackingTeam
         val new_state = switch_state(state)
         (new_state, evs.map(ev => enrich(state, ev)))
-        //(use the old stqte because it's the _next_ clump that belongs to the update possession count)
-      case PossessionUnclear =>
-        (state.copy(status = PossState.Status.Unclear), evs.map(ev => enrich(state, ev)))
+
       case PossessionContinues =>
         (state.copy(status = PossState.Status.Normal), evs.map(ev => enrich(state, ev)))
     }

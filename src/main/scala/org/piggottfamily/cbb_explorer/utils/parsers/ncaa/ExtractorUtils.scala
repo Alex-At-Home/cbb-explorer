@@ -454,6 +454,8 @@ object ExtractorUtils {
       def poss: Int
       /** Updates the possession count */
       def with_poss(new_poss: Int): MiscGameEvent
+      /** The current score */
+      def score: Game.Score
     }
     sealed trait SubEvent extends PlayByPlayEvent {
       /** The raw or processed substitute name */

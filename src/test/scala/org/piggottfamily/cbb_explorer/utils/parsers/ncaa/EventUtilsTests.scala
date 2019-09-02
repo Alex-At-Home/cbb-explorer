@@ -53,6 +53,8 @@ object EventUtilsTests extends TestSuite {
         "08:44:00,20-23,Team, rebound offensive team" ::
         "08:44:00,20-23,SMITH,JALEN Offensive Rebound" ::
         "08:44:00,20-23,HARRAR,JOHN Defensive Rebound" ::
+        "04:33,46-45,TEAM Deadball Rebound" ::
+        "04:28:0,52-59,Team, rebound offensivedeadball" ::
         Nil
 
       val free_throw_made_test_cases =
@@ -61,7 +63,11 @@ object EventUtilsTests extends TestSuite {
         Nil
 
       val free_throw_missed_test_cases =
-        "08:44:00,20-23,Kevin Anderson, freethrow 1of2 missed" ::
+        "08:44:00,20-23,Kevin Anderson1, freethrow 1of2 missed" ::
+        "08:44:00,20-23,Kevin Anderson2, freethrow 2of2 missed" ::
+        "08:44:00,20-23,Kevin Anderson3, freethrow 1of3 missed" ::
+        "08:44:00,20-23,Kevin Anderson4, freethrow 2of3 missed" ::
+        "08:44:00,20-23,Kevin Anderson5, freethrow 3of3 missed" ::
         "08:44:00,20-23,DREAD,MYLES missed Free Throw" ::
         Nil
 
@@ -151,7 +157,17 @@ object EventUtilsTests extends TestSuite {
           case EventUtils.ParseRebound(name) => name
         }) {
           case List(
-            "Darryl Morsell", "Jalen Smith", "Team", "SMITH,JALEN", "HARRAR,JOHN"
+            "Darryl Morsell", "Jalen Smith", "Team", "SMITH,JALEN", "HARRAR,JOHN", "TEAM", "Team"
+          ) =>
+        }
+      }
+      // (deadball)
+      "ParseTeamDeadballRebound" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseTeamDeadballRebound(name) => name
+        }) {
+          case List(
+            "TEAM", "Team"
           ) =>
         }
       }
@@ -171,7 +187,17 @@ object EventUtilsTests extends TestSuite {
           case EventUtils.ParseFreeThrowMissed(name) => name
         }) {
           case List(
-            "Kevin Anderson", "DREAD,MYLES"
+            "Kevin Anderson1", "Kevin Anderson2", "Kevin Anderson3", "Kevin Anderson4",
+            "Kevin Anderson5", "DREAD,MYLES"
+          ) =>
+        }
+      }
+      "ParseMiddleFreeThrowMissed" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseMiddleFreeThrowMissed(name) => name
+        }) {
+          case List(
+            "Kevin Anderson1", "Kevin Anderson3", "Kevin Anderson4",
           ) =>
         }
       }

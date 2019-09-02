@@ -207,16 +207,18 @@ object EventUtils {
 
   // Rebounding (can tell ORB vs DRB based on possession)
 
+  /** Uncategorized rebound, including team/deadball etc */
   object ParseRebound {
     // New:
     // Darryl Morsell, rebound defensive
     // Jalen Smith, rebound offensive
     // Team, rebound offensive team
+    // 09:48:00	Team, rebound offensivedeadball
     // Legacy:
     // SMITH,JALEN Offensive Rebound
     // HARRAR,JOHN Defensive Rebound
 
-    private val rebound_regex = "[^,]+,[^,]+,(.+) +(?:Offensive|Defensive) +Rebound".r
+    private val rebound_regex = "[^,]+,[^,]+,(.+) +(?:Offensive|Defensive|Deadball) +Rebound".r
     private val rebound_regex_new = "[^,]+,[^,]+,(.+), +rebound +.*".r
     def unapply(x: String): Option[String] = Option(x) match {
       case Some(rebound_regex(player)) => Some(player)
@@ -225,10 +227,29 @@ object EventUtils {
     }
   }
 
+  /** Occurs with an intermediate FT miss (ignore),  a block out of bounds, missed
+   * final FT off the defender? etc
+  */
+  object ParseTeamDeadballRebound {
+    // New:
+    //04:28:0,52-59,Team, rebound offensivedeadball
+    // Legacy:
+    // 04:33,46-45,TEAM Deadball Rebound
+
+    private val rebound_deadball_regex = "[^,]+,[^,]+,(.+) +Deadball +Rebound".r
+    private val rebound_deadball_regex_new = "[^,]+,[^,]+,(.+), +rebound offensivedeadball".r
+    def unapply(x: String): Option[String] = Option(x) match {
+      case Some(rebound_deadball_regex(player)) => Some(player)
+      case Some(rebound_deadball_regex_new(player)) => Some(player)
+      case _ => None
+    }
+  }
+
   //TODO: categorize ORB vs DRB for easier stats collection
 
   // Free throws
 
+  /** Any made free throw */
   object ParseFreeThrowMade {
     //New: (warning .. free throws can come in the wrong order)
     // Kevin Anderson, freethrow 2of2 made
@@ -243,6 +264,7 @@ object EventUtils {
     }
   }
 
+  /** Any missed free throw */
   object ParseFreeThrowMissed {
     //New: (warning .. free throws can come in the wrong order)
     // Kevin Anderson, freethrow 1of2 missed
@@ -253,6 +275,17 @@ object EventUtils {
     def unapply(x: String): Option[String] = Option(x) match {
       case Some(ft_missed_regex(player)) => Some(player)
       case Some(ft_missed_regex_new(player)) => Some(player)
+      case _ => None
+    }
+  }
+
+  /** (New format only) A missed free throw */
+  object ParseMiddleFreeThrowMissed {
+    private val ft_missed_middle2_regex_new = "[^,]+,[^,]+,(.+), +freethrow 1of2 +(?:.* +)?missed".r
+    private val ft_missed_middle3_regex_new = "[^,]+,[^,]+,(.+), +freethrow [12]of3 +(?:.* +)?missed".r
+    def unapply(x: String): Option[String] = Option(x) match {
+      case Some(ft_missed_middle2_regex_new(player)) => Some(player)
+      case Some(ft_missed_middle3_regex_new(player)) => Some(player)
       case _ => None
     }
   }
@@ -347,6 +380,7 @@ object EventUtils {
       case _ => None
     }
   }
+  //TODO test
 
   /** An offensive event that tells us who is starting a possession */
   object ParseCommonDefensiveEvent {
@@ -357,5 +391,6 @@ object EventUtils {
       case _ => None
     }
   }
+  //TODO test
 
 }

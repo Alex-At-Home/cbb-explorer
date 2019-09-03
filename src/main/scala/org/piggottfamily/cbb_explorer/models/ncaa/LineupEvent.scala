@@ -61,8 +61,8 @@ object LineupEvent {
     def date_str: String = get_date_str.getOrElse("")
   }
   object RawGameEvent {
-    def team(s: String, poss: Int): RawGameEvent = RawGameEvent(Some(s), None, Some(poss))
-    def opponent(s: String, poss: Int): RawGameEvent = RawGameEvent(None, Some(s), None, Some(poss))
+    def team(s: String, poss: Int): RawGameEvent = RawGameEvent(Some(s), None, Some(poss).filter(_ != 0))
+    def opponent(s: String, poss: Int): RawGameEvent = RawGameEvent(None, Some(s), None, Some(poss).filter(_ != 0))
     object Team {
       def unapply(x: RawGameEvent): Option[String] = x.team
     }

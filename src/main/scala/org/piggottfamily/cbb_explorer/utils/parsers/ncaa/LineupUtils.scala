@@ -8,21 +8,6 @@ import org.piggottfamily.cbb_explorer.models.ncaa._
 trait LineupUtils {
   import ExtractorUtils._
 
-  /** Useful scriptlet for checking results
-  // Show results
-  l.groupBy(t => (t.opponent, t.location_type)).mapValues(
-    _.foldLeft((0,0))
-    { (acc, v) => (acc._1 + v.team_stats.num_possessions,acc._2 + v.opponent_stats.num_possessions) }
-  )
-  // Compare to previous results
-  (x1 zip x2).map { case (k, v) => k._1 -> (k._2._1 - v._2._1, k._2._2 - v._2._2) }
-  */
-
-/** TODO`
-val (team_possessions, opp_possessions, proc_events, adjust_prev_lineup) =
-  calculate_possessions(lineup.raw_game_events, last_game_event)
-*/
-
   /** TODO build the stats from the game events */
   def enrich_lineup(lineup: LineupEvent): LineupEvent =
   {
@@ -31,14 +16,10 @@ val (team_possessions, opp_possessions, proc_events, adjust_prev_lineup) =
 
     lineup.copy(
       team_stats = lineup.team_stats.copy(
-        num_events = lineup.raw_game_events.filter(_.team.isDefined).size,
-        num_possessions = 0, //TODO: enrich based on raw events
         pts = scored,
         plus_minus = scored - allowed
       ),
       opponent_stats = lineup.opponent_stats.copy(
-        num_events = lineup.raw_game_events.filter(_.opponent.isDefined).size, //TODO exclude subs
-        num_possessions = 0, //TODO as above
         pts = allowed,
         plus_minus = allowed - scored
       )

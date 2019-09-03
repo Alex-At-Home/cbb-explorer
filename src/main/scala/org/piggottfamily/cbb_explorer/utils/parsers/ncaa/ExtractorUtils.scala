@@ -44,7 +44,7 @@ object ExtractorUtils {
       event match {
         case Model.SubInEvent(min, player_name) if state.is_active(min) =>
           val tidier_player_name = tidy_player(player_name)
-          val completed_curr = complete_lineup(state.curr, min)
+          val completed_curr = complete_lineup(state.curr, state.prev, min)
           state.copy(
             curr = new_lineup_event(
               completed_curr, in = Some(tidier_player_name)
@@ -54,7 +54,7 @@ object ExtractorUtils {
           )
         case Model.SubOutEvent(min, player_name) if state.is_active(min) =>
           val tidier_player_name = tidy_player(player_name)
-          val completed_curr = complete_lineup(state.curr, min)
+          val completed_curr = complete_lineup(state.curr, state.prev, min)
           state.copy(
             curr = new_lineup_event(
               completed_curr, out = Some(tidier_player_name)
@@ -83,7 +83,7 @@ object ExtractorUtils {
           state.with_opponent_event(min, poss, event_string).with_latest_score(score)
 
         case Model.GameBreakEvent(min) =>
-          val completed_curr = complete_lineup(state.curr, min)
+          val completed_curr = complete_lineup(state.curr, state.prev, min)
           val (new_lineup_id, new_players) =
             if (state.old_format.getOrElse(box_lineup.team.year.value < 2018)) {
               (starters_only.lineup_id, starters_only.players)
@@ -98,7 +98,7 @@ object ExtractorUtils {
             prev = completed_curr :: state.prev
           )
         case Model.GameEndEvent(min) =>
-          state.copy(curr = complete_lineup(state.curr, min))
+          state.copy(curr = complete_lineup(state.curr, state.prev, min))
       }
     }
     end_state.build()
@@ -349,18 +349,28 @@ object ExtractorUtils {
   }
 
   /** Fills in/tidies up a partial lineup event following its completion */
-  private def complete_lineup(curr: LineupEvent, min: Double): LineupEvent = {
+  private def complete_lineup(curr: LineupEvent, prevs: List[LineupEvent], min: Double): LineupEvent = {
     val curr_players = curr.players.map(p => p.code -> p).toMap
     val curr_players_out = curr.players_out.map(p => p.code -> p).toMap
     val curr_players_in = curr.players_in.map(p => p.code -> p).toMap
     val new_player_list =
       (curr_players -- curr_players_out.keySet ++ curr_players_in).values.toList
 
+    val (team_possessions, opponent_possessions) = PossessionUtils.sum_possessions(curr, prevs)
+
     curr.copy(
       end_min = min,
       duration_mins = min - curr.start_min,
       score_info = curr.score_info.copy(
         end_diff = curr.score_info.end.scored - curr.score_info.end.allowed
+      ),
+      team_stats = curr.team_stats.copy(
+        num_events = curr.raw_game_events.filter(_.team.isDefined).size,
+        num_possessions = team_possessions
+      ),
+      opponent_stats = curr.opponent_stats.copy(
+        num_events = curr.raw_game_events.filter(_.opponent.isDefined).size, //TODO exclude subs
+        num_possessions = opponent_possessions
       ),
       lineup_id = build_lineup_id(new_player_list),
       players = new_player_list.sortBy(_.code),

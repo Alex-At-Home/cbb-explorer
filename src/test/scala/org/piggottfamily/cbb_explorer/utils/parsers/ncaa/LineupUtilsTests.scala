@@ -39,7 +39,7 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
 
         TestUtils.inside(enrich_lineup(test_lineup_1)) {
           case enriched_lineup =>
-            enriched_lineup.team_stats.num_events ==> 1
+            enriched_lineup.team_stats.num_events ==> 0
             enriched_lineup.team_stats.num_possessions ==> 0
             enriched_lineup.team_stats.pts ==> 2
             enriched_lineup.team_stats.plus_minus ==> 1

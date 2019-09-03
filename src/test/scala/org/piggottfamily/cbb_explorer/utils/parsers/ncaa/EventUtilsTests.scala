@@ -55,6 +55,7 @@ object EventUtilsTests extends TestSuite {
         "08:44:00,20-23,HARRAR,JOHN Defensive Rebound" ::
         "04:33,46-45,TEAM Deadball Rebound" ::
         "04:28:0,52-59,Team, rebound offensivedeadball" ::
+        "04:28:0,52-59,Team, rebound defensivedeadball" ::
         Nil
 
       val free_throw_made_test_cases =
@@ -118,6 +119,13 @@ object EventUtilsTests extends TestSuite {
           case List("Kavell Bigby-Williams", "Bruno Fernando") =>
         }
       }
+      "ParseJumpballWon" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseJumpballWon(name) => name
+        }) {
+          case List("Bruno Fernando") =>
+        }
+      }
       // Timeout
       "ParseTimeout" - {
         TestUtils.inside(all_test_cases.collect {
@@ -157,7 +165,17 @@ object EventUtilsTests extends TestSuite {
           case EventUtils.ParseRebound(name) => name
         }) {
           case List(
-            "Darryl Morsell", "Jalen Smith", "Team", "SMITH,JALEN", "HARRAR,JOHN", "TEAM", "Team"
+            "Darryl Morsell", "Jalen Smith", "Team", "SMITH,JALEN", "HARRAR,JOHN", "TEAM", "Team", "Team"
+          ) =>
+        }
+      }
+      //(defensive)
+      "ParseDefensiveRebound" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseDefensiveRebound(name) => name
+        }) {
+          case List(
+            "Darryl Morsell", "HARRAR,JOHN", "Team"
           ) =>
         }
       }
@@ -167,7 +185,7 @@ object EventUtilsTests extends TestSuite {
           case EventUtils.ParseTeamDeadballRebound(name) => name
         }) {
           case List(
-            "TEAM", "Team"
+            "TEAM", "Team", "Team"
           ) =>
         }
       }

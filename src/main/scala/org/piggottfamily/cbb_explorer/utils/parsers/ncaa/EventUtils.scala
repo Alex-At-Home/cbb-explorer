@@ -68,6 +68,18 @@ object EventUtils {
       case _ => None
     }
   }
+  /** Look for won jumpball */
+  object ParseJumpballWon {
+    // Examples:
+    // New:
+    //RawGameEvent(Some("19:58:00,0-0,Bruno Fernando, jumpball won"), None),
+    // Legacy: (none)
+    private val jumpball_regex = "[^,]+,[^,]+,(.+), +jumpball won".r
+    def unapply(x: String): Option[String] = Option(x) match {
+      case Some(jumpball_regex(player)) => Some(player)
+      case _ => None
+    }
+  }
 
   /** Blocked shot (hardwire "Team" as return value)*/
   object ParseTimeout {
@@ -227,8 +239,27 @@ object EventUtils {
     }
   }
 
+  /** Defensive rebound, including team/deadball etc */
+  object ParseDefensiveRebound {
+    // New:
+    // Darryl Morsell, rebound defensive
+    // 19:09:00,29-38,Team, rebound defensivedeadball
+    // Legacy:
+    // HARRAR,JOHN Defensive Rebound
+//TODO; deadball rebounds are a problem in legacy mode
+
+    private val rebound_regex = "[^,]+,[^,]+,(.+) +Defensive +Rebound".r
+    private val rebound_regex_new = "[^,]+,[^,]+,(.+), +rebound +defensive.*".r
+    def unapply(x: String): Option[String] = Option(x) match {
+      case Some(rebound_regex(player)) => Some(player)
+      case Some(rebound_regex_new(player)) => Some(player)
+      case _ => None
+    }
+  }
+
   /** Occurs with an intermediate FT miss (ignore),  a block out of bounds, missed
    * final FT off the defender? etc
+   * We make this off or def because legacy format doesn't provide that information
   */
   object ParseTeamDeadballRebound {
     // New:
@@ -237,10 +268,12 @@ object EventUtils {
     // 04:33,46-45,TEAM Deadball Rebound
 
     private val rebound_deadball_regex = "[^,]+,[^,]+,(.+) +Deadball +Rebound".r
-    private val rebound_deadball_regex_new = "[^,]+,[^,]+,(.+), +rebound offensivedeadball".r
+    private val rebound_deadball_off_regex_new = "[^,]+,[^,]+,(.+), +rebound offensivedeadball".r
+    private val rebound_deadball_def_regex_new = "[^,]+,[^,]+,(.+), +rebound defensivedeadball".r
     def unapply(x: String): Option[String] = Option(x) match {
       case Some(rebound_deadball_regex(player)) => Some(player)
-      case Some(rebound_deadball_regex_new(player)) => Some(player)
+      case Some(rebound_deadball_off_regex_new(player)) => Some(player)
+      case Some(rebound_deadball_def_regex_new(player)) => Some(player)
       case _ => None
     }
   }
@@ -293,21 +326,21 @@ object EventUtils {
   // Turnover events
 
   object ParseTurnover {
-      // New:
-      // Bruno Fernando, turnover badpass
-      // Joshua Tomaic, turnover lostball
-      // Jalen Smith, turnover offensive
-      // Kevin Anderson, turnover travel
-      // Legacy:
-      // MORSELL,DARRYL Turnover
+    // New:
+    // Bruno Fernando, turnover badpass
+    // Joshua Tomaic, turnover lostball
+    // Jalen Smith, turnover offensive
+    // Kevin Anderson, turnover travel
+    // Legacy:
+    // MORSELL,DARRYL Turnover
 
-      private val turnover_regex = "[^,]+,[^,]+,(.+) +Turnover".r
-      private val turnover_regex_new = "[^,]+,[^,]+,(.+), +turnover +.*".r
-      def unapply(x: String): Option[String] = Option(x) match {
-        case Some(turnover_regex(player)) => Some(player)
-        case Some(turnover_regex_new(player)) => Some(player)
-        case _ => None
-      }
+    private val turnover_regex = "[^,]+,[^,]+,(.+) +Turnover".r
+    private val turnover_regex_new = "[^,]+,[^,]+,(.+), +turnover +.*".r
+    def unapply(x: String): Option[String] = Option(x) match {
+      case Some(turnover_regex(player)) => Some(player)
+      case Some(turnover_regex_new(player)) => Some(player)
+      case _ => None
+    }
   }
 
   /** Steal */
@@ -327,7 +360,7 @@ object EventUtils {
 
   // Foul events
 
-  /** Personal foul */
+  /** Personal foul (ie the person committing it)- can be offensive or defensive */
   object ParsePersonalFoul {
     // New:
     //RawGameEvent(Some("13:36:00,7-9,Jalen Smith, foul personal shooting;2freethrow"), None)
@@ -373,21 +406,23 @@ object EventUtils {
   /** An offensive event that tells us who is starting a possession */
   object ParseCommonOffensiveEvent {
     def unapply(x: String): Option[String] = x match {
-      case ParseTimeout(x) => Some(x)
+      case ParseFreeThrowMade(x) => Some(x)
+      case ParseFreeThrowMissed(x) => Some(x)
       case ParseShotMade(x) => Some(x)
       case ParseShotMissed(x) => Some(x)
       case ParseTurnover(x) => Some(x)
+      //TODO: others (ORB)
       case _ => None
     }
   }
   //TODO test
 
-  /** An offensive event that tells us who is starting a possession */
+  /** A defensive event that tells us who is starting a possession */
   object ParseCommonDefensiveEvent {
     def unapply(x: String): Option[String] = x match {
-      case ParsePersonalFoul(x) => Some(x)
       case ParseStolen(x) => Some(x)
       case ParseShotBlocked(x) => Some(x)
+      case ParseDefensiveRebound(x) => Some(x)
       case _ => None
     }
   }

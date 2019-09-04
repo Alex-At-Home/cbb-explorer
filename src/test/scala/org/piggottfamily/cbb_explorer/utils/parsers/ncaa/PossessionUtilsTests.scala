@@ -37,6 +37,7 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
         val foul_opponent = Model.OtherOpponentEvent(0.0, gs, 0, "10:00,51-60,MYKHAILIUK,SVI Commits Foul")
         val made_ft_opponent = Model.OtherOpponentEvent(0.0, gs, 0, "05:10,55-68,Kevin Anderson, freethrow 2of2 made")
         val missed_ft_opponent = Model.OtherOpponentEvent(0.0, gs, 0, "10:00,51-60,DREAD,MYLES missed Free Throw")
+        val steal_opponent = Model.OtherOpponentEvent(0.0, gs, 0, "05:10,55-68,MASON III,FRANK Steal")
 
         val orb_opponent = Model.OtherOpponentEvent(0.0, gs, 0, "10:00,51-60,Darryl Morsell, rebound offensive")
         val drb_opponent = Model.OtherOpponentEvent(0.0, gs, 0, "10:00,51-60,Darryl Morsell, rebound defensive")
@@ -96,7 +97,7 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
           (Events.jump_won_team -> Some(Direction.Team)) ::
           (Events.jump_won_opponent -> Some(Direction.Opponent)) ::
           (Events.turnover_team -> Some(Direction.Team)) ::
-          (Events.steal_team -> Some(Direction.Opponent)) ::
+          (Events.steal_team -> Some(Direction.Team)) :: //Ignored so uses next event
           (Events.made_team -> Some(Direction.Team)) ::
           (Events.missed_ft_team -> Some(Direction.Team)) ::
           (Events.missed_opponent -> Some(Direction.Opponent)) ::
@@ -137,6 +138,7 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
         val turnover_events =
           (List(Events.turnover_team) -> PossessionEnd) ::
           (List(Events.foul_team) -> PossessionEnd) ::
+          (List(Events.foul_team, Events.foul_opponent) -> PossessionContinues) :: //offsetting fouls)
           Nil
 
         val missed_ft_events =
@@ -153,8 +155,8 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
           ) ::
           Nil
 
-        val events_that_error_team = //(check DRBs prevent errors occuring)
-          (List(Events.steal_team) -> PossessionError) ::
+        val events_that_error_team =
+          (List(Events.steal_team) -> PossessionContinues) :: //(steals and blocks are ignored)
           (List(Events.missed_opponent) -> PossessionError) ::
           Nil
 
@@ -212,6 +214,7 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
         // Test Cases 3.*: Check that possession change is handled correctly across a game break
         // Test Cases 4.*: check that missed free throws are handled correctly
         // Test Cases 5.*: Check that after a possession error everything stops
+        // Test Cases 6.*: Descriptive defensive events can occur _after_ the action event
 
         val game_1_events = //Test cases 1-3
           // Jump ball, ignored (1.*)
@@ -232,6 +235,9 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
           Events.game_break.copy(min = 10.0) ::
           // 3O possession
           Events.made_opponent.copy(min = 20.0, poss = -3) ::
+          // 3T possession - Turnover (3.*, 6.*)
+          Events.turnover_team.copy(min = 19.0, poss = -3) ::
+          Events.steal_opponent.copy(min = 18.0, poss = -3) ::
           // Game end (check is ignored)
           Events.game_break.copy(min = 0.0) ::
           Nil
@@ -246,8 +252,9 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
           // 1T possession - fouled and both free throws made (2.*, 4.*)
           Events.made_ft_team.copy(min = 18.0, poss = -1) ::
           Events.made_ft_team.copy(min = 18.0, poss = -1) ::
-          // 2O incomplete possession (3.*)
-          Model.OtherOpponentEvent(17.0, gs, -2, "17:00,0-0,Misc event") ::
+          // 2O missed shot (3.*)
+          Events.missed_opponent.copy(min = 17.0, poss = -2) ::
+          Events.drb_team.copy(min = 16.0, poss = -2) ::
           // Game break (3.*)
           Events.game_break.copy(min = 15.0) ::
           // 2T possession - fouled, missed a free throw, ends up it was the first so possession switches (2.*, 4.*)

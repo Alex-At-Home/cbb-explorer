@@ -240,6 +240,25 @@ object EventUtils {
   }
 
   /** Defensive rebound, including team/deadball etc */
+  object ParseOffensiveRebound {
+    // New:
+    // Darryl Morsell, rebound defensive
+    // 19:09:00,29-38,Team, rebound defensivedeadball
+    // Legacy:
+    // HARRAR,JOHN Defensive Rebound
+//TODO; deadball rebounds are a problem in legacy mode
+
+    private val rebound_regex = "[^,]+,[^,]+,(.+) +Offensive +Rebound".r
+    private val rebound_regex_new = "[^,]+,[^,]+,(.+), +rebound +offensive.*".r
+    def unapply(x: String): Option[String] = Option(x) match {
+      case Some(rebound_regex(player)) => Some(player)
+      case Some(rebound_regex_new(player)) => Some(player)
+      case _ => None
+    }
+  }
+  //TODO: test
+
+  /** Defensive rebound, including team/deadball etc */
   object ParseDefensiveRebound {
     // New:
     // Darryl Morsell, rebound defensive
@@ -403,28 +422,45 @@ object EventUtils {
 
   // Useful
 
-  /** An offensive event that tells us who is starting a possession */
-  object ParseCommonOffensiveEvent {
+  /** An offensive event that tells us who is which side in a possession */
+  object ParseOffensiveEvent {
     def unapply(x: String): Option[String] = x match {
       case ParseFreeThrowMade(x) => Some(x)
       case ParseFreeThrowMissed(x) => Some(x)
       case ParseShotMade(x) => Some(x)
       case ParseShotMissed(x) => Some(x)
       case ParseTurnover(x) => Some(x)
-      //TODO: others (ORB)
+      case _ => None
+      //(Note there's insufficient info in fouls to use them here)
+      //(ORBs not needed becausee must be associated with one of the above actions)
+    }
+  }
+  //TODO test
+
+  /** An offensive event that tells us who is which side in a possession */
+  object ParseDefensiveActionEvent {
+    def unapply(x: String): Option[String] = x match {
+      case ParseDefensiveRebound(x) => Some(x)
+      case _ => None
+      //(Note there's insufficient info in fouls to use them here)
+    }
+  }
+  //TODO test
+
+  /** A defensive event that provides context to an offensive action (eg turnovere) */
+  object ParseDefensiveInfoEvent {
+    def unapply(x: String): Option[String] = x match {
+      case ParseShotBlocked(x) => Some(x)
+      case ParseStolen(x) => Some(x)
       case _ => None
     }
   }
   //TODO test
 
-  /** A defensive event that tells us who is starting a possession */
-  object ParseCommonDefensiveEvent {
-    def unapply(x: String): Option[String] = x match {
-      case ParseStolen(x) => Some(x)
-      case ParseShotBlocked(x) => Some(x)
-      case ParseDefensiveRebound(x) => Some(x)
-      case _ => None
-    }
+  /** Any defensive event */
+  object ParseDefensiveEvent {
+    def unapply(x: String): Option[String] =
+      ParseDefensiveActionEvent.unapply(x).orElse { ParseDefensiveInfoEvent.unapply(x) }
   }
   //TODO test
 

@@ -10,45 +10,46 @@ trait PossessionUtils {
   import ExtractorUtils._
   import StateUtils.StateTypes._
 
+//TODO: handle jump ball, switches the possession arrow....
+
   /** Useful scriptlet for checking results
-  // Show results
+  // Show results (checl)
   l.groupBy(t => (t.opponent, t.location_type)).mapValues(
     _.foldLeft((0,0))
     { (acc, v) => (acc._1 + v.team_stats.num_possessions,acc._2 + v.opponent_stats.num_possessions) }
   )
-  //Or:
-  l.groupBy(t => (t.opponent, t.location_type)).mapValues(
-    _.flatMap(_.raw_game_events).reverse.flatMap(ev => ev.team_possession.orElse(ev.opponent_possession)).headOption
-  )
   // Compare to previous results
   (x1 zip x2).map { case (k, v) => k._1 -> (k._2._1 - v._2._1, k._2._2 - v._2._2) }
+
+  //Or (checking vs raw game events):
+  l.groupBy(t => (t.opponent, t.location_type)).mapValues { ev =>
+    ev.headOption.map(_.date) -> ev.flatMap(_.raw_game_events).reverse.flatMap(ev => ev.team_possession.orElse(ev.opponent_possession)).headOption
+  }.toList.sortBy(_._2._1.toString)
+
+  // Number of missing possessions:
+  l.groupBy(t => (t.opponent, t.location_type)).mapValues { ev =>
+     ev.headOption.map(_.date) -> ev.flatMap(_.raw_game_events).count(ev => ev.toString.contains("MISSING_POSSESSION"))
+  }.toList.sortBy(_._2._1.toString)
   */
 
-  /**
-TODO current batch of issues:
-1] turnover -> steal pair isn't concurrent :/
-2] not sure yet
+/** Problems:
 
- (del->umd)RawGameEvent(Some("17:42,5-0,FERNANDO,BRUNO Defensive Rebound"), None, Some(5), None),
+NCAT: missed an and-one, so over-counted FTs
+19:10:00	Tyrone Lyons, 2pt jumpshot 2ndchance;fromturnover;pointsinthepaint made	27-49
+19:06:00		27-49	Bruno Fernando, foul personal shooting;1freethrow
+19:06:00	Tyrone Lyons, foulon	27-49
+19:06:00	Tyrone Lyons, freethrow 1of1 2ndchance;fastbreak;fromturnover made
+(fixed this ... but .....)
+Ah but if you miss the front-end of a 1-1 then you get it wrong also...
+00:50:40	Ty Jerome, freethrow 1of1 fastbreak missed	70-65
+00:50:40		70-65	Bruno Fernando, rebound defensive
+00:50:40		70-65	Aaron Wiggins, foul personal oneandone
 
- (umd->del)RawGameEvent(Some("17:32,5-0,FERNANDO,BRUNO Turnover"), None, Some(6), None),
-
- RawGameEvent(None, Some("17:31,5-0, MISSING_POSSESSION_END"), None, Some(6)),
- (del-!->umd->umd)RawGameEvent(None, Some("17:31,5-0,CARTER JR.,JOHN Steal"), None, Some(7)),
-
- RawGameEvent(Some("17:27,5-0, MISSING_POSSESSION_END"), None, Some(7), None),
- RawGameEvent(None, Some("17:27,5-0,CARTER JR.,JOHN missed Two Point Jumper"), None, Some(7)),
- RawGameEvent(Some("17:27,5-0,FERNANDO,BRUNO Defensive Rebound"), None, Some(7), None),
---(umd)-->
-RawGameEvent(Some("17:27,5-0, MISSING_POSSESSION_END"), None, Some(7), None),
-   (umd-!->del->umd)RawGameEvent(Some("17:27,5-0,FERNANDO,BRUNO Defensive Rebound"), None, Some(7), None),
-//(should be another missed possession here?! unless my concurrent list is in the wronf order)
-   (umd-!->del->del)RawGameEvent(None, Some("17:27,5-0,CARTER JR.,JOHN missed Two Point Jumper"), None, Some(7)),
-
- RawGameEvent(Some("17:20,5-0,SMITH,JALEN missed Three Point Jumper"), None, Some(8), None),
-
-TODO maybe have descriptive (steal/block/foulon) vs actionable (made/missed/rebound)
-and then if the descriptive one is wrong, we just enrich it with the previous state?
+UVA discrepancy is weird:
+[INFO] Parsed box score: opponent=[TeamSeasonId(TeamId(Virginia),Year(2018))] venue=[Home]
+--------------------
+[50 - 10 + 7 + 14 = 61]
+[59 - 9 + ~6~ 7 + 2 = ~58~ 59] so still a diff of 2 even with the FT fix
 
 */
 
@@ -69,12 +70,14 @@ and then if the descriptive one is wrong, we just enrich it with the previous st
   protected case class PossState(
     team: Int, opponent: Int,
     direction: Direction.Value,
-    possession_arrow: Direction.Value //(who gets possession next game break)
+    possession_arrow: Direction.Value, //(who gets possession next game break)
+    team_stats: StatsFragment,
+    opponent_stats: StatsFragment
   )
   protected object PossState {
     /** Starting state */
     def init: PossState  = PossState(
-      0, 0, Direction.Init, Direction.Init
+      0, 0, Direction.Init, Direction.Init, StatsFragment(), StatsFragment()
     )
     /** Handles concurrency issues with the input data */
     case class ConcurrencyState(
@@ -97,7 +100,7 @@ and then if the descriptive one is wrong, we just enrich it with the previous st
   protected case class PossessionEvent(dir: Direction.Value) {
     /** The team in possession */
     object AttackingTeam {
-      def unapply(x: Model.PlayByPlayEvent): Option[String] = x match {
+      def unapply(x: Model.MiscGameEvent): Option[String] = x match {
         case Model.OtherTeamEvent(_, _, _, event_str) if dir == Direction.Team => Some(event_str)
         case Model.OtherOpponentEvent(_, _, _, event_str) if dir == Direction.Opponent => Some(event_str)
         case _ => None
@@ -105,12 +108,63 @@ and then if the descriptive one is wrong, we just enrich it with the previous st
     }
     /** The team not in possession */
     object DefendingTeam {
-      def unapply(x: Model.PlayByPlayEvent): Option[String] = x match {
+      def unapply(x: Model.MiscGameEvent): Option[String] = x match {
         case Model.OtherTeamEvent(_, _, _, event_str) if dir == Direction.Opponent => Some(event_str)
         case Model.OtherOpponentEvent(_, _, _, event_str) if dir == Direction.Team => Some(event_str)
         case _ => None
       }
     }
+  }
+
+/**/
+case class StatsFragment(
+  shots_made_or_missed: Int = 0,
+  total_number_of_orbs: Int = 0,
+  total_number_of_ft_events: Int = 0,
+  total_number_of_tos: Int = 0
+) {
+  def sum(rhs: StatsFragment) = this.copy(
+    shots_made_or_missed = this.shots_made_or_missed + rhs.shots_made_or_missed,
+    total_number_of_orbs = this.total_number_of_orbs + rhs.total_number_of_orbs,
+    total_number_of_ft_events = this.total_number_of_ft_events + rhs.total_number_of_ft_events,
+    total_number_of_tos = this.total_number_of_tos + rhs.total_number_of_tos,
+  )
+  def total_poss = {
+    shots_made_or_missed - total_number_of_orbs + total_number_of_ft_events + total_number_of_tos
+  }
+  def summary: String = {
+    s"${shots_made_or_missed} - ${total_number_of_orbs} + ${total_number_of_ft_events} + ${total_number_of_tos} = $total_poss"
+  }
+}
+  def calculate_stats(clump: List[Model.PlayByPlayEvent], dir: Direction.Value): StatsFragment = {
+    val attackingTeam = PossessionEvent(dir).AttackingTeam
+
+    val ft_event_this_clump = clump.collect {
+      case attackingTeam(EventUtils.ParseFreeThrowMade(_)) => ()
+      case attackingTeam(EventUtils.ParseFreeThrowMissed(_)) => ()
+    }.nonEmpty
+    val and_one = clump.collect {
+      case attackingTeam(EventUtils.ParseFreeThrowMade(_)) => ()
+      case attackingTeam(EventUtils.ParseFreeThrowMissed(_)) => ()
+    }.size == 1
+
+    val filtered_clump = clump.filter {
+      case attackingTeam(EventUtils.ParseTeamDeadballRebound(_)) => false
+      case _ => true
+    }
+    // Shots made or missed
+    val shots_made_or_missed = filtered_clump.collect {
+      case attackingTeam(EventUtils.ParseShotMade(_)) => ()
+      case attackingTeam(EventUtils.ParseShotMissed(_)) => ()
+    }.size
+    val total_number_of_ft_events = if (ft_event_this_clump && !and_one) 1 else 0
+    val total_number_of_orbs = filtered_clump.collect {
+      case attackingTeam(EventUtils.ParseOffensiveRebound(_)) => ()
+    }.size
+    val total_number_of_tos = filtered_clump.collect {
+      case attackingTeam(EventUtils.ParseTurnover(_)) => ()
+    }.size
+    StatsFragment(shots_made_or_missed, total_number_of_orbs, total_number_of_ft_events, total_number_of_tos)
   }
 
   /** We generate this if the possession calcuations go wrong */
@@ -149,6 +203,16 @@ and then if the descriptive one is wrong, we just enrich it with the previous st
     // By splitting the clump into (at most) 2, 1 for each direction based on analyzing the
     // event type (and using the prev/next if the event isn't clearly in one direction or the other)
 
+    /** Example:
+     RawGameEvent(None, Some("12:37:00,11-13,Dan Dwyer, rebound defensive"),
+     RawGameEvent(None, Some("12:16:00,14-13,Justin Wright-Foreman, 3pt jumpshot made"),
+     RawGameEvent(None, Some("12:16:00,14-13,Dan Dwyer, assist"),
+     RawGameEvent(None, Some("12:16:00,14-13,Dan Dwyer, rebound defensive"),
+     RawGameEvent(Some("12:16:00,14-13,Aaron Wiggins, 2pt layup blocked missed"),
+     RawGameEvent(None, Some("12:16:00,14-13,Desure Buie, block"),
+    */
+//TODO: this will break offsetting fouls
+
     case class InClumpState(
       start: List[Model.PlayByPlayEvent], //these are consistent with the current direction
       end: List[Model.PlayByPlayEvent], //these are consistent with the switched direction
@@ -161,13 +225,13 @@ and then if the descriptive one is wrong, we just enrich it with the previous st
     val defendingTeam = PossessionEvent(current_dir).DefendingTeam
 
     def get_direction(ev: Model.PlayByPlayEvent): Direction.Value = ev match {
-      case attackingTeam(EventUtils.ParseCommonOffensiveEvent(_)) =>
+      case attackingTeam(EventUtils.ParseOffensiveEvent(_)) =>
         current_dir
-      case defendingTeam(EventUtils.ParseCommonDefensiveEvent(_)) =>
+      case defendingTeam(EventUtils.ParseDefensiveEvent(_)) =>
         current_dir
-      case defendingTeam(EventUtils.ParseCommonOffensiveEvent(_)) =>
+      case defendingTeam(EventUtils.ParseOffensiveEvent(_)) =>
         next_dir
-      case attackingTeam(EventUtils.ParseCommonDefensiveEvent(_)) =>
+      case attackingTeam(EventUtils.ParseDefensiveEvent(_)) =>
         next_dir
       case _ => Direction.Init
     }
@@ -203,6 +267,7 @@ and then if the descriptive one is wrong, we just enrich it with the previous st
         }
       }
 
+/**
     List(
       ConcurrentClump(
         start_evs.reverse
@@ -211,6 +276,10 @@ and then if the descriptive one is wrong, we just enrich it with the previous st
         end_evs.reverse
       )
     ).filter(_.evs.nonEmpty)
+*/
+List(ConcurrentClump(
+  raw_list
+))
   }
 //TODO: to test
 
@@ -230,13 +299,13 @@ and then if the descriptive one is wrong, we just enrich it with the previous st
       case Model.OtherOpponentEvent(_, _, _, EventUtils.ParseJumpballWon(_)) =>
         Direction.Opponent
       // Legacy calcuations:
-      case Model.OtherTeamEvent(_, _, _, EventUtils.ParseCommonOffensiveEvent(_)) =>
+      case Model.OtherTeamEvent(_, _, _, EventUtils.ParseOffensiveEvent(_)) =>
         Direction.Team
-      case Model.OtherTeamEvent(_, _, _, EventUtils.ParseCommonDefensiveEvent(_)) =>
+      case Model.OtherTeamEvent(_, _, _, EventUtils.ParseDefensiveActionEvent(_)) =>
         Direction.Opponent
-      case Model.OtherOpponentEvent(_, _, _, EventUtils.ParseCommonOffensiveEvent(_)) =>
+      case Model.OtherOpponentEvent(_, _, _, EventUtils.ParseOffensiveEvent(_)) =>
         Direction.Opponent
-      case Model.OtherOpponentEvent(_, _, _, EventUtils.ParseCommonDefensiveEvent(_)) =>
+      case Model.OtherOpponentEvent(_, _, _, EventUtils.ParseDefensiveActionEvent(_)) =>
         Direction.Team
       // Note have to ignore fouls since they can be offensive or defensive, will handle that
       // in some separate logic before the main fold, below
@@ -266,8 +335,8 @@ and then if the descriptive one is wrong, we just enrich it with the previous st
 
     /** Error out if the possession information is inconsistent with events */
     def invalid_possession_state(evs: List[Model.PlayByPlayEvent]): Boolean = evs.collect {
-      case attackingTeam(EventUtils.ParseCommonDefensiveEvent(_)) => ()
-      case defendingTeam(EventUtils.ParseCommonOffensiveEvent(_)) => ()
+      case attackingTeam(EventUtils.ParseDefensiveActionEvent(_)) => ()
+      case defendingTeam(EventUtils.ParseOffensiveEvent(_)) => ()
     }.nonEmpty
 
     /** This is the highest prio .. if the defending team rebounds it, they now have possession
@@ -281,7 +350,19 @@ and then if the descriptive one is wrong, we just enrich it with the previous st
     /** Offensive turnover */
     def offensive_turnover(evs: List[Model.PlayByPlayEvent]): Boolean = evs.collect {
       case attackingTeam(EventUtils.ParseTurnover(_)) => ()
-      case attackingTeam(EventUtils.ParsePersonalFoul(_)) => ()
+      case attackingTeam(EventUtils.ParsePersonalFoul(_)) if evs.collect {
+        // Look out for offsetting personals:
+        /** Example
+        RawGameEvent(Some("07:43:00,51-61,Aaron Wiggins, rebound defensive"), None, Some(57), None),
+        RawGameEvent(None, Some("07:28:00,51-61,Kevin Anderson, foulon"), None, Some(57)),
+        RawGameEvent(Some("07:28:00,51-61,Ivan Bender, foul personal flagrant1"), None, Some(57), None),
+        RawGameEvent(Some("07:28:00,51-61,Ivan Bender, foulon"), None, Some(57), None),
+        RawGameEvent(None, Some("07:28:00,51-61,Kevin Anderson, foul personal flagrant1"), None, Some(57)),
+        RawGameEvent(Some("07:10:00,51-61,Anthony Cowan, 2pt jumpshot missed"), None, Some(58), None),
+        */
+        case defendingTeam(EventUtils.ParsePersonalFoul(_)) => ()
+      }.isEmpty => ()
+//TODO: test
     }.nonEmpty
 
     /** Made shot and missed the and one ... need to wait for DRB */
@@ -329,8 +410,6 @@ and then if the descriptive one is wrong, we just enrich it with the previous st
       evs.collect {
         case ev @ attackingTeam(EventUtils.ParseFreeThrowMade(_)) => ev
         case ev @ attackingTeam(EventUtils.ParseFreeThrowMissed(_)) => ev
-      }.collect {
-        case ev: Model.MiscGameEvent => ev //(exposes .score, needed below)
       }.sortBy(ev => Game.Score.unapply(ev.score)).reverse match { // reverse => highest first
         case attackingTeam(EventUtils.ParseFreeThrowMade(_)) :: _ => //last free throw was made
           PossessionEnd
@@ -398,14 +477,30 @@ and then if the descriptive one is wrong, we just enrich it with the previous st
   ): List[Model.PlayByPlayEvent] =
   {
     /** Adds possession count to raw event */
-    def enrich(state: PossState, ev: Model.PlayByPlayEvent): Model.PlayByPlayEvent = ev match {
-      //(never overwrite a previous possession, ie ev_poss > 0)
-      case game_ev: Model.MiscGameEvent if (state.direction == Direction.Team) && game_ev.poss <= 0 =>
-        game_ev.with_poss(state.team)
-      case game_ev: Model.MiscGameEvent if (state.direction == Direction.Opponent) && game_ev.poss <= 0 =>
-        game_ev.with_poss(state.opponent)
-//TODO: oh wait this isn't right, you can have opponent actions as part of team possession etc
-      case _ => ev
+    def enrich(state: PossState, ev: Model.PlayByPlayEvent): Model.PlayByPlayEvent = {
+      val attackingTeam = PossessionEvent(state.direction).AttackingTeam
+      ev match {
+        // Special case...  a defensive action from the previous possession:
+        /** Example:
+        RawGameEvent(Some("17:42,5-0,FERNANDO,BRUNO Defensive Rebound"),
+        RawGameEvent(Some("17:32,5-0,FERNANDO,BRUNO Turnover"),
+        */
+        case game_ev @ attackingTeam(EventUtils.ParseDefensiveInfoEvent(_)) if game_ev.poss <= 0 =>
+          game_ev.with_poss(state.direction match {
+            case Direction.Team => state.opponent
+            case Direction.Opponent => state.team
+            case _ => 0
+          })
+        case game_ev: Model.MiscGameEvent if game_ev.poss <= 0 =>
+  //TODO: oh wait this isn't right, you can have opponent actions as part of team possession etc
+          game_ev.with_poss(state.direction match {
+            case Direction.Team => state.team
+            case Direction.Opponent => state.opponent
+            case _ => 0
+          })
+        case _ => ev
+          //(never overwrite a previous possession, ie ev_poss > 0)
+      }
     }
 
     /** Sort out state if possession changes */
@@ -421,8 +516,42 @@ and then if the descriptive one is wrong, we just enrich it with the previous st
       }
     }
 
+    /** Sort out state if possession changes _across game break_ */
+    def switch_state_on_game_break(state: PossState): PossState = {
+      /** Examples
+         T: made: 1
+         O: made: 1 (here, state=(T: 2, O: 1, dir=T))
+         <break, dir arrow = O|T>
+         O: made: 2 | T: made: 2
+         T: made: 2 | O: made: 2
+         (note every half ends on a made shot or a -possibly deadball? defensive rebound)
+      */
+      if (state.direction == state.possession_arrow) {
+        state
+      } else {
+        if (state.direction == Direction.Team) {
+          state.copy(
+            team = state.team - 1, opponent = state.opponent + 1, direction = Direction.Opponent
+          )
+        } else { //(must be Opponent, not Init, by construction)
+          state.copy(
+            team = state.team + 1, opponent = state.opponent - 1, direction = Direction.Team
+          )
+        }
+      }
+    }
+
     /** If a possession has been missed, create a dummy one to keep the stats correct */
     def inject_missed_possession(evs: List[Model.PlayByPlayEvent], dir: Direction.Value): Model.PlayByPlayEvent = {
+      /** Example of a missed possession:
+      RawGameEvent(Some("13:23:00,8-13,Bruno Fernando, foul personal shooting;2freethrow"),
+      RawGameEvent(None, Some("13:22:00,9-13,Stafford Trueheart, freethrow 2of2 2ndchance made"),
+      RawGameEvent(None, Some("13:22:00,8-13,Stafford Trueheart, freethrow 1of2 2ndchance missed"),
+      RawGameEvent(None, Some("13:22:00,8-13,Team, rebound offensivedeadball"),
+      RawGameEvent(Some("12:50:00,11-13, MISSING_POSSESSION"),
+      RawGameEvent(None, Some("12:50:00,11-13,Justin Wright-Foreman, 2pt layup pointsinthepaint made"),
+      */
+
       val first_game_event = evs.collect {
         case ev: Model.MiscGameEvent => ev
       }.headOption.getOrElse(Model.OtherTeamEvent(0.0, Game.Score(0, 0), 0, ""))
@@ -448,8 +577,7 @@ and then if the descriptive one is wrong, we just enrich it with the previous st
         handle_clump(new_state, dummy_event :: evs)
 
       case PossessionArrowSwitch =>
-        val new_state = switch_state(state).copy(
-          direction = state.possession_arrow,
+        val new_state = switch_state_on_game_break(state).copy(
           possession_arrow = Direction.opposite(state.possession_arrow)
         )
         //Game break meaning whoever has the possession arrow gets the ball, so may or may not`
@@ -457,7 +585,6 @@ and then if the descriptive one is wrong, we just enrich it with the previous st
         (new_state, evs.map(ev => enrich(state, ev)))
 
       case PossessionEnd =>
-        val attackingTeam = PossessionEvent(state.direction).AttackingTeam
         val new_state = switch_state(state)
         (new_state, evs.map(ev => enrich(state, ev)))
 
@@ -468,6 +595,27 @@ and then if the descriptive one is wrong, we just enrich it with the previous st
 //TODO: before we do anything else, let's check if the first possession is "difficult" and inject
 //dummy events to make life easier if so
 
+    val clumped_events = raw_events.map(ev => ConcurrentClump(ev :: Nil))
+    StateUtils.foldLeft(
+      clumped_events, PossState.init, classOf[Model.PlayByPlayEvent], concurrent_event_handler
+    ) {
+      case StateEvent.Next(ctx, state, ConcurrentClump(evs)) =>
+        ctx.stateChange(state.copy(
+          team_stats = state.team_stats.sum(calculate_stats(evs, Direction.Team)),
+          opponent_stats = state.opponent_stats.sum(calculate_stats(evs, Direction.Opponent))
+        ))
+
+      case StateEvent.Complete(ctx, state) => //(no additional processing when element list complete)
+        println("--------------------")
+        println(s"[${state.team_stats.summary}]")
+        println(s"[${state.opponent_stats.summary}]")
+        println("--------------------")
+        ctx.noChange
+
+    }
+    raw_events.toList
+
+    /**
     val clumped_events = raw_events.map(ev => ConcurrentClump(ev :: Nil))
     (StateUtils.foldLeft(
       clumped_events, PossState.init, classOf[Model.PlayByPlayEvent], concurrent_event_handler
@@ -497,6 +645,7 @@ and then if the descriptive one is wrong, we just enrich it with the previous st
       case FoldStateComplete(_, events) =>
         events
     }
+    */
 
   } //(end calculate_possessions)
 }

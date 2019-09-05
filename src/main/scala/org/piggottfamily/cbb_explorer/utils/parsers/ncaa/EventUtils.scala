@@ -407,6 +407,20 @@ object EventUtils {
     }
   }
 
+  /** Flagrant foul */
+  object ParseFlagrantFoul {
+//TODO    
+    // New:
+    //"team": "06:43:00,55-79,Bruno Fernando, foul technical classa;2freethrow"
+    // Legacy:
+    //(haven't found any yet)
+    private val technical_foul_regex_new = "[^,]+,[^,]+,(.+), +foul technical.*".r
+    def unapply(x: String): Option[String] = Option(x) match {
+      case Some(technical_foul_regex_new(player)) => Some(player)
+      case _ => None
+    }
+  }
+
   /** Who was fouled? */
   object ParseFoulInfo {
     // New:

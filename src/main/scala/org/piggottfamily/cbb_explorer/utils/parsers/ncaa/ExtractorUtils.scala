@@ -356,8 +356,6 @@ object ExtractorUtils {
     val new_player_list =
       (curr_players -- curr_players_out.keySet ++ curr_players_in).values.toList
 
-    val (team_possessions, opponent_possessions) = PossessionUtils.sum_possessions(curr, prevs)
-
     curr.copy(
       end_min = min,
       duration_mins = min - curr.start_min,
@@ -366,11 +364,11 @@ object ExtractorUtils {
       ),
       team_stats = curr.team_stats.copy(
         num_events = curr.raw_game_events.filter(_.team.isDefined).size,
-        num_possessions = team_possessions
+        num_possessions = 0 //(calculate later)
       ),
       opponent_stats = curr.opponent_stats.copy(
         num_events = curr.raw_game_events.filter(_.opponent.isDefined).size, //TODO exclude subs
-        num_possessions = opponent_possessions
+        num_possessions = 0 //(calculate later)
       ),
       lineup_id = build_lineup_id(new_player_list),
       players = new_player_list.sortBy(_.code),

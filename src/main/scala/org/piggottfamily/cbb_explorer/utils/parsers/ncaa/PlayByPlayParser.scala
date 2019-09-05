@@ -72,14 +72,15 @@ trait PlayByPlayParser {
     val player_codes = box_lineup.players.map(_.code).toSet
 
     parse_game_events(filename, in, box_lineup.team.team).map { reversed_events =>
-      val reversed_events_with_poss = PossessionUtils.calculate_possessions(
+//TODO: just here for display during testing      
+      PossessionUtils.calculate_possessions(
         reversed_events.reverse //(enrich with possessions)
       ).reverse
 
       // There is a weird bug that has happened one time where the scores got swapped
       // So we'll identify and fix this case
       fix_possible_score_swap_bug(
-        build_partial_lineup_list(reversed_events_with_poss.toIterator, box_lineup), box_lineup
+        build_partial_lineup_list(reversed_events.toIterator, box_lineup), box_lineup
       )
     }.map { events =>
       val processed_events = events.map(enrich_lineup _)

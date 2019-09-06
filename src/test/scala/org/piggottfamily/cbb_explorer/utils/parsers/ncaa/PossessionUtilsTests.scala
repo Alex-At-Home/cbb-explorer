@@ -14,52 +14,48 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
   val tests = Tests {
     "PossessionUtils" - {
 
-      val gs = Game.Score(0, 0)
-
       /** A handy compilation of events */
       object Events {
-        val game_break = Model.GameBreakEvent(0.9)
-        val jump_won_team = Model.OtherTeamEvent(0.0, gs, 0, "19:58:00,0-0,Bruno Fernando, jumpball won")
-        val jump_won_opponent = Model.OtherOpponentEvent(0.0, gs, 0, "19:58:00,0-0,Bruno Fernando, jumpball won")
-        val jump_lost_opponent = Model.OtherOpponentEvent(0.0, gs, 0, "19:58:00,0-0,Kavell Bigby-Williams, jumpball lost")
+        val jump_won_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "19:58:00,0-0,Bruno Fernando, jumpball won")
+        val jump_won_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "19:58:00,0-0,Bruno Fernando, jumpball won")
+        val jump_lost_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "19:58:00,0-0,Kavell Bigby-Williams, jumpball lost")
 
-        val turnover_team = Model.OtherTeamEvent(0.0, gs, 0, "08:44:00,20-23,Bruno Fernando, turnover badpass")
-        val steal_team = Model.OtherTeamEvent(0.0, gs, 0, "05:10,55-68,MASON III,FRANK Steal")
-        val made_team = Model.OtherTeamEvent(0.0, gs, 0, "10:00,51-60,SMITH,JALEN made Three Point Jumper")
-        val made_ft_team = Model.OtherTeamEvent(0.0, gs, 0, "05:10,55-68,Kevin Anderson, freethrow 2of2 made")
-        val missed_ft_team = Model.OtherTeamEvent(0.0, gs, 0, "10:00,51-60,DREAD,MYLES missed Free Throw")
-        val orb_team = Model.OtherTeamEvent(0.0, gs, 0, "10:00,51-60,Darryl Morsell, rebound offensive")
-        val drb_team = Model.OtherTeamEvent(0.0, gs, 0, "10:00,51-60,Darryl Morsell, rebound defensive")
-        val foul_team = Model.OtherTeamEvent(0.0, gs, 0, "10:00,51-60,MYKHAILIUK,SVI Commits Foul")
+        val turnover_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "08:44:00,20-23,Bruno Fernando, turnover badpass")
+        val steal_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,55-68,MASON III,FRANK Steal")
+        val made_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,SMITH,JALEN made Three Point Jumper")
+        val made_ft_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,55-68,Kevin Anderson, freethrow 2of2 made")
+        val missed_ft_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,DREAD,MYLES missed Free Throw")
+        val orb_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,Darryl Morsell, rebound offensive")
+        val drb_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,Darryl Morsell, rebound defensive")
+        val foul_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,MYKHAILIUK,SVI Commits Foul")
 
-        val made_opponent = Model.OtherOpponentEvent(0.0, gs, 0, "10:00,51-60,SMITH,JALEN made Three Point Jumper")
-        val missed_opponent = Model.OtherOpponentEvent(0.0, gs, 0, "02:28:00,27-38,Eric Ayala, 3pt jumpshot 2ndchance missed")
-        val foul_opponent = Model.OtherOpponentEvent(0.0, gs, 0, "10:00,51-60,MYKHAILIUK,SVI Commits Foul")
-        val made_ft_opponent = Model.OtherOpponentEvent(0.0, gs, 0, "05:10,55-68,Kevin Anderson, freethrow 2of2 made")
-        val missed_ft_opponent = Model.OtherOpponentEvent(0.0, gs, 0, "10:00,51-60,DREAD,MYLES missed Free Throw")
-        val steal_opponent = Model.OtherOpponentEvent(0.0, gs, 0, "05:10,55-68,MASON III,FRANK Steal")
+        val made_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "10:00,51-60,SMITH,JALEN made Three Point Jumper")
+        val missed_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "02:28:00,27-38,Eric Ayala, 3pt jumpshot 2ndchance missed")
+        val foul_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "10:00,51-60,MYKHAILIUK,SVI Commits Foul")
+        val made_ft_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "05:10,55-68,Kevin Anderson, freethrow 2of2 made")
+        val missed_ft_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "10:00,51-60,DREAD,MYLES missed Free Throw")
+        val steal_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "05:10,55-68,MASON III,FRANK Steal")
 
-        val orb_opponent = Model.OtherOpponentEvent(0.0, gs, 0, "10:00,51-60,Darryl Morsell, rebound offensive")
-        val drb_opponent = Model.OtherOpponentEvent(0.0, gs, 0, "10:00,51-60,Darryl Morsell, rebound defensive")
-        val tech_opponent = Model.OtherOpponentEvent(0.0, gs, 0, "06:43:00,55-79,Bruno Fernando, foul technical classa;2freethrow")
+        val orb_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "10:00,51-60,Darryl Morsell, rebound offensive")
+        val drb_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "10:00,51-60,Darryl Morsell, rebound defensive")
+        val tech_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "06:43:00,55-79,Bruno Fernando, foul technical classa;2freethrow")
       }
 
       "concurrent_event_handler" - {
         // (test check_for_concurrent_event and rearrange_concurrent_event)
 
         val test_events @ (
-          ev1 :: ev2 :: ev3 :: ev4 :: ev_gb :: ev5 :: ev6 :: ev7
+          ev1 :: ev2 :: ev3 :: ev4 :: ev5 :: ev6 :: ev7
           :: Nil
         ) =
           // Test minutes based clumping
-          Model.OtherTeamEvent(0.4, Game.Score(0, 0), 1, "ev-1") ::
-          Model.OtherOpponentEvent(0.5, Game.Score(0, 0), 1, "ev-2") ::
-          Model.OtherTeamEvent(0.9, Game.Score(0, 0), 1, "ev-3") ::
-          Model.OtherOpponentEvent(0.9, Game.Score(0, 0), 1, "ev-4") ::
-          Model.GameBreakEvent(0.9) ::
-          Model.OtherTeamEvent(0.9, Game.Score(0, 0), 1, "ev-5") ::
-          Model.OtherOpponentEvent(0.9, Game.Score(0, 0), 1, "ev-6") ::
-          Model.OtherTeamEvent(1.0, Game.Score(0, 0), 1, "ev-7") ::
+          LineupEvent.RawGameEvent.team(min = 0.4, s = "ev-1") ::
+          LineupEvent.RawGameEvent.opponent(min = 0.5, s = "ev-2") ::
+          LineupEvent.RawGameEvent.team(min = 0.9, s = "ev-3") ::
+          LineupEvent.RawGameEvent.opponent(min = 0.9, s = "ev-4") ::
+          LineupEvent.RawGameEvent.team(min = 0.8, s = "ev-5") ::
+          LineupEvent.RawGameEvent.opponent(min = 0.8, s = "ev-6") ::
+          LineupEvent.RawGameEvent.team(min = 1.0, s = "ev-7") ::
           // Test possession directing based clumping
           Nil
         val test_events_in = test_events.map(ev => ConcurrentClump(ev :: Nil))
@@ -77,7 +73,6 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
             ConcurrentClump(`ev1` :: Nil) ::
             ConcurrentClump(`ev2` :: Nil) ::
             ConcurrentClump(`ev3` :: `ev4` :: Nil) ::
-            ConcurrentClump(`ev_gb` :: Nil) ::
             ConcurrentClump(`ev5` :: `ev6` :: Nil) ::
             ConcurrentClump(`ev7` :: Nil) ::
             Nil
@@ -85,9 +80,12 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
         }
       }
 
+      "protected" - {
+//TODO
+      }
 
       "calculate_possessions" - {
-
+//TODO
       }
     }
   }

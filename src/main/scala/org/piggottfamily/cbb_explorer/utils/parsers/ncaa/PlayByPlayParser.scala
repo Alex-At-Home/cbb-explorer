@@ -72,11 +72,6 @@ trait PlayByPlayParser {
     val player_codes = box_lineup.players.map(_.code).toSet
 
     parse_game_events(filename, in, box_lineup.team.team).map { reversed_events =>
-//TODO: just here for display during testing      
-      PossessionUtils.calculate_possessions(
-        reversed_events.reverse //(enrich with possessions)
-      ).reverse
-
       // There is a weird bug that has happened one time where the scores got swapped
       // So we'll identify and fix this case
       fix_possible_score_swap_bug(
@@ -84,6 +79,13 @@ trait PlayByPlayParser {
       )
     }.map { events =>
       val processed_events = events.map(enrich_lineup _)
+
+      // Calculate lineups:
+//TODO      
+      PossessionUtils.calculate_possessions(
+        processed_events.flatMap(_.raw_game_events), Nil
+      )
+
       processed_events.partition(e => validate_lineup(e, player_codes).isEmpty)
     }
   }
@@ -207,9 +209,9 @@ trait PlayByPlayParser {
             Right(Model.SubOutEvent(time_mins, player))
 
           case (Some(team), None) =>
-            Right(Model.OtherTeamEvent(time_mins, score, 0, s"$time_str,$score_str,$team"))
+            Right(Model.OtherTeamEvent(time_mins, score, s"$time_str,$score_str,$team"))
           case (None, Some(oppo)) =>
-            Right(Model.OtherOpponentEvent(time_mins, score, 0, s"$time_str,$score_str,$oppo"))
+            Right(Model.OtherOpponentEvent(time_mins, score, s"$time_str,$score_str,$oppo"))
 
           case (Some(team), Some(oppo)) =>
             Left(List(ParseUtils.build_sub_error(`ncaa.parse_playbyplay`)(

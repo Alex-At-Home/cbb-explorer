@@ -11,8 +11,8 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
   val tests = Tests {
     "LineupUtils" - {
       "enrich_lineup" - {
-        val test_events_1 = LineupEvent.RawGameEvent(Some("19:58:00,0-0,team1.1"), None, Some(1), None) :: Nil
-        val test_events_2 = LineupEvent.RawGameEvent(None, Some("19:58:00,0-0,opp1.1"), None, Some(1)) :: Nil
+        val test_events_1 = LineupEvent.RawGameEvent(0.0, Some("19:58:00,0-0,team1.1"), None) :: Nil
+        val test_events_2 = LineupEvent.RawGameEvent(0.0, None, Some("19:58:00,0-0,opp1.1")) :: Nil
 
         val base_lineup = LineupEvent(
           date = new DateTime(),

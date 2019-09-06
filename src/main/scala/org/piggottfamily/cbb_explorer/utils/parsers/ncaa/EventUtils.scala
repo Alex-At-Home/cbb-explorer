@@ -280,19 +280,38 @@ object EventUtils {
    * final FT off the defender? etc
    * We make this off or def because legacy format doesn't provide that information
   */
-  object ParseTeamDeadballRebound {
+  object ParseDeadballRebound {
     // New:
     //04:28:0,52-59,Team, rebound offensivedeadball
+    //04:28:0,52-59,Team, rebound deadballdeadball
     // Legacy:
     // 04:33,46-45,TEAM Deadball Rebound
 
     private val rebound_deadball_regex = "[^,]+,[^,]+,(.+) +Deadball +Rebound".r
-    private val rebound_deadball_off_regex_new = "[^,]+,[^,]+,(.+), +rebound offensivedeadball".r
     private val rebound_deadball_def_regex_new = "[^,]+,[^,]+,(.+), +rebound defensivedeadball".r
+    def unapply(x: String): Option[String] =
+      ParseOffensiveDeadballRebound.unapply(x).orElse {
+        Option(x) match {
+          case Some(rebound_deadball_regex(player)) => Some(player)
+          case Some(rebound_deadball_def_regex_new(player)) => Some(player)
+          case _ => None
+        }
+      }
+  }
+
+  /** Occurs with an intermediate FT miss (ignore),  a block out of bounds, missed
+   * final FT off the defender? etc
+   * Offensive only, but only works for new format
+  */
+  object ParseOffensiveDeadballRebound {
+    // New:
+    //04:28:0,52-59,Team, rebound offensivedeadball
+    // Legacy:
+    //(none)
+
+    private val rebound_deadball_off_regex_new = "[^,]+,[^,]+,(.+), +rebound offensivedeadball".r
     def unapply(x: String): Option[String] = Option(x) match {
-      case Some(rebound_deadball_regex(player)) => Some(player)
       case Some(rebound_deadball_off_regex_new(player)) => Some(player)
-      case Some(rebound_deadball_def_regex_new(player)) => Some(player)
       case _ => None
     }
   }
@@ -331,16 +350,24 @@ object EventUtils {
     }
   }
 
-  /** (New format only) A missed free throw */
-  object ParseMiddleFreeThrowMissed {
-    private val ft_missed_middle2_regex_new = "[^,]+,[^,]+,(.+), +freethrow 1of2 +(?:.* +)?missed".r
-    private val ft_missed_middle3_regex_new = "[^,]+,[^,]+,(.+), +freethrow [12]of3 +(?:.* +)?missed".r
+  /** Presence of 1+ FTs in a possession (old format - will double count is split across clumps) */
+  object ParseFreeThrowEvent {
+    private val ft_start1_regex_new = "[^,]+,[^,]+,(.+), +freethrow 1of1 .*".r
+    private val ft_start2_regex_new = "[^,]+,[^,]+,(.+), +freethrow 1of2 .*".r
+    private val ft_start3_regex_new = "[^,]+,[^,]+,(.+), +freethrow 1of3 .*".r
+    private val ft_missed_regex = "[^,]+,[^,]+,(.+) missed +Free Throw".r
+    private val ft_made_regex = "[^,]+,[^,]+,(.+) made +Free Throw".r
+
     def unapply(x: String): Option[String] = Option(x) match {
-      case Some(ft_missed_middle2_regex_new(player)) => Some(player)
-      case Some(ft_missed_middle3_regex_new(player)) => Some(player)
+      case Some(ft_start1_regex_new(player)) => Some(player)
+      case Some(ft_start2_regex_new(player)) => Some(player)
+      case Some(ft_start3_regex_new(player)) => Some(player)
+      case Some(ft_missed_regex(player)) => Some(player)
+      case Some(ft_made_regex(player)) => Some(player)
       case _ => None
     }
   }
+  //TODO test
 
   // Turnover events
 
@@ -385,7 +412,7 @@ object EventUtils {
     //RawGameEvent(Some("13:36:00,7-9,Jalen Smith, foul personal shooting;2freethrow"), None)
     // Legacy:
     //"opponent": "10:00,51-60,MYKHAILIUK,SVI Commits Foul"
-    private val personal_foul_regex = "[^,]+,[^,]+,(.+) +Commits Foul".r
+    private val personal_foul_regex = "[^,]+,[^,]+,(?!TEAM)(.+) +Commits Foul".r
     private val personal_foul_regex_new = "[^,]+,[^,]+,(.+), +foul personal.*".r
     def unapply(x: String): Option[String] = Option(x) match {
       case Some(personal_foul_regex(player)) => Some(player)
@@ -399,27 +426,29 @@ object EventUtils {
     // New:
     //"team": "06:43:00,55-79,Bruno Fernando, foul technical classa;2freethrow"
     // Legacy:
-    //(haven't found any yet)
+    // Closest is: "team": "09:31,44-48,TEAM Commits Foul" - only for coach technicals
+    private val technical_foul_regex = "[^,]+,[^,]+,(TEAM) +Commits Foul".r
     private val technical_foul_regex_new = "[^,]+,[^,]+,(.+), +foul technical.*".r
     def unapply(x: String): Option[String] = Option(x) match {
       case Some(technical_foul_regex_new(player)) => Some(player)
       case _ => None
     }
   }
+//TODO: test
 
   /** Flagrant foul */
   object ParseFlagrantFoul {
-//TODO    
     // New:
-    //"team": "06:43:00,55-79,Bruno Fernando, foul technical classa;2freethrow"
+    //"team": "03:42:00	Eric Carter, foul personal flagrant1;2freethrow	60-67"
     // Legacy:
     //(haven't found any yet)
-    private val technical_foul_regex_new = "[^,]+,[^,]+,(.+), +foul technical.*".r
+    private val flagrant_foul_regex_new = "[^,]+,[^,]+,(.+), +foul personal flagrant.*".r
     def unapply(x: String): Option[String] = Option(x) match {
-      case Some(technical_foul_regex_new(player)) => Some(player)
+      case Some(flagrant_foul_regex_new(player)) => Some(player)
       case _ => None
     }
   }
+//TODO: test
 
   /** Who was fouled? */
   object ParseFoulInfo {

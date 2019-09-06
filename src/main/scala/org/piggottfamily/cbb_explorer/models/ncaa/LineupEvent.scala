@@ -41,12 +41,11 @@ object LineupEvent {
 
   /** List of game events, categorized by whether it was "for" the team or its opponent */
   case class RawGameEvent(
+    min: Double,
     /** The format is date,time,event*/
     team: Option[String] = None,
     /** The format is date,time,event*/
-    opponent: Option[String] = None,
-    team_possession: Option[Int] = None,
-    opponent_possession: Option[Int] = None
+    opponent: Option[String] = None
   ) {
     /** Gets the event information (either from team or opponent - can't be both) */
     def get_info: Option[String] = team.orElse(opponent)
@@ -59,10 +58,21 @@ object LineupEvent {
     }
     /** Gets the date string associated with the event */
     def date_str: String = get_date_str.getOrElse("")
+
+    /** Gets the score string associated with the event */
+    def get_score_str: Option[String] = get_info.flatMap { ev_str =>
+      ev_str.split(',') match {
+        case a if a.size > 1 => Some(a(1))
+        case _ => None
+      }
+    }
+    /** Gets the date score associated with the event */
+    def score_str: String = get_score_str.getOrElse("0-0")
+
   }
   object RawGameEvent {
-    def team(s: String, poss: Int): RawGameEvent = RawGameEvent(Some(s), None, Some(poss).filter(_ != 0))
-    def opponent(s: String, poss: Int): RawGameEvent = RawGameEvent(None, Some(s), None, Some(poss).filter(_ != 0))
+    def team(s: String, min: Double): RawGameEvent = RawGameEvent(min, Some(s), None)
+    def opponent(s: String, min: Double): RawGameEvent = RawGameEvent(min, None, Some(s))
     object Team {
       def unapply(x: RawGameEvent): Option[String] = x.team
     }

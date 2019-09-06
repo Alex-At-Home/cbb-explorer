@@ -141,20 +141,20 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
       "enrich_and_reverse_game_events" - {
         val score = Game.Score(1, 1)
         val test_list =
-          Model.OtherTeamEvent(2.0, score, 0, "test1") ::
-          Model.OtherTeamEvent(3.0, score, 0, "test2a") ::
-          Model.OtherTeamEvent(2.0, score, 0, "test2b") ::
-          Model.OtherTeamEvent(2.5, score, 0, "test3") ::
+          Model.OtherTeamEvent(2.0, score, "test1") ::
+          Model.OtherTeamEvent(3.0, score, "test2a") ::
+          Model.OtherTeamEvent(2.0, score, "test2b") ::
+          Model.OtherTeamEvent(2.5, score, "test3") ::
           Nil
         TestUtils.inside(enrich_and_reverse_game_events(test_list)) {
           case List(
             Model.GameEndEvent(end_t),
-            Model.OtherTeamEvent(game_t_3, _, _, "test3"),
+            Model.OtherTeamEvent(game_t_3, _, "test3"),
             Model.GameBreakEvent(mid_t_2),
-            Model.OtherTeamEvent(game_t_2b, _, _, "test2b"),
-            Model.OtherTeamEvent(game_t_2a, _, _, "test2a"),
+            Model.OtherTeamEvent(game_t_2b, _, "test2b"),
+            Model.OtherTeamEvent(game_t_2a, _, "test2a"),
             Model.GameBreakEvent(mid_t_1),
-            Model.OtherTeamEvent(game_t_1, _, _, "test1")
+            Model.OtherTeamEvent(game_t_1, _, "test1")
           ) =>
           "%.1f".format(game_t_1) ==> "18.0"
           "%.1f".format(mid_t_1) ==> "20.0"
@@ -281,13 +281,13 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
         }
         TestUtils.with_doc(sample_team_event) { doc =>
           TestUtils.inside(parse_game_event(doc.body, target_team_first = true)) {
-            case Right(List(Model.OtherTeamEvent(t, Game.Score(45, 26), 0, "15:00,45-26,event text"))) =>
+            case Right(List(Model.OtherTeamEvent(t, Game.Score(45, 26), "15:00,45-26,event text"))) =>
               "%.1f".format(t) ==> "15.0"
           }
         }
         TestUtils.with_doc(sample_oppo_event) { doc =>
           TestUtils.inside(parse_game_event(doc.body, target_team_first = true)) {
-            case Right(List(Model.OtherOpponentEvent(t, Game.Score(45, 26), 0, "15:00,45-26,event text"))) =>
+            case Right(List(Model.OtherOpponentEvent(t, Game.Score(45, 26), "15:00,45-26,event text"))) =>
               "%.1f".format(t) ==> "15.0"
           }
         }
@@ -305,7 +305,7 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
         }
         TestUtils.with_doc(sample_oppo_sub_in) { doc =>
           TestUtils.inside(parse_game_event(doc.body, target_team_first = true)) {
-            case Right(List(Model.OtherOpponentEvent(t, Game.Score(45, 26), 0, "15:00,45-26,S8RNAME,F8RSTNAME TEAMB Enters Game"))) =>
+            case Right(List(Model.OtherOpponentEvent(t, Game.Score(45, 26), "15:00,45-26,S8RNAME,F8RSTNAME TEAMB Enters Game"))) =>
               "%.1f".format(t) ==> "15.0"
           }
         }
@@ -321,13 +321,13 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
               "%.1f".format(t) ==> "15.0"
           }
           TestUtils.inside(parse_game_event(doc.body, target_team_first = false)) {
-            case Right(List(Model.OtherOpponentEvent(t, Game.Score(26, 45), 0, "15:00,45-26,F5rstname TeamA S5rname, substitution out"))) =>
+            case Right(List(Model.OtherOpponentEvent(t, Game.Score(26, 45), "15:00,45-26,F5rstname TeamA S5rname, substitution out"))) =>
               "%.1f".format(t) ==> "15.0"
           }
         }
         TestUtils.with_doc(sample_oppo_sub_out) { doc =>
           TestUtils.inside(parse_game_event(doc.body, target_team_first = true)) {
-            case Right(List(Model.OtherOpponentEvent(t, Game.Score(45, 26), 0, "15:00,45-26,S8RNAME,F8RSTNAME TEAMB Leaves Game"))) =>
+            case Right(List(Model.OtherOpponentEvent(t, Game.Score(45, 26), "15:00,45-26,S8RNAME,F8RSTNAME TEAMB Leaves Game"))) =>
               "%.1f".format(t) ==> "15.0"
           }
           TestUtils.inside(parse_game_event(doc.body, target_team_first = false)) {

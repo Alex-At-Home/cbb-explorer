@@ -180,9 +180,9 @@ object EventUtilsTests extends TestSuite {
         }
       }
       // (deadball)
-      "ParseTeamDeadballRebound" - {
+      "ParseDeadballRebound" - {
         TestUtils.inside(all_test_cases.collect {
-          case EventUtils.ParseTeamDeadballRebound(name) => name
+          case EventUtils.ParseDeadballRebound(name) => name
         }) {
           case List(
             "TEAM", "Team", "Team"
@@ -207,15 +207,6 @@ object EventUtilsTests extends TestSuite {
           case List(
             "Kevin Anderson1", "Kevin Anderson2", "Kevin Anderson3", "Kevin Anderson4",
             "Kevin Anderson5", "DREAD,MYLES"
-          ) =>
-        }
-      }
-      "ParseMiddleFreeThrowMissed" - {
-        TestUtils.inside(all_test_cases.collect {
-          case EventUtils.ParseMiddleFreeThrowMissed(name) => name
-        }) {
-          case List(
-            "Kevin Anderson1", "Kevin Anderson3", "Kevin Anderson4",
           ) =>
         }
       }

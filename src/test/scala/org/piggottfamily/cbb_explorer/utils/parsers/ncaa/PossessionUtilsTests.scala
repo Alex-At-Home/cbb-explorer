@@ -62,7 +62,7 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
 
 
         TestUtils.inside(
-          StateUtils.foldLeft(test_events_in, PossState.init, concurrent_event_handler) {
+          StateUtils.foldLeft(test_events_in, PossState.init, concurrent_event_handler[PossState]) {
             case StateEvent.Next(ctx, state, ConcurrentClump(evs)) =>
               ctx.stateChange(state, ConcurrentClump(evs))
             case StateEvent.Complete(ctx, _) =>
@@ -81,11 +81,11 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
       }
 
       "protected" - {
-//TODO
+//TODO TOTEST
       }
 
       "calculate_possessions" - {
-//TODO
+//TODO TOTEST
       }
     }
   }

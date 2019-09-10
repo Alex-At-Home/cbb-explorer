@@ -33,18 +33,26 @@ object EventUtils {
     private val sub_regex_in = "(.+) +Enters Game".r
     private val sub_regex_in_new_format = "(.+), +substitution in".r
     def unapply(x: (Option[String], Option[String])): Option[String] = x match {
-      case (Some(sub_regex_in(player)), None) => Some(player)
-      case (Some(sub_regex_in_new_format(player)), None) => Some(player)
+      case (Some(player), None) => ParseTeamSubIn.unapply(player)
+      case _ => None
+    }
+    def unapply(x: String): Option[String] = x match {
+      case sub_regex_in(player) => Some(player)
+      case sub_regex_in_new_format(player) => Some(player)
       case _ => None
     }
   }
   /** Team (_not_ opponent) substitution out */
   object ParseTeamSubOut {
     private val sub_regex_out = "(.+) +Leaves Game".r
-    private val sub_regex_in_new_format = "(.+), +substitution out".r
+    private val sub_regex_out_new_format = "(.+), +substitution out".r
     def unapply(x: (Option[String], Option[String])): Option[String] = x match {
-      case (Some(sub_regex_out(player)), None) => Some(player)
-      case (Some(sub_regex_in_new_format(player)), None) => Some(player)
+      case (Some(player), None) => ParseTeamSubOut.unapply(player)
+      case _ => None
+    }
+    def unapply(x: String): Option[String] = x match {
+      case sub_regex_out(player) => Some(player)
+      case sub_regex_out_new_format(player) => Some(player)
       case _ => None
     }
   }
@@ -246,7 +254,7 @@ object EventUtils {
     // 19:09:00,29-38,Team, rebound defensivedeadball
     // Legacy:
     // HARRAR,JOHN Defensive Rebound
-//TODO; deadball rebounds are a problem in legacy mode
+    // (note legacy deadball rebounds aren't captured)
 
     private val rebound_regex = "[^,]+,[^,]+,(.+) +Offensive +Rebound".r
     private val rebound_regex_new = "[^,]+,[^,]+,(.+), +rebound +offensive.*".r
@@ -256,7 +264,7 @@ object EventUtils {
       case _ => None
     }
   }
-  //TODO: test
+  //TODO: TOTEST
 
   /** Defensive rebound, including team/deadball etc */
   object ParseDefensiveRebound {
@@ -265,7 +273,7 @@ object EventUtils {
     // 19:09:00,29-38,Team, rebound defensivedeadball
     // Legacy:
     // HARRAR,JOHN Defensive Rebound
-//TODO; deadball rebounds are a problem in legacy mode
+    // (note legacy deadball rebounds aren't captured)
 
     private val rebound_regex = "[^,]+,[^,]+,(.+) +Defensive +Rebound".r
     private val rebound_regex_new = "[^,]+,[^,]+,(.+), +rebound +defensive.*".r
@@ -315,6 +323,7 @@ object EventUtils {
       case _ => None
     }
   }
+  //TODO: TOTEST
 
   //TODO: categorize ORB vs DRB for easier stats collection
 
@@ -367,7 +376,7 @@ object EventUtils {
       case _ => None
     }
   }
-  //TODO test
+  //TODO TOTEST
 
   // Turnover events
 
@@ -434,7 +443,7 @@ object EventUtils {
       case _ => None
     }
   }
-//TODO: test
+//TODO: TOTEST
 
   /** Flagrant foul */
   object ParseFlagrantFoul {
@@ -448,7 +457,7 @@ object EventUtils {
       case _ => None
     }
   }
-//TODO: test
+//TODO: TOTEST
 
   /** Who was fouled? */
   object ParseFoulInfo {
@@ -478,7 +487,7 @@ object EventUtils {
       //(ORBs not needed becausee must be associated with one of the above actions)
     }
   }
-  //TODO test
+  //TODO TOTEST
 
   /** An offensive event that tells us who is which side in a possession */
   object ParseDefensiveActionEvent {
@@ -488,7 +497,7 @@ object EventUtils {
       //(Note there's insufficient info in fouls to use them here)
     }
   }
-  //TODO test
+  //TODO TOTEST
 
   /** A defensive event that provides context to an offensive action (eg turnovere) */
   object ParseDefensiveInfoEvent {
@@ -498,13 +507,13 @@ object EventUtils {
       case _ => None
     }
   }
-  //TODO test
+  //TODO TOTEST
 
   /** Any defensive event */
   object ParseDefensiveEvent {
     def unapply(x: String): Option[String] =
       ParseDefensiveActionEvent.unapply(x).orElse { ParseDefensiveInfoEvent.unapply(x) }
   }
-  //TODO test
+  //TODO TOTEST
 
 }

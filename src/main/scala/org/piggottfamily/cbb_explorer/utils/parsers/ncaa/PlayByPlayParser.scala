@@ -80,13 +80,12 @@ trait PlayByPlayParser {
     }.map { events =>
       val processed_events = events.map(enrich_lineup _)
 
-      // Calculate lineups:
-//TODO      
-      PossessionUtils.calculate_possessions(
-        processed_events.flatMap(_.raw_game_events), Nil
+      // Calculate possessions per lineup
+      var lineups_with_poss = PossessionUtils.calculate_possessions(
+        processed_events
       )
 
-      processed_events.partition(e => validate_lineup(e, player_codes).isEmpty)
+      lineups_with_poss.partition(e => validate_lineup(e, player_codes).isEmpty)
     }
   }
 

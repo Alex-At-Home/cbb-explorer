@@ -81,7 +81,6 @@ object StateUtils {
         (), (_: Clumper.Event[S, Unit, A]) => ((), false), (_: S, _: Unit, as: List[A]) => as.reverse
       )
     }
-
   }
   import StateTypes._
 

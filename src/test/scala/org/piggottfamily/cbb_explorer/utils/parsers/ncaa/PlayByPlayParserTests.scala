@@ -148,12 +148,12 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
           Nil
         TestUtils.inside(enrich_and_reverse_game_events(test_list)) {
           case List(
-            Model.GameEndEvent(end_t),
+            Model.GameEndEvent(end_t, _),
             Model.OtherTeamEvent(game_t_3, _, "test3"),
-            Model.GameBreakEvent(mid_t_2),
+            Model.GameBreakEvent(mid_t_2, _),
             Model.OtherTeamEvent(game_t_2b, _, "test2b"),
             Model.OtherTeamEvent(game_t_2a, _, "test2a"),
-            Model.GameBreakEvent(mid_t_1),
+            Model.GameBreakEvent(mid_t_1, _),
             Model.OtherTeamEvent(game_t_1, _, "test1")
           ) =>
           "%.1f".format(game_t_1) ==> "18.0"
@@ -293,13 +293,13 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
         }
         TestUtils.with_doc(sample_team_sub_in) { doc =>
           TestUtils.inside(parse_game_event(doc.body, target_team_first = true)) {
-            case Right(List(Model.SubInEvent(t, "S8RNAME,F8RSTNAME TEAMA"))) =>
+            case Right(List(Model.SubInEvent(t, _, "S8RNAME,F8RSTNAME TEAMA"))) =>
               "%.1f".format(t) ==> "15.0"
           }
         }
         TestUtils.with_doc(sample_team_sub_in_new_format) { doc =>
           TestUtils.inside(parse_game_event(doc.body, target_team_first = true)) {
-            case Right(List(Model.SubInEvent(t, "F5rstname TeamA S5rname"))) =>
+            case Right(List(Model.SubInEvent(t, _, "F5rstname TeamA S5rname"))) =>
               "%.1f".format(t) ==> "15.0"
           }
         }
@@ -311,13 +311,13 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
         }
         TestUtils.with_doc(sample_team_sub_out) { doc =>
           TestUtils.inside(parse_game_event(doc.body, target_team_first = true)) {
-            case Right(List(Model.SubOutEvent(t, "S8RNAME,F8RSTNAME TEAMA"))) =>
+            case Right(List(Model.SubOutEvent(t, _, "S8RNAME,F8RSTNAME TEAMA"))) =>
               "%.1f".format(t) ==> "15.0"
           }
         }
         TestUtils.with_doc(sample_team_sub_out_new_format) { doc =>
           TestUtils.inside(parse_game_event(doc.body, target_team_first = true)) {
-            case Right(List(Model.SubOutEvent(t, "F5rstname TeamA S5rname"))) =>
+            case Right(List(Model.SubOutEvent(t, _, "F5rstname TeamA S5rname"))) =>
               "%.1f".format(t) ==> "15.0"
           }
           TestUtils.inside(parse_game_event(doc.body, target_team_first = false)) {
@@ -331,7 +331,7 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
               "%.1f".format(t) ==> "15.0"
           }
           TestUtils.inside(parse_game_event(doc.body, target_team_first = false)) {
-            case Right(List(Model.SubOutEvent(t, "S8RNAME,F8RSTNAME TEAMB"))) =>
+            case Right(List(Model.SubOutEvent(t, _, "S8RNAME,F8RSTNAME TEAMB"))) =>
               "%.1f".format(t) ==> "15.0"
           }
         }

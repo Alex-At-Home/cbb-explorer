@@ -359,7 +359,15 @@ object EventUtils {
     }
   }
 
-  /** Presence of 1+ FTs in a possession (old format - will double count is split across clumps) */
+  /** Any free throw attempt (missed or made) */
+  object ParseFreeThrowAttempt {
+    def unapply(x: String): Option[String] = ParseFreeThrowMissed.unapply(x).orElse {
+      ParseFreeThrowMade.unapply(x)
+    }
+  }
+  //TODO TOTEST
+
+  /** Presence of 1+ FTs in a possession (old format - will double count if split across clumps) */
   object ParseFreeThrowEvent {
     private val ft_start1_regex_new = "[^,]+,[^,]+,(.+), +freethrow 1of1 .*".r
     private val ft_start2_regex_new = "[^,]+,[^,]+,(.+), +freethrow 1of2 .*".r

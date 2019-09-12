@@ -5,6 +5,8 @@ import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.models.ncaa._
 import scala.util.Try
 
+import com.softwaremill.quicklens._
+
 /** Utilities related to calculation possession from raw game events */
 trait PossessionUtils {
   import ExtractorUtils._
@@ -39,20 +41,24 @@ trait PossessionUtils {
     )
     /** Handles concurrency issues with the input data */
     case class ConcurrencyState(
-      last_min: Double
+      last_min: Double,
+      last_date_str: String //(for game break detection)
     )
     object ConcurrencyState {
       /** Starting state */
-      def init: ConcurrencyState = ConcurrencyState(-1.0)
+      def init: ConcurrencyState = ConcurrencyState(-1.0, "")
     }
   }
 
-  protected case class ConcurrentClump(evs: List[LineupEvent.RawGameEvent]) {
+  /** A clump of concurrent events, together with the lineups that end in that clump */
+  protected case class ConcurrentClump(
+    evs: List[LineupEvent.RawGameEvent], lineups: List[LineupEvent] = Nil
+  ) {
     def min: Option[Double] = evs.headOption.map(_.min)
     def date_str: Option[String] = evs.headOption.map(_.date_str)
   }
-  protected case class Last2Clumps(prev: ConcurrentClump, prevprev: ConcurrentClump)
 
+  /** Utility for decomposing game events into offensive and defensive possessions */
   protected case class PossessionEvent(dir: Direction.Value) {
     /** The team in possession */
     object AttackingTeam {
@@ -105,11 +111,6 @@ trait PossessionUtils {
     }
   }
 
-  /** Decompose the lineup - resulting objects */
-  protected case class LineupDecomp(
-    lineup: LineupEvent, next_lineup: Option[LineupEvent], reverse_prev_lineups: List[LineupEvent]
-  )
-
   /** Util methods */
 
   /** Calculates the possessions from a block of data (eg game or lineup)
@@ -123,8 +124,6 @@ trait PossessionUtils {
   10:02:00         42-58     Eric Ayala, rebound defensive
   10:02:00     Ryan Johnson, foulon     44-58
   ...there's _probably_ a missing turnover, don't think there's much we can do about it
-
-  TODO: longer term need a context of nearby events, though this wouldn't have helped here
   */
   protected def calculate_stats(
     clump: ConcurrentClump, prev: ConcurrentClump, dir: Direction.Value
@@ -137,7 +136,6 @@ trait PossessionUtils {
     10:56:00	Ricky Lindo Jr., substitution out	45-37
     10:56:00	Darryl Morsell, substitution in	45-37
     10:44:00		45-38	Connor McCaffery, freethrow 2of2 2ndchance;fastbreak made
-//TODO: with new format can handle this by looking for 1of[23]
     */
 
     val ft_event_this_clump: Boolean = clump.evs.collect {
@@ -293,12 +291,20 @@ trait PossessionUtils {
     Also only works with new format
     */
 
+    /** Converts score to a number so don't get bitten by number of digits in lexi ordering */
+    def score_to_tuple(str: String): (Int, Int) = {
+      val regex = "([0-9]+)-([[0-9]+])".r
+      str match {
+        case regex(s1, s2) => (s1.toInt, s2.toInt) //(ints by construction)
+        case _ => (0, 0)
+      }
+    }
+
     val recent_dead_ft_misses = List(clump.evs, prev.evs).map { evs =>
       evs.collect {
         case ev @ attackingTeam(EventUtils.ParseFreeThrowMade(_)) => ev
         case ev @ attackingTeam(EventUtils.ParseFreeThrowMissed(_)) => ev
-      }.sortBy(ev => ev.score_str).reverse match { // reverse => highest first
-//TODO: this will be wrong when a FT moves from 9->10 or 99->100
+      }.sortBy(ev => score_to_tuple(ev.score_str)).reverse match { // reverse => highest first
         case fts => fts.drop(1).collect {
           case ev @ attackingTeam(EventUtils.ParseFreeThrowMissed(_)) => ev
         }.size
@@ -330,19 +336,23 @@ trait PossessionUtils {
   protected def check_for_concurrent_event[S](
     ev: Clumper.Event[S, PossState.ConcurrencyState, ConcurrentClump]
   ): (PossState.ConcurrencyState, Boolean) = ev match {
-    case Clumper.Event(_, cs, Nil, ConcurrentClump(ev :: _)) =>
+    case Clumper.Event(_, cs, Nil, ConcurrentClump(ev :: _, _)) =>
       //(first event always gens a clump, possibly of size 1)
-      (cs.copy(last_min = ev.min), true)
+      (cs.copy(last_min = ev.min, last_date_str = ev.date_str), true)
 
-    //case Clumper.Event(_, cs, _, ConcurrentClump((ev: Model.MiscGameBreak) :: _)) =>
-      //(the equivalent to this doesn't exist in lineups)
-      // Game breaks can never be part of a clump
-      //(cs.copy(last_min = -1.0), false)
-    case Clumper.Event(_, cs, _, ConcurrentClump(ev :: _)) if ev.min == cs.last_min =>
+    case Clumper.Event(_, cs, _, ConcurrentClump(Nil, _ :: _)) =>
+      // Lineup change -  lineups just get added to the list
       (cs, true)
-    case Clumper.Event(_, cs, _, ConcurrentClump(ev :: _)) =>
-      (cs.copy(last_min = ev.min), false)
-    case Clumper.Event(_, cs, _, ConcurrentClump(Nil)) => //(empty ConcurrentClump, not possible by construction)
+
+    case Clumper.Event(_, cs, _, ConcurrentClump(ev :: _, _)) if ev.date_str > cs.last_date_str =>
+      // Game break
+      (cs.copy(last_min = -1.0, last_date_str = ev.date_str), false)
+
+    case Clumper.Event(_, cs, _, ConcurrentClump(ev :: _, _)) if ev.min == cs.last_min =>
+      (cs, true)
+    case Clumper.Event(_, cs, _, ConcurrentClump(ev :: _, _)) =>
+      (cs.copy(last_min = ev.min, last_date_str = ev.date_str), false)
+    case Clumper.Event(_, cs, _, ConcurrentClump(Nil, Nil)) => //(empty ConcurrentClump, not possible by construction)
       (cs, true)
   }
 
@@ -350,11 +360,11 @@ trait PossessionUtils {
   protected def rearrange_concurrent_event[S](
     s: S, cs: PossState.ConcurrencyState, reverse_clump: List[ConcurrentClump]
   ): List[ConcurrentClump] = {
-    val raw_list =
-      reverse_clump.foldLeft(List[LineupEvent.RawGameEvent]()) { (acc, v) => v.evs ++ acc } //(re-reverses it)
-    List(ConcurrentClump(
-      raw_list
-    ))
+    List(
+      reverse_clump.foldLeft(ConcurrentClump(Nil, Nil)) { (acc, v) =>
+        acc.copy(evs = v.evs ++ acc.evs, lineups = v.lineups ++ acc.lineups)
+      } //(re-reverses the lists)
+    )
   }
 
   /** Manages splitting stream into concurrent chunks and then combining them */
@@ -364,198 +374,222 @@ trait PossessionUtils {
     rearrange_concurrent_event[S] _
   )
 
-  /** Debug flag */
-  protected val show_end_of_raw_calcs = false
-  protected val show_end_of_lineup_calcs = true
-
-  /** Debug util */
-  protected def summarize_state(label: String, state: PossState): Unit = {
-    println(s"--------$label------------")
-    println(s"[${state.team_stats.summary}]")
-    println(s"[${state.opponent_stats.summary}]")
-    println("-------------------------")
-  }
+  /** Debug flags */
+  protected val show_end_of_raw_calcs = true
+  protected val log_lineup_fixes = true
 
   /** Returns team and opponent possessions based on the lineup data */
   def calculate_possessions(
     lineup_events: Seq[LineupEvent]
   ): List[LineupEvent] = {
 
-    var diagnostic_state = PossState.init
-
-    val enriched_lineups = decompose_lineups(lineup_events).map {
-      case LineupDecomp(lineup, next_lineup, reverse_prev_lineups) =>
-        val start_of_next =
-          get_first_clump(next_lineup.map(_.raw_game_events.filter {
-            case LineupEvent.RawGameEvent.Opponent(EventUtils.ParseTeamSubIn(_)) => false
-            case LineupEvent.RawGameEvent.Opponent(EventUtils.ParseTeamSubOut(_)) => false
-            case _ => true
-          }).getOrElse(Nil))
-
-        val Last2Clumps(end_of_curr, _) = get_last_clumps(lineup.raw_game_events)
-        val start_of_curr = get_first_clump(lineup.raw_game_events)
-        val Last2Clumps(prev, prevprev) = get_last_clumps(reverse_prev_lineups.flatMap(_.raw_game_events))
-
-        def half_time_boundary(later: Option[String], earlier: Option[String]): Boolean =
-          later.flatMap(l => earlier.map(e => (e, l))).exists(e_l => e_l._1 > e_l._2)
-
-        val (team_fragment, opponent_fragment) = (lineup.raw_game_events match { //(filter the end of the lineup)
-          case l if half_time_boundary(start_of_next.date_str, end_of_curr.date_str) => //half time!
-            l
-          case l if start_of_next.min.nonEmpty && (start_of_next.min == end_of_curr.min) =>
-            // Exclude the final concurrent clump because we handled it last iteration
-            val min_to_exclude = start_of_next.min.getOrElse(-1.0)
-/**///TODO: can this actually happen? I don't _think_ so
-            if (prev.min == min_to_exclude) {
-              println(s">>>>>>>>>>>>>> problem case: [$start_of_next][$end_of_curr][$start_of_next][$prev]")
-            }
-            l.filterNot(_.min == min_to_exclude)
-          case l =>
-            l
-        }) match { //(pick the right bits of curr/prev and calculate possessions)
-          case l if half_time_boundary(start_of_curr.date_str, prev.date_str) => //half time!
-            calculate_possessions(l, Nil) //TODO: need to clear prevprev?
-          case l if start_of_curr.min.nonEmpty && (start_of_curr.min == prev.min) =>
-            calculate_possessions(prev.evs ++ l, prevprev.evs)
-          case l =>
-            calculate_possessions(l, prev.evs)
-        }
-//TODO: this is still wrong :(
-
-        // Validation and stats collection
-
-        diagnostic_state = diagnostic_state.copy(
-          team_stats = diagnostic_state.team_stats.sum(team_fragment),
-          opponent_stats = diagnostic_state.opponent_stats.sum(opponent_fragment)
-        )
-
-        //Validate no nasty lineup stats:
-        def validate_lineup(fragment: PossCalcFragment, stats: LineupEventStats): Unit =
-          if ((fragment.total_poss < 0) || ((fragment.total_poss == 0) && (stats.pts > 0))) {
-            println(
-              s"Possession problem: [${fragment.summary}] vs [$start_of_next] >> [$lineup] >> [$prev] >> [$prevprev]"
-            )
-          }
-//TODO: example of lineup getting its possession stolen:
-//Possession problem: [total=[-1] = shots=[2] - (orbs=[3] + db_orbs=[0]) + (ft_sets=[0] - techs=[0]) + to=[0] { +1s=[0] offset_techs=[0] }]
-// next (t1): foul, FTM, FTm, ORB, make
-// curr (t2->t3): (t)ORB, FGm, foul, ORB, FGm, ORB
-//(ie next+curr) would be 1 ft_set, 4 ORBs, 1 make, 2 misses == 0 possessions
-//(confusing because of ORB to start the lineup, but don't have a real val for prev lineup so....)
-//TOOD: check for "10:08:00,13-22,Team, rebound offensive team" in NCAT game
-// prev (t4): turnover
-// Extreme oddity: t1->t3 == 10.28->9.87 ... BUT t4==3.47, so clearly (seperate) bug there
-
-//TODO: need to decide what I mean by a possession eg in the above case, L1 and L2 legit are using the same
-// L1 has no conclusion... prob L1 should be (0, 0) and L2 should be (1, 0)?
-// (note that this might be differnet in the two different directions)
-
-        validate_lineup(team_fragment, lineup.team_stats)
-        validate_lineup(opponent_fragment, lineup.opponent_stats)
-
-        // Possession-enriched lineup data
-
-        lineup.copy(
-          team_stats = lineup.team_stats.copy(
-            num_possessions = team_fragment.total_poss
-          ),
-          opponent_stats = lineup.opponent_stats.copy(
-            num_possessions = opponent_fragment.total_poss
-          )
-        )
+    var game_events = lineup_events.iterator.flatMap { lineup =>
+      lineup.raw_game_events.iterator.map { ev =>
+        ConcurrentClump(List(ev))
+      } ++ List(
+        ConcurrentClump(Nil, List(lineup))
+      ).iterator
     }
-    if (show_end_of_lineup_calcs) {
-      summarize_state("-END-", diagnostic_state)
-    }
-    enriched_lineups.toList
+    calculate_possessions_by_event(game_events.toStream)
   }
-//TODO TOTEST
+
+  /** If there are multiple lineups, assign the possessions correctly
+  */
+  protected def assign_to_right_lineup(
+    state: PossState,
+    team_stats: PossCalcFragment,
+    opponent_stats: PossCalcFragment,
+    clump: ConcurrentClump, prev_clump: ConcurrentClump
+  ): List[LineupEvent] = {
+
+    val selector_team = modify(_: LineupEvent)(_.team_stats)
+    val selector_oppo = modify(_: LineupEvent)(_.opponent_stats)
+
+    /** Where multiple lineups are candidates for possessions, balances them out */
+    def lineup_balancer(l: List[LineupEvent]): List[LineupEvent] = l match {
+      case head :: Nil => //(just do the really simple case explicitly)
+        (head
+          .modify(_.team_stats.num_possessions).using(_ + team_stats.total_poss)
+          .modify(_.opponent_stats.num_possessions).using(_ + opponent_stats.total_poss)
+        ) :: Nil
+      case l =>
+        val indexed_lineups = l.zipWithIndex
+
+        val balancer_by_dir = List(Direction.Team, Direction.Opponent).map { dir =>
+          val indexed_off_evs = l.zipWithIndex.map { case (lineup, index) =>
+            val prev = if (index == 0) prev_clump else ConcurrentClump(Nil)
+              //(not actually sure how to interpret prev when we _know_ everything's concurrent with lineup breaks!)
+            val min_of_interest = clump.min.getOrElse(-1.0)
+            val events_of_interest = ConcurrentClump(lineup.raw_game_events.filter(_.min == min_of_interest))
+            val approx_stats =  calculate_stats(events_of_interest, prev, dir)
+            (-approx_stats.total_poss, index)
+          }.sortBy(_._1)
+
+          case class State(tracker: List[(Int, Int)], balancer: Map[Int, Int])
+          val starting_state = State(indexed_off_evs, Map.empty.withDefaultValue(0))
+          val possessions_available =
+            if (dir == Direction.Team) team_stats.total_poss else opponent_stats.total_poss
+
+          val State(_, balancer) = (1 to possessions_available).foldLeft(starting_state) { (state, poss) =>
+            val (_, lineup_to_add) = state.tracker.head //(exists by construction)
+            val new_balancer = //(add the extra possession to the map of elements to apply in the final loop)
+              state.balancer + (lineup_to_add -> (1 + state.balancer(lineup_to_add)))
+            val new_tracker = //(remove the possession and re-sort)
+              state.modify(_.tracker.at(0)).using(p_i => (p_i._1 + 1, p_i._2)).tracker.sortBy(_._1)
+
+            State(new_tracker, new_balancer)
+          }
+          dir -> balancer
+        }.toMap.withDefaultValue(Map.empty)
+        indexed_lineups.map { case (lineup, index) =>
+          lineup
+            .modify(_.team_stats.num_possessions)
+              .using(_ + balancer_by_dir(Direction.Team)(index))
+            .modify(_.opponent_stats.num_possessions)
+              .using(_ + balancer_by_dir(Direction.Opponent)(index))
+        }
+    }
+
+    /** Debug util */
+    def log_lineup_fix(dir: String, stats: LineupEventStats, l: List[LineupEvent]): Unit = {
+      println(
+        s"""
+        ************Possession fix required [$dir]: [${stats.num_possessions}]:
+        [${state.team_stats.summary}]
+        + [${team_stats.summary}]
+        [${state.opponent_stats.summary}]
+        + [${opponent_stats.summary}]
+        --
+        [${clump.evs}]
+        [${l.mkString("\n======\n")}]
+        """
+      )
+    }
+
+    /** Final pass to fix lineups with obviously broken possessions */
+    def lineup_fixer(l: List[LineupEvent]): List[LineupEvent] = {
+      l.map { lineup =>
+        val fixed_lineup = List(("T", selector_team), ("O", selector_oppo)).foldLeft(lineup) {
+          case (tofix_lineup, (dir, selector)) =>
+            selector(tofix_lineup).using {
+              case stats if stats.pts > 0 && (stats.num_possessions <= 0) =>
+                if (log_lineup_fixes) log_lineup_fix(dir, stats, l)
+                stats.copy(num_possessions = 1)
+              case stats if stats.num_possessions < 0 => //(pts == 0)
+                if (log_lineup_fixes) log_lineup_fix(dir, stats, l)
+                stats.copy(num_possessions = 0)
+              case other => other
+            }
+        }
+        //TODO: inject notification here
+        fixed_lineup
+      }
+    }
+    (clump.lineups match {
+      case head :: tail =>
+        (head
+          .modify(_.team_stats.num_possessions).using(_ + state.team_stats.total_poss)
+          .modify(_.opponent_stats.num_possessions).using(_ + state.opponent_stats.total_poss)
+        ) :: tail
+      case Nil => Nil
+    }) match {
+      case l => (lineup_balancer _ andThen lineup_fixer _)(l)
+    }
+  }
 
   /** Returns team and opponent possessions based on the raw event data */
-  protected def calculate_possessions(
-    raw_events: Seq[LineupEvent.RawGameEvent],
-    previous_events: Seq[LineupEvent.RawGameEvent]
-  ): (PossCalcFragment, PossCalcFragment) =
+  protected def calculate_possessions_by_event(
+    raw_events_as_clumps: Seq[ConcurrentClump]
+  ): List[LineupEvent] =
   {
+    var diagnostic_state = PossState.init //(display only)
 
-    val clumped_events = raw_events.map(ev => ConcurrentClump(ev :: Nil))
     StateUtils.foldLeft(
-      clumped_events, PossState.init,
-      classOf[LineupEvent.RawGameEvent], concurrent_event_handler[PossState]
+      raw_events_as_clumps, PossState.init,
+      classOf[LineupEvent], concurrent_event_handler[PossState]
     ) {
-      case StateEvent.Next(ctx, state, clump @ ConcurrentClump(evs)) =>
-        val new_state = state.copy(
-          team_stats = state.team_stats.sum(
-            calculate_stats(clump, state.prev_clump, Direction.Team)
-          ),
-          opponent_stats = state.opponent_stats.sum(
-            calculate_stats(clump, state.prev_clump, Direction.Opponent)
-          ),
-          prev_clump = clump
+      case StateEvent.Next(ctx, state, clump @ ConcurrentClump(evs, lineups)) =>
+        val team_stats = calculate_stats(clump, state.prev_clump, Direction.Team)
+        val opponent_stats = calculate_stats(clump, state.prev_clump, Direction.Opponent)
+
+        diagnostic_state = diagnostic_state.copy(  //(display only)
+          team_stats = diagnostic_state.team_stats.sum(team_stats),
+          opponent_stats = diagnostic_state.opponent_stats.sum(opponent_stats),
         )
-        ctx.stateChange(new_state)
+
+        val (new_state, enriched_lineups) = if (lineups.isEmpty) {
+          val updated_state = state.copy(
+            team_stats = state.team_stats.sum(team_stats),
+            opponent_stats = state.opponent_stats.sum(opponent_stats),
+            prev_clump = clump
+          )
+          (updated_state, Nil)
+        } else { // assign new lineups and refresh stats
+          val updated_lineups = assign_to_right_lineup(
+            state, team_stats, opponent_stats, clump, state.prev_clump
+          )
+          // Reset state ready for next set of lineups
+          (PossState.init.copy(prev_clump = clump), updated_lineups)
+        }
+        ctx.stateChange(new_state, enriched_lineups)
 
       case StateEvent.Complete(ctx, state) => //(no additional processing when element list complete)
-        if (show_end_of_raw_calcs) {
-          summarize_state("-END-", state)
-        }
         ctx.noChange
 
     } match {
-      case FoldStateComplete.State(state) => (state.team_stats, state.opponent_stats)
+      case FoldStateComplete(_, lineups) =>
+        /** Debug util */
+        def summarize_state(label: String, state: PossState): Unit = {
+          println(s"--------$label------------")
+          println(s"[${state.team_stats.summary}]")
+          println(s"[${state.opponent_stats.summary}]")
+          println("-------------------------")
+        }
+        if (show_end_of_raw_calcs) {
+          summarize_state("-END-", diagnostic_state)
+        }
+        lineups
     }
-
   } //(end calculate_possessions)
 
-  /** Gets the first clump of a lineup (to compare with the "previous" in possession calcs) */
-  protected def get_first_clump(evs: Seq[LineupEvent.RawGameEvent]): ConcurrentClump = {
-    val ev_clumps = evs.map(ev => ConcurrentClump(List(ev)))
-    StateUtils.foldLeft(
-      ev_clumps, ConcurrentClump(Nil), concurrent_event_handler[ConcurrentClump]
-    ) {
-      case StateEvent.Next(ctx, state, clump) if state.evs == Nil =>
-        ctx.stateChange(clump)
-      case StateEvent.Next(ctx, _, _)  =>
-        ctx.noChange
-      case StateEvent.Complete(ctx, _) =>
-        ctx.noChange
-    } match {
-      case FoldStateComplete.State(state) => state
-    }
-  }
-//TODO TOTEST
+/** Issues:
+////////////////////
 
-  /** Gets the final clump of a lineup (to use as the "previous" in possession calcs) */
-  protected def get_last_clumps(evs: Seq[LineupEvent.RawGameEvent]): Last2Clumps = {
-    val start_state = Last2Clumps(ConcurrentClump(Nil), ConcurrentClump(Nil))
-    val ev_clumps = evs.map(ev => ConcurrentClump(List(ev)))
-    StateUtils.foldLeft(
-      ev_clumps, start_state, concurrent_event_handler[Last2Clumps]
-    ) {
-      case StateEvent.Next(ctx, state, clump) =>
-        ctx.stateChange(state.copy(prev = clump, prevprev = state.prev))
-      case StateEvent.Complete(ctx, _) =>
-        ctx.noChange
-    } match {
-      case FoldStateComplete.State(state) => state
-    }
-  }
-//TODO TOTEST
-
-  /** Decompose the lineup - resulting objects */
-  protected def decompose_lineups(evs: Seq[LineupEvent]): Seq[LineupDecomp] = {
-    //ie (1, Some(2)), (2, Some(3)), (N, None)
-    val start_state: LineupDecomp = null
-    (evs zip (evs.drop(1).map(Some(_)) ++ List(None))).scanLeft(start_state) {
-      case (`start_state`, (ev, next_ev)) =>
-        LineupDecomp(ev, next_ev, Nil)
-      case (LineupDecomp(curr, _, reverse_prevs), (ev, next_ev)) =>
-        LineupDecomp(ev, next_ev, curr :: reverse_prevs)
-        //(generates LineupDecomp(1, Some(2), nil), LineupDecom(2, Some(3), L(1)), etc)
-    }.drop(1) //ignore starting state
-  }
-//TODO TOTEST
+L1:
+01:52:00		30-32	Jordan Murphy, 2pt jumpshot made
+01:52:00	Jalen Smith, foul personal shooting;1freethrow	30-32
+01:52:00		30-32	Jordan Murphy, foulon
+01:52:00		30-32	Amir Coffey, rebound offensive <- NOT ACTUALLY SURE HOW _WHAT_ I SHOULD DO HERE
+                   (CAN SCORE MULTIPLE POINTS ON THE SAME POSSESSION WITH DIFFERENT LINEUPS)
+01:52:00		30-32	Jordan Murphy, freethrow 1of1 missed
+subs:
+01:52:00	Darryl Morsell, substitution out	30-32
+01:52:00	Ivan Bender, substitution out	30-32
+01:52:00	Bruno Fernando, substitution in	30-32
+01:52:00	Eric Ayala, substitution in	30-32
 
 
+Next! (Marshall) OK so there are legit 2 possessions here,
+the possessions in the right ratio?
+08:36:00		24-26	Serrel Smith Jr., foul personal
+08:36:00	Jon Elmore, foulon	24-26
+08:36:00	Jon Elmore, rebound offensive	24-26
+08:36:00	Jannson Williams, rebound offensive	24-26
+08:36:00	Rondale Watson, substitution out	24-26
+08:36:00	Taevion Kinsey, substitution in	24-26
+08:36:00	Jon Elmore, 2pt jumpshot 2ndchance missed	24-26
+L1***
+08:36:00		24-26	Anthony Cowan, substitution in
+08:36:00		24-26	Serrel Smith Jr., substitution out
+
+08:36:00		24-28	Darryl Morsell, steal
+08:36:00		24-28	Eric Ayala, 2pt layup missed
+08:36:00	Jon Elmore, turnover badpass	24-28
+08:36:00		24-28	Bruno Fernando, 2pt layup pointsinthepaint made
+08:36:00	Jarrod West, rebound defensive	24-28
+08:36:00	Taevion Kinsey, 3pt jumpshot missed	24-28
+08:36:00		24-28	Eric Ayala, rebound defensive
+
+*/
 }
 object PossessionUtils extends PossessionUtils

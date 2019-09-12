@@ -92,6 +92,9 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-parser"
 ).map(_ % circeVersion)
 
+// Lens support
+libraryDependencies += "com.softwaremill.quicklens" % "quicklens_2.12" % "1.4.12"
+
 val kantanVersion = "0.4.0"
 
 // Core library, included automatically if any other module is imported.

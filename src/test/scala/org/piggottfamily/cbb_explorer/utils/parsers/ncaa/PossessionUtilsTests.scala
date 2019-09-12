@@ -45,42 +45,47 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
         // (test check_for_concurrent_event and rearrange_concurrent_event)
 
         val test_events @ (
-          ev1 :: ev2 :: ev3 :: ev4 :: ev5 :: ev6 :: ev7
+          ev1 :: ev2 :: ev3 :: ev4 :: ev5 :: ev6 :: ev7 :: ev8
           :: Nil
         ) =
           // Test minutes based clumping
-          LineupEvent.RawGameEvent.team(min = 0.4, s = "ev-1") ::
-          LineupEvent.RawGameEvent.opponent(min = 0.5, s = "ev-2") ::
-          LineupEvent.RawGameEvent.team(min = 0.9, s = "ev-3") ::
-          LineupEvent.RawGameEvent.opponent(min = 0.9, s = "ev-4") ::
-          LineupEvent.RawGameEvent.team(min = 0.8, s = "ev-5") ::
-          LineupEvent.RawGameEvent.opponent(min = 0.8, s = "ev-6") ::
-          LineupEvent.RawGameEvent.team(min = 1.0, s = "ev-7") ::
+          LineupEvent.RawGameEvent.team(min = 0.4, s = "20:00,ev-1") ::
+          LineupEvent.RawGameEvent.opponent(min = 0.5, s = "19:00,ev-2") ::
+          LineupEvent.RawGameEvent.team(min = 0.9, s = "18:00,ev-3") ::
+          LineupEvent.RawGameEvent.opponent(min = 0.9, s = "17:00,ev-4") ::
+          LineupEvent.RawGameEvent.team(min = 0.8, s = "16:00,ev-5") ::
+          LineupEvent.RawGameEvent.opponent(min = 0.8, s = "15:00,ev-6") ::
+          //(game break!)
+          LineupEvent.RawGameEvent.opponent(min = 0.8, s = "20:00,ev-7") ::
+          LineupEvent.RawGameEvent.team(min = 1.0, s = "19:00,ev-8") ::
           // Test possession directing based clumping
           Nil
-        val test_events_in = test_events.map(ev => ConcurrentClump(ev :: Nil))
+        val test_events_in = test_events.map(ev => ConcurrentClump(ev :: Nil, Nil))
 
 
         TestUtils.inside(
           StateUtils.foldLeft(test_events_in, PossState.init, concurrent_event_handler[PossState]) {
-            case StateEvent.Next(ctx, state, ConcurrentClump(evs)) =>
+            case StateEvent.Next(ctx, state, ConcurrentClump(evs, _)) =>
               ctx.stateChange(state, ConcurrentClump(evs))
             case StateEvent.Complete(ctx, _) =>
               ctx.noChange
           }
         ) {
           case FoldStateComplete(_,
-            ConcurrentClump(`ev1` :: Nil) ::
-            ConcurrentClump(`ev2` :: Nil) ::
-            ConcurrentClump(`ev3` :: `ev4` :: Nil) ::
-            ConcurrentClump(`ev5` :: `ev6` :: Nil) ::
-            ConcurrentClump(`ev7` :: Nil) ::
+            ConcurrentClump(`ev1` :: Nil, _) ::
+            ConcurrentClump(`ev2` :: Nil, _) ::
+            ConcurrentClump(`ev3` :: `ev4` :: Nil, _) ::
+            ConcurrentClump(`ev5` :: `ev6` :: Nil, _) ::
+            ConcurrentClump(`ev7` :: Nil, _) ::
+            ConcurrentClump(`ev8` :: Nil, _) ::
             Nil
           ) =>
         }
+
+//TODO TOTEST concurrent clumps with lineups
       }
 
-      "protected" - {
+      "TODO" - {
 //TODO TOTEST
       }
 

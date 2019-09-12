@@ -153,7 +153,7 @@ trait PlayByPlayParser {
             ascend_minutes(event, state.period) :: Nil
           )
         case Some(next_event) if event.min > next_event.min => // game break!
-          val game_break = Model.GameBreakEvent(duration_from_period(state.period))
+          val game_break = Model.GameBreakEvent(duration_from_period(state.period), event.score)
           val new_period = state.period + 1
           State(new_period,
             Some(event),
@@ -166,7 +166,10 @@ trait PlayByPlayParser {
           )
       }
     }
-    Model.GameEndEvent(duration_from_period(end_state.period)) :: end_state.game_events
+    Model.GameEndEvent(
+      duration_from_period(end_state.period),
+      end_state.last.map(_.score).getOrElse(Game.Score(0, 0))
+    ) :: end_state.game_events
   }
 
   /** Creates a Model.PlayByPlayEvent from the table entry + inserts game breaks
@@ -203,9 +206,9 @@ trait PlayByPlayParser {
           builders.event_opponent_finder(el, target_team_first)
         ) match {
           case EventUtils.ParseTeamSubIn(player) =>
-            Right(Model.SubInEvent(time_mins, player))
+            Right(Model.SubInEvent(time_mins, score, player))
           case EventUtils.ParseTeamSubOut(player) =>
-            Right(Model.SubOutEvent(time_mins, player))
+            Right(Model.SubOutEvent(time_mins, score, player))
 
           case (Some(team), None) =>
             Right(Model.OtherTeamEvent(time_mins, score, s"$time_str,$score_str,$team"))

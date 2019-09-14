@@ -349,12 +349,104 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
           }
       }
 
+      val test_lineups = { // Pair of lineups that test assign_to_right_lineup and top-level fn
+        val lineup_2a = base_lineup.copy(
+          team_stats = base_lineup.team_stats.copy(
+            pts = 0,
+            num_possessions = 0
+          ),
+          opponent_stats = base_lineup.opponent_stats.copy(
+            pts = 0,
+            num_possessions = 0
+          ),
+          raw_game_events = (List( //3:1 ratio
+            Events.made_opponent, Events.made_opponent, Events.made_opponent
+          ).map(_.copy(min = 2.0)) ++
+            List(
+              Events.made_opponent).map(_.copy(min = 1.0) //ignored because time is wrong
+            )).sortBy(_.min)
+        )
+        val lineup_2b = base_lineup.copy(
+          team_stats = base_lineup.team_stats.copy(
+            pts = 0,
+            num_possessions = 0
+          ),
+          opponent_stats = base_lineup.opponent_stats.copy(
+            pts = 0,
+            num_possessions = 0
+          ),
+          raw_game_events = (List( //3:1 ratio
+            Events.made_opponent, Events.made_opponent,
+          ).map(_.copy(min = 3.0)) ++  //ignored because time is wrong
+            List(
+              Events.made_opponent).map(_.copy(min = 2.0)
+            )).sortBy(_.min)
+        )
+        lineup_2a :: lineup_2b :: Nil
+      }
+
       "assign_to_right_lineup" - {
-//TODO TOTEST (lineup fixed, lineup_balancer)
+
+        // Check first that in a single lineup case we apply the stats
+        // and that we fix the score>0, poss==0 case
+        val lineup1 = base_lineup.copy(
+          team_stats = base_lineup.team_stats.copy(
+            pts = 0,
+            num_possessions = 0
+          ),
+          opponent_stats = base_lineup.opponent_stats.copy(
+            pts = 2,
+            num_possessions = 0
+          )
+        )
+        val state1 = PossState.init.copy(
+          team_stats = PossCalcFragment(shots_made_or_missed = 2)
+        )
+        val team_stats1 = PossCalcFragment(shots_made_or_missed = 1)
+        val oppo_stats1 = PossCalcFragment()
+        val clump1 = ConcurrentClump(Nil, List(lineup1))
+        TestUtils.inside(assign_to_right_lineup(
+          state1, team_stats1, oppo_stats1, clump1, ConcurrentClump(Nil)
+        )) {
+          case lineup :: Nil =>
+            lineup.team_stats.num_possessions ==> 3
+            lineup.opponent_stats.num_possessions ==> 1
+        }
+
+        // Now we'll check the multi-lineup case
+        // where we have to balance the possessions
+        // across 2 lineups
+
+        val state2 = PossState.init.copy(
+          team_stats = PossCalcFragment(shots_made_or_missed = 2),
+          opponent_stats = PossCalcFragment(shots_made_or_missed = 3),
+        )
+        val team_stats2 = PossCalcFragment(shots_made_or_missed = 0)
+        val oppo_stats2 = PossCalcFragment(shots_made_or_missed = 4)
+        val clump2 = ConcurrentClump(
+          List(Events.made_team.copy(min = 2.0)), // (event itself is ignored but the time is used)
+          test_lineups
+        )
+        TestUtils.inside(assign_to_right_lineup(
+          state2, team_stats2, oppo_stats2, clump2, ConcurrentClump(Nil)
+        )) {
+          case lineup_a :: lineup_b :: Nil =>
+            lineup_a.team_stats.num_possessions ==> 2 //(from state2)
+            lineup_a.opponent_stats.num_possessions ==> 6 //(3 from state2 and then 75% of the fragment)
+            lineup_b.team_stats.num_possessions ==> 0 //(allowed because score==0)
+            lineup_b.opponent_stats.num_possessions ==> 1 //(25% of the fragment)
+        }
       }
 
       "calculate_possessions" - {
-//TODO TOTEST
+        // We've already tested the logic, just need to confirm that
+        TestUtils.inside(calculate_possessions(test_lineups)) {
+          case lineup_a :: lineup_b :: Nil =>
+            lineup_a.team_stats.num_possessions ==> 0
+            lineup_a.opponent_stats.num_possessions ==> 5 // (all the min1 and all-1 min2 events)
+            lineup_b.team_stats.num_possessions ==> 0
+            lineup_b.opponent_stats.num_possessions ==> 2 //(1 min2 event, and all the min 3 events)
+        }
       }
     }
   }

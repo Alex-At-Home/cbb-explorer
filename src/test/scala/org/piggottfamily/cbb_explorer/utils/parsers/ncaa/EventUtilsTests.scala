@@ -24,34 +24,34 @@ object EventUtilsTests extends TestSuite {
         Nil
 
       val shot_made_test_cases =
-        "08:44:00,20-23,Bruno Fernando, 2pt dunk 2ndchance;pointsinthepaint made" ::
-        "08:44:00,20-23,Bruno Fernando, 2pt alleyoop pointsinthepaint made" ::
+        "08:44:00,20-23,Bruno Fernando1, 2pt dunk 2ndchance;pointsinthepaint made" ::
+        "08:44:00,20-23,Bruno Fernando2, 2pt alleyoop pointsinthepaint made" ::
         "08:44:00,20-23,WATKINS,MIKE made Dunk" ::
         "08:44:00,20-23,Jalen Smith, 2pt layup 2ndchance;pointsinthepaint made" ::
         "08:44:00,20-23,BOLTON,RASIR made Layup" ::
         "08:44:00,20-23,STEVENS,LAMAR made Tip In" ::
         "08:44:00,20-23,Anthony Cowan, 2pt jumpshot fromturnover;fastbreak made" ::
-        "08:44:00,20-23,STEVENS,LAMAR made Two Point Jumper" ::
+        "08:44:00,20-23,STEVENS,LAMAR2 made Two Point Jumper" ::
         "08:44:00,20-23,Eric Ayala, 3pt jumpshot made" ::
         "08:44:00,20-23,SMITH,JALEN made Three Point Jumper" ::
         Nil
 
       val shot_missed_test_cases =
-        "08:44:00,20-23,Bruno Fernando, 2pt dunk missed" ::
-        "08:44:00,20-23,WATKINS,MIKE missed Dunk" ::
+        "08:44:00,20-23,Bruno Fernando3, 2pt dunk missed" ::
+        "08:44:00,20-23,WATKINS,MIKE1 missed Dunk" ::
         "08:44:00,20-23,Eric Carter, 2pt layup missed" ::
         "08:44:00,20-23,TOMAIC,JOSHUA missed Layup" ::
         "08:44:00,20-23,Ricky Lindo Jr., 2pt jumpshot missed" ::
-        "08:44:00,20-23,SMITH,JALEN missed Two Point Jumper" ::
-        "08:44:00,20-23,Eric Ayala, 3pt jumpshot 2ndchance missed" ::
+        "08:44:00,20-23,SMITH,JALEN1 missed Two Point Jumper" ::
+        "08:44:00,20-23,Eric Ayala2, 3pt jumpshot 2ndchance missed" ::
         "08:44:00,20-23,DREAD,MYLES missed Three Point Jumper" ::
         Nil
 
       val rebound_test_cases =
         "08:44:00,20-23,Darryl Morsell, rebound defensive" ::
-        "08:44:00,20-23,Jalen Smith, rebound offensive" ::
+        "08:44:00,20-23,Jalen Smith1, rebound offensive" ::
         "08:44:00,20-23,Team, rebound offensive team" ::
-        "08:44:00,20-23,SMITH,JALEN Offensive Rebound" ::
+        "08:44:00,20-23,SMITH,JALEN2 Offensive Rebound" ::
         "08:44:00,20-23,HARRAR,JOHN Defensive Rebound" ::
         "04:33,46-45,TEAM Deadball Rebound" ::
         "04:28:0,52-59,Team, rebound offensivedeadball" ::
@@ -59,24 +59,28 @@ object EventUtilsTests extends TestSuite {
         Nil
 
       val free_throw_made_test_cases =
+        "08:44:00,20-23,Kevin Anderson0M, freethrow 1of1 made" ::
+        "08:44:00,20-23,Kevin Anderson1M, freethrow 1of2 made" ::
         "08:44:00,20-23,Kevin Anderson, freethrow 2of2 made" ::
-        "08:44:00,20-23,DREAD,MYLES made Free Throw" ::
+        "08:44:00,20-23,Kevin Anderson3M, freethrow 1of3 made" ::
+        "08:44:00,20-23,DREAD,MYLES1 made Free Throw" ::
         Nil
 
       val free_throw_missed_test_cases =
+        "08:44:00,20-23,Kevin Anderson0m, freethrow 1of1 missed" ::
         "08:44:00,20-23,Kevin Anderson1, freethrow 1of2 missed" ::
         "08:44:00,20-23,Kevin Anderson2, freethrow 2of2 missed" ::
         "08:44:00,20-23,Kevin Anderson3, freethrow 1of3 missed" ::
         "08:44:00,20-23,Kevin Anderson4, freethrow 2of3 missed" ::
         "08:44:00,20-23,Kevin Anderson5, freethrow 3of3 missed" ::
-        "08:44:00,20-23,DREAD,MYLES missed Free Throw" ::
+        "08:44:00,20-23,DREAD,MYLES2 missed Free Throw" ::
         Nil
 
       val turnover_test_cases =
-        "14:11:00,7-9,Bruno Fernando, turnover badpass" ::
+        "14:11:00,7-9,Bruno Fernando4, turnover badpass" ::
         "14:11:00,7-9,Joshua Tomaic, turnover lostball" ::
-        "14:11:00,7-9,Jalen Smith, turnover offensive" ::
-        "14:11:00,7-9,Kevin Anderson, turnover travel" ::
+        "14:11:00,7-9,Jalen Smith2, turnover offensive" ::
+        "14:11:00,7-9,Kevin Anderson6, turnover travel" ::
         "14:11:00,7-9,MORSELL,DARRYL Turnover" ::
         Nil
 
@@ -91,10 +95,12 @@ object EventUtilsTests extends TestSuite {
         Nil
 
       val foul_test_cases =
-        "13:36:00,7-9,Jalen Smith, foul personal shooting;2freethrow" ::
+        "10:00,51-60,TEAM Commits Foul" :: //(old style tech)
+        "13:36:00,7-9,Jalen Smith3, foul personal shooting;2freethrow" ::
         "10:00,51-60,MYKHAILIUK,SVI Commits Foul" ::
-        "06:43:00,55-79,Bruno Fernando, foul technical classa;2freethrow" ::
-        "02:28:00,27-38,Jalen Smith, foulon" ::
+        "06:43:00,55-79,Bruno Fernando5, foul technical classa;2freethrow" ::
+        "02:28:00,27-38,Jalen Smith4, foulon" ::
+        "03:42:00,10-10,Eric Carter1, foul personal flagrant1;2freethrow" ::
         Nil
 
       val all_test_cases = (
@@ -135,27 +141,29 @@ object EventUtilsTests extends TestSuite {
         }
       }
       // Shots
+      val shots_made = List(
+        "Bruno Fernando1", "Bruno Fernando2", "WATKINS,MIKE", "Jalen Smith",
+        "BOLTON,RASIR", "STEVENS,LAMAR", "Anthony Cowan", "STEVENS,LAMAR2",
+        "Eric Ayala", "SMITH,JALEN"
+      )
       "ParseShotMade" - {
         TestUtils.inside(all_test_cases.collect {
           case EventUtils.ParseShotMade(name) => name
         }) {
-          case List(
-            "Bruno Fernando", "Bruno Fernando", "WATKINS,MIKE", "Jalen Smith",
-            "BOLTON,RASIR", "STEVENS,LAMAR", "Anthony Cowan", "STEVENS,LAMAR",
-            "Eric Ayala", "SMITH,JALEN"
-          ) =>
+          case `shots_made` =>
         }
 
       }
+      val shots_missed = List(
+        "Bruno Fernando3", "WATKINS,MIKE1", "Eric Carter",
+        "TOMAIC,JOSHUA", "Ricky Lindo Jr.", "SMITH,JALEN1",
+        "Eric Ayala2", "DREAD,MYLES"
+      )
       "ParseShotMissed" - {
           TestUtils.inside(all_test_cases.collect {
             case EventUtils.ParseShotMissed(name) => name
           }) {
-            case List(
-              "Bruno Fernando", "WATKINS,MIKE", "Eric Carter",
-              "TOMAIC,JOSHUA", "Ricky Lindo Jr.", "SMITH,JALEN",
-              "Eric Ayala", "DREAD,MYLES"
-            ) =>
+            case `shots_missed` =>
           }
       }
 
@@ -165,18 +173,29 @@ object EventUtilsTests extends TestSuite {
           case EventUtils.ParseRebound(name) => name
         }) {
           case List(
-            "Darryl Morsell", "Jalen Smith", "Team", "SMITH,JALEN", "HARRAR,JOHN", "TEAM", "Team", "Team"
+            "Darryl Morsell", "Jalen Smith1", "Team", "SMITH,JALEN2", "HARRAR,JOHN", "TEAM", "Team", "Team"
           ) =>
         }
       }
       //(defensive)
+      "ParseOffensiveRebound" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseOffensiveRebound(name) => name
+        }) {
+          case List(
+          "Jalen Smith1", "Team", "SMITH,JALEN2", "Team"
+          ) =>
+        }
+      }
+      //(defensive)
+      val drbs = List(
+        "Darryl Morsell", "HARRAR,JOHN", "Team"
+      )
       "ParseDefensiveRebound" - {
         TestUtils.inside(all_test_cases.collect {
           case EventUtils.ParseDefensiveRebound(name) => name
         }) {
-          case List(
-            "Darryl Morsell", "HARRAR,JOHN", "Team"
-          ) =>
+          case `drbs` =>
         }
       }
       // (deadball)
@@ -189,53 +208,86 @@ object EventUtilsTests extends TestSuite {
           ) =>
         }
       }
+      "ParseDeadballRebound" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseOffensiveDeadballRebound(name) => name
+        }) {
+          case List(
+            "Team",
+          ) =>
+        }
+      }
 
       // Free throws
+      val fts_made = List(
+        "Kevin Anderson0M", "Kevin Anderson1M", "Kevin Anderson", "Kevin Anderson3M", "DREAD,MYLES1"
+      )
       "ParseFreeThrowMade" - {
         TestUtils.inside(all_test_cases.collect {
           case EventUtils.ParseFreeThrowMade(name) => name
         }) {
-          case List(
-            "Kevin Anderson", "DREAD,MYLES"
-          ) =>
+          case `fts_made` =>
         }
       }
+      val fts_missed = List(
+        "Kevin Anderson0m",
+        "Kevin Anderson1", "Kevin Anderson2", "Kevin Anderson3", "Kevin Anderson4",
+        "Kevin Anderson5", "DREAD,MYLES2"
+      )
       "ParseFreeThrowMissed" - {
         TestUtils.inside(all_test_cases.collect {
           case EventUtils.ParseFreeThrowMissed(name) => name
         }) {
+          case `fts_missed` =>
+        }
+      }
+      "ParseFreeThrowEvent" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseFreeThrowEvent(name) => name
+        }) {
           case List(
-            "Kevin Anderson1", "Kevin Anderson2", "Kevin Anderson3", "Kevin Anderson4",
-            "Kevin Anderson5", "DREAD,MYLES"
+            "Kevin Anderson0M", "Kevin Anderson1M", "Kevin Anderson3M", "DREAD,MYLES1",
+            "Kevin Anderson0m", "Kevin Anderson1", "Kevin Anderson3", "DREAD,MYLES2"
           ) =>
+        }
+      }
+      val fts_attempt = fts_made ++ fts_missed
+      "ParseFreeThrowAttempt" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseFreeThrowAttempt(name) => name
+        }) {
+          case `fts_attempt` =>
         }
       }
 
       // Turnovers
+      val turnovers = List(
+        "Bruno Fernando4", "Joshua Tomaic", "Jalen Smith2", "Kevin Anderson6", "MORSELL,DARRYL"
+      )
       "ParseTurnover" - {
         TestUtils.inside(all_test_cases.collect {
           case EventUtils.ParseTurnover(name) => name
         }) {
-          case List(
-            "Bruno Fernando", "Joshua Tomaic", "Jalen Smith", "Kevin Anderson", "MORSELL,DARRYL"
-          ) =>
+          case `turnovers` =>
         }
       }
 
       // Blocks
+      val blockers = List("Emmitt Williams", "LAYMAN,JAKE")
       "ParseShotBlocked" - {
         TestUtils.inside(all_test_cases.collect {
           case EventUtils.ParseShotBlocked(name) => name
         }) {
-          case List("Emmitt Williams", "LAYMAN,JAKE") =>
+          case `blockers` =>
         }
       }
       // Steals
+      val stealers = List("Jacob Cushing", "MASON III,FRANK")
       "ParseStolen" - {
         TestUtils.inside(all_test_cases.collect {
           case EventUtils.ParseStolen(name) => name
         }) {
-          case List("Jacob Cushing", "MASON III,FRANK") =>
+          case `stealers` =>
         }
       }
 
@@ -244,23 +296,63 @@ object EventUtilsTests extends TestSuite {
         TestUtils.inside(all_test_cases.collect {
           case EventUtils.ParsePersonalFoul(name) => name
         }) {
-          case List("Jalen Smith", "MYKHAILIUK,SVI") =>
+          case List("Jalen Smith3", "MYKHAILIUK,SVI", "Eric Carter1") =>
+        }
+      }
+      "ParseFlagrantFoul" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseFlagrantFoul(name) => name
+        }) {
+          case List("Eric Carter1") =>
         }
       }
       "ParseTechnicalFoul" - {
         TestUtils.inside(all_test_cases.collect {
           case EventUtils.ParseTechnicalFoul(name) => name
         }) {
-          case List("Bruno Fernando") =>
+          case List("TEAM", "Bruno Fernando5") =>
         }
       }
       "ParseFoulInfo" - {
         TestUtils.inside(all_test_cases.collect {
           case EventUtils.ParseFoulInfo(name) => name
         }) {
-          case List("Jalen Smith") =>
+          case List("Jalen Smith4") =>
         }
       }
+      // combos
+      val offensive_actions = shots_made ++ shots_missed ++ fts_attempt ++ turnovers
+      "ParseOffensiveEvent" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseOffensiveEvent(name) => name
+        }) {
+          case `offensive_actions` =>
+        }
+      }
+      val defensive_actions = blockers ++ stealers
+      "ParseDefensiveInfoEvent" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseDefensiveInfoEvent(name) => name
+        }) {
+          case `defensive_actions` =>
+        }
+      }      
+      "ParseDefensiveActionEvent" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseDefensiveActionEvent(name) => name
+        }) {
+          case `drbs` =>
+        }
+      }
+      val defensive_events = drbs ++ defensive_actions
+      "ParseDefensiveEvent" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseDefensiveEvent(name) => name
+        }) {
+          case `defensive_events` =>
+        }
+      }
+
     }
   }
 }

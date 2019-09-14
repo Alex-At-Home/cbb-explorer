@@ -12,6 +12,10 @@ trait PossessionUtils {
   import ExtractorUtils._
   import StateUtils.StateTypes._
 
+  /** Debug flags */
+  protected val show_end_of_raw_calcs = true
+  protected val log_lineup_fixes = true
+
   /** Useful scriptlet for checking results
   // Show results
   l.groupBy(t => (t.opponent, t.location_type)).mapValues(
@@ -112,6 +116,48 @@ trait PossessionUtils {
   }
 
   /** Util methods */
+
+  /** Identify concurrent events (easy) */
+  protected def check_for_concurrent_event[S](
+    ev: Clumper.Event[S, PossState.ConcurrencyState, ConcurrentClump]
+  ): (PossState.ConcurrencyState, Boolean) = ev match {
+    case Clumper.Event(_, cs, Nil, ConcurrentClump(ev :: _, _)) =>
+      //(first event always gens a clump, possibly of size 1)
+      (cs.copy(last_min = ev.min, last_date_str = ev.date_str), true)
+
+    case Clumper.Event(_, cs, _, ConcurrentClump(Nil, _ :: _)) =>
+      // Lineup change -  lineups just get added to the list
+      (cs, true)
+
+    case Clumper.Event(_, cs, _, ConcurrentClump(ev :: _, _)) if ev.date_str > cs.last_date_str =>
+      // Game break
+      (cs.copy(last_min = -1.0, last_date_str = ev.date_str), false)
+
+    case Clumper.Event(_, cs, _, ConcurrentClump(ev :: _, _)) if ev.min == cs.last_min =>
+      (cs, true)
+    case Clumper.Event(_, cs, _, ConcurrentClump(ev :: _, _)) =>
+      (cs.copy(last_min = ev.min, last_date_str = ev.date_str), false)
+    case Clumper.Event(_, cs, _, ConcurrentClump(Nil, Nil)) => //(empty ConcurrentClump, not possible by construction)
+      (cs, true)
+  }
+
+  /** Aggregates all concurrent clumps of 1 event into a single clump of many events */
+  protected def rearrange_concurrent_event[S](
+    s: S, cs: PossState.ConcurrencyState, reverse_clump: List[ConcurrentClump]
+  ): List[ConcurrentClump] = {
+    List(
+      reverse_clump.foldLeft(ConcurrentClump(Nil, Nil)) { (acc, v) =>
+        acc.copy(evs = v.evs ++ acc.evs, lineups = v.lineups ++ acc.lineups)
+      } //(re-reverses the lists)
+    )
+  }
+
+  /** Manages splitting stream into concurrent chunks and then combining them */
+  protected def concurrent_event_handler[S] = Clumper(
+    PossState.ConcurrencyState.init,
+    check_for_concurrent_event[S] _,
+    rearrange_concurrent_event[S] _
+  )
 
   /** Calculates the possessions from a block of data (eg game or lineup)
       for one direction only. As stateless and independent in the 2 dirs as possible!
@@ -249,10 +295,13 @@ trait PossessionUtils {
       case defendingTeam(EventUtils.ParseFlagrantFoul(_)) => ()
     }.nonEmpty) 1 else 0
 
+    val offsetting_tech_or_flagrant =
+      if (offsetting_tech + offsetting_flagrant > 0) 1 else 0
+
     val tech_or_flagrant: Int = (if (filtered_clump.collect {
       case defendingTeam(EventUtils.ParseTechnicalFoul(_)) => ()
       case defendingTeam(EventUtils.ParseFlagrantFoul(_)) => ()
-    }.nonEmpty) 1 else 0) - offsetting_tech - offsetting_flagrant
+    }.nonEmpty) 1 else 0) - offsetting_tech_or_flagrant
 
     val orbs: Int = filtered_clump.collect {
       case attackingTeam(EventUtils.ParseOffensiveRebound(_)) => ()
@@ -300,21 +349,21 @@ trait PossessionUtils {
       }
     }
 
-    val recent_dead_ft_misses = List(clump.evs, prev.evs).map { evs =>
-      evs.collect {
-        case ev @ attackingTeam(EventUtils.ParseFreeThrowMade(_)) => ev
+    // (explained in the block comment above)
+    val recent_dead_ft_misses = List(prev.evs, clump.evs).flatten.collect {
+      case ev @ attackingTeam(EventUtils.ParseFreeThrowMade(_)) => ev
+      case ev @ attackingTeam(EventUtils.ParseFreeThrowMissed(_)) => ev
+    }.sortBy(ev => score_to_tuple(ev.score_str)).reverse match { // reverse => highest first
+      case fts => fts.drop(1).collect {
         case ev @ attackingTeam(EventUtils.ParseFreeThrowMissed(_)) => ev
-      }.sortBy(ev => score_to_tuple(ev.score_str)).reverse match { // reverse => highest first
-        case fts => fts.drop(1).collect {
-          case ev @ attackingTeam(EventUtils.ParseFreeThrowMissed(_)) => ev
-        }.size
-      }
-    }.sum
+      }.size
+    }
 
     // this can be wrong if the _prev_ clump had a technical/flagrant, we'll live with that
     val real_deadball_orbs =
       if ((recent_dead_ft_misses == 0) && (tech_or_flagrant == 0)) clump.evs.collect {
         case ev @ attackingTeam(EventUtils.ParseOffensiveDeadballRebound(_))
+//TODO: is is deliberate that this only covers new format rebounds?
           if !ev.info.startsWith("00:00") //(see spurious deadball rebounds at the end of the period)
         => ()
       }.size else 0
@@ -327,56 +376,10 @@ trait PossessionUtils {
       shots_made_or_missed,
       orbs, real_deadball_orbs,
       ft_event, and_one,
-      tech_or_flagrant, offsetting_tech + offsetting_flagrant,
+      tech_or_flagrant, offsetting_tech_or_flagrant,
       turnovers
     )
   }
-
-  /** Identify concurrent events (easy) */
-  protected def check_for_concurrent_event[S](
-    ev: Clumper.Event[S, PossState.ConcurrencyState, ConcurrentClump]
-  ): (PossState.ConcurrencyState, Boolean) = ev match {
-    case Clumper.Event(_, cs, Nil, ConcurrentClump(ev :: _, _)) =>
-      //(first event always gens a clump, possibly of size 1)
-      (cs.copy(last_min = ev.min, last_date_str = ev.date_str), true)
-
-    case Clumper.Event(_, cs, _, ConcurrentClump(Nil, _ :: _)) =>
-      // Lineup change -  lineups just get added to the list
-      (cs, true)
-
-    case Clumper.Event(_, cs, _, ConcurrentClump(ev :: _, _)) if ev.date_str > cs.last_date_str =>
-      // Game break
-      (cs.copy(last_min = -1.0, last_date_str = ev.date_str), false)
-
-    case Clumper.Event(_, cs, _, ConcurrentClump(ev :: _, _)) if ev.min == cs.last_min =>
-      (cs, true)
-    case Clumper.Event(_, cs, _, ConcurrentClump(ev :: _, _)) =>
-      (cs.copy(last_min = ev.min, last_date_str = ev.date_str), false)
-    case Clumper.Event(_, cs, _, ConcurrentClump(Nil, Nil)) => //(empty ConcurrentClump, not possible by construction)
-      (cs, true)
-  }
-
-  /** Aggregates all concurrent clumps of 1 event into a single clump of many events */
-  protected def rearrange_concurrent_event[S](
-    s: S, cs: PossState.ConcurrencyState, reverse_clump: List[ConcurrentClump]
-  ): List[ConcurrentClump] = {
-    List(
-      reverse_clump.foldLeft(ConcurrentClump(Nil, Nil)) { (acc, v) =>
-        acc.copy(evs = v.evs ++ acc.evs, lineups = v.lineups ++ acc.lineups)
-      } //(re-reverses the lists)
-    )
-  }
-
-  /** Manages splitting stream into concurrent chunks and then combining them */
-  protected def concurrent_event_handler[S] = Clumper(
-    PossState.ConcurrencyState.init,
-    check_for_concurrent_event[S] _,
-    rearrange_concurrent_event[S] _
-  )
-
-  /** Debug flags */
-  protected val show_end_of_raw_calcs = true
-  protected val log_lineup_fixes = true
 
   /** Returns team and opponent possessions based on the lineup data */
   def calculate_possessions(
@@ -394,6 +397,41 @@ trait PossessionUtils {
   }
 
   /** If there are multiple lineups, assign the possessions correctly
+      Some examples of complex cases:
+
+      This one gets handled via lineup_balancer
+      08:36:00		24-26	Serrel Smith Jr., foul personal
+      08:36:00	Jon Elmore, foulon	24-26
+      08:36:00	Jon Elmore, rebound offensive	24-26
+      08:36:00	Jannson Williams, rebound offensive	24-26
+      08:36:00	Rondale Watson, substitution out	24-26
+      08:36:00	Taevion Kinsey, substitution in	24-26
+      08:36:00	Jon Elmore, 2pt jumpshot 2ndchance missed	24-26
+      08:36:00		24-26	Anthony Cowan, substitution in
+      08:36:00		24-26	Serrel Smith Jr., substitution out
+      08:36:00		24-28	Darryl Morsell, steal
+      08:36:00		24-28	Eric Ayala, 2pt layup missed
+      08:36:00	Jon Elmore, turnover badpass	24-28
+      08:36:00		24-28	Bruno Fernando, 2pt layup pointsinthepaint made
+      08:36:00	Jarrod West, rebound defensive	24-28
+      08:36:00	Taevion Kinsey, 3pt jumpshot missed	24-28
+      08:36:00		24-28	Eric Ayala, rebound defensive
+
+      This one gets handled via lineup_fixer - it's problem is quite fundamental -
+      what _is_ the poss<->lineup mapping for: (FG, missed and-1), lineup-change, FG
+
+      01:52:00		30-32	Jordan Murphy, 2pt jumpshot made
+      01:52:00	Jalen Smith, foul personal shooting;1freethrow	30-32
+      01:52:00		30-32	Jordan Murphy, foulon
+      01:52:00		30-32	Amir Coffey, rebound offensive <- NOT ACTUALLY SURE HOW _WHAT_ I SHOULD DO HERE
+                         (CAN SCORE MULTIPLE POINTS ON THE SAME POSSESSION WITH DIFFERENT LINEUPS)
+      01:52:00		30-32	Jordan Murphy, freethrow 1of1 missed
+      subs:
+      01:52:00	Darryl Morsell, substitution out	30-32
+      01:52:00	Ivan Bender, substitution out	30-32
+      01:52:00	Bruno Fernando, substitution in	30-32
+      01:52:00	Eric Ayala, substitution in	30-32
+
   */
   protected def assign_to_right_lineup(
     state: PossState,
@@ -551,45 +589,5 @@ trait PossessionUtils {
         lineups
     }
   } //(end calculate_possessions)
-
-/** Issues:
-////////////////////
-
-L1:
-01:52:00		30-32	Jordan Murphy, 2pt jumpshot made
-01:52:00	Jalen Smith, foul personal shooting;1freethrow	30-32
-01:52:00		30-32	Jordan Murphy, foulon
-01:52:00		30-32	Amir Coffey, rebound offensive <- NOT ACTUALLY SURE HOW _WHAT_ I SHOULD DO HERE
-                   (CAN SCORE MULTIPLE POINTS ON THE SAME POSSESSION WITH DIFFERENT LINEUPS)
-01:52:00		30-32	Jordan Murphy, freethrow 1of1 missed
-subs:
-01:52:00	Darryl Morsell, substitution out	30-32
-01:52:00	Ivan Bender, substitution out	30-32
-01:52:00	Bruno Fernando, substitution in	30-32
-01:52:00	Eric Ayala, substitution in	30-32
-
-
-Next! (Marshall) OK so there are legit 2 possessions here,
-the possessions in the right ratio?
-08:36:00		24-26	Serrel Smith Jr., foul personal
-08:36:00	Jon Elmore, foulon	24-26
-08:36:00	Jon Elmore, rebound offensive	24-26
-08:36:00	Jannson Williams, rebound offensive	24-26
-08:36:00	Rondale Watson, substitution out	24-26
-08:36:00	Taevion Kinsey, substitution in	24-26
-08:36:00	Jon Elmore, 2pt jumpshot 2ndchance missed	24-26
-L1***
-08:36:00		24-26	Anthony Cowan, substitution in
-08:36:00		24-26	Serrel Smith Jr., substitution out
-
-08:36:00		24-28	Darryl Morsell, steal
-08:36:00		24-28	Eric Ayala, 2pt layup missed
-08:36:00	Jon Elmore, turnover badpass	24-28
-08:36:00		24-28	Bruno Fernando, 2pt layup pointsinthepaint made
-08:36:00	Jarrod West, rebound defensive	24-28
-08:36:00	Taevion Kinsey, 3pt jumpshot missed	24-28
-08:36:00		24-28	Eric Ayala, rebound defensive
-
-*/
 }
 object PossessionUtils extends PossessionUtils

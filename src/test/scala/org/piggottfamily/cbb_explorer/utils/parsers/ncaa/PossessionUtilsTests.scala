@@ -17,29 +17,66 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
       /** A handy compilation of events */
       object Events {
         val jump_won_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "19:58:00,0-0,Bruno Fernando, jumpball won")
-        val jump_won_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "19:58:00,0-0,Bruno Fernando, jumpball won")
+        val jump_won_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = jump_won_team.team.get)
         val jump_lost_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "19:58:00,0-0,Kavell Bigby-Williams, jumpball lost")
 
         val turnover_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "08:44:00,20-23,Bruno Fernando, turnover badpass")
+        val turnover_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = turnover_team.team.get)
         val steal_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,55-68,MASON III,FRANK Steal")
+        val steal_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = steal_team.team.get)
+
         val made_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,SMITH,JALEN made Three Point Jumper")
-        val made_ft_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,55-68,Kevin Anderson, freethrow 2of2 made")
+        val made_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = made_team.team.get)
+        val missed_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "02:28:00,27-38,Eric Ayala, 3pt jumpshot 2ndchance missed")
+        val missed_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = missed_team.team.get)
+        val made_ft_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,DREAD,MYLES made Free Throw")
+        val made_ft_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = made_ft_team.team.get)
+        val made_ft1_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,55-68,Kevin Anderson, freethrow 1of2 made")
+        val made_ft1_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = made_ft1_team.team.get)
+        val made_ft2_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,55-68,Kevin Anderson, freethrow 2of2 made")
+        val made_ft2_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = made_ft2_team.team.get)
         val missed_ft_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,DREAD,MYLES missed Free Throw")
+        val missed_ft_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = missed_ft_team.team.get)
+        val missed_ft1_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,55-68,Kevin Anderson, freethrow 1of2 missed")
+        val missed_ft1_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = missed_ft1_team.team.get)
+        val missed_ft2_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,55-68,Kevin Anderson, freethrow 2of2 missed")
+        val missed_ft2_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = missed_ft2_team.team.get)
+
         val orb_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,Darryl Morsell, rebound offensive")
+        val orb_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = orb_team.team.get)
         val drb_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,Darryl Morsell, rebound defensive")
+        val drb_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = drb_team.team.get)
+        val deadball_rb_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,TEAM Deadball Rebound")
+        val deadball_rb_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = deadball_rb_team.team.get)
+        val deadball_orb_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "04:28:0,52-59,Team, rebound offensivedeadball")
+        val deadball_orb_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = deadball_orb_team.team.get)
+
         val foul_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,MYKHAILIUK,SVI Commits Foul")
-
-        val made_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "10:00,51-60,SMITH,JALEN made Three Point Jumper")
-        val missed_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "02:28:00,27-38,Eric Ayala, 3pt jumpshot 2ndchance missed")
-        val foul_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "10:00,51-60,MYKHAILIUK,SVI Commits Foul")
-        val made_ft_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "05:10,55-68,Kevin Anderson, freethrow 2of2 made")
-        val missed_ft_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "10:00,51-60,DREAD,MYLES missed Free Throw")
-        val steal_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "05:10,55-68,MASON III,FRANK Steal")
-
-        val orb_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "10:00,51-60,Darryl Morsell, rebound offensive")
-        val drb_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "10:00,51-60,Darryl Morsell, rebound defensive")
-        val tech_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "06:43:00,55-79,Bruno Fernando, foul technical classa;2freethrow")
+        val foul_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = foul_team.team.get)
+        val tech_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "06:43:00,55-79,Bruno Fernando, foul technical classa;2freethrow")
+        val tech_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = tech_team.team.get)
+        val flagrant_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "03:42:00,55-79,Eric Carter, foul personal flagrant1;2freethrow")
+        val flagrant_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = flagrant_team.team.get)
       }
+      val base_lineup = LineupEvent(
+        date = new DateTime(),
+        location_type = Game.LocationType.Home,
+        start_min = 0.0,
+        end_min = 1.0,
+        duration_mins = 0.0,
+        score_info = LineupEvent.ScoreInfo(
+          Game.Score(1, 1), Game.Score(3, 2), 2, 1
+        ),
+        team = TeamSeasonId(TeamId("TeamA"), Year(2017)),
+        opponent = TeamSeasonId(TeamId("TeamB"), Year(2017)),
+        lineup_id = LineupEvent.LineupId.unknown,
+        players = Nil,
+        players_in = Nil,
+        players_out = Nil,
+        raw_game_events = Nil,
+        team_stats = LineupEventStats.empty,
+        opponent_stats = LineupEventStats.empty
+      )
 
       "concurrent_event_handler" - {
         // (test check_for_concurrent_event and rearrange_concurrent_event)
@@ -82,11 +119,238 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
           ) =>
         }
 
-//TODO TOTEST concurrent clumps with lineups
+        // Check with lineups:
+        val lineup1 = base_lineup.copy(start_min = 1.0, end_min = 2.0)
+        val lineup2 = base_lineup.copy(start_min = 2.0, end_min = 3.0)
+
+        val test_lineups =
+          (ev2 -> Nil) ::
+          (ev3 -> List(base_lineup)) ::
+          (ev4 -> List(lineup1)) ::
+          (ev5 -> List(lineup2)) ::
+          Nil
+        val test_lineups_in = test_lineups.map { case (ev, l) => ConcurrentClump(ev :: Nil, l) }
+
+        TestUtils.inside(
+          StateUtils.foldLeft(test_lineups_in, PossState.init, concurrent_event_handler[PossState]) {
+            case StateEvent.Next(ctx, state, clump) =>
+              ctx.stateChange(state, clump)
+            case StateEvent.Complete(ctx, _) =>
+              ctx.noChange
+          }
+        ) {
+          case FoldStateComplete(_,
+            ConcurrentClump(`ev2` :: Nil, Nil) ::
+            ConcurrentClump(`ev3` :: `ev4` :: Nil, `base_lineup` :: `lineup1` :: Nil) ::
+            ConcurrentClump(`ev5` :: Nil, `lineup2` :: Nil) ::
+            Nil
+          ) =>
+        }
       }
 
-      "TODO" - {
-//TODO TOTEST
+      "PossCalcFragment" - {
+        val frag1 = PossCalcFragment(1, 2, 3, 4, 5, 6, 7, 8)
+        val frag2 = PossCalcFragment(1, 3, 5, 7, 9, 11, 13, 15)
+        val frag_sum = PossCalcFragment(2, 5, 8, 11, 14, 17, 20, 23)
+
+        frag1.sum(frag2) ==> frag_sum
+        frag1.total_poss ==> 2
+        frag1.summary ==> "total=[2] = shots=[1] - (orbs=[2] + db_orbs=[3]) + (ft_sets=[4] - techs=[6]) + to=[8] { +1s=[5] offset_techs=[7] }"
+      }
+
+      "calculate_stats" - {
+
+        val empty_fragment = PossCalcFragment()
+        // Tests:
+        val tests =
+          // Shots made/missed
+          List(Events.made_team, Events.missed_team, Events.made_team) ->
+            empty_fragment.copy(shots_made_or_missed = 3) ::
+          List(Events.missed_team) ->
+            empty_fragment.copy(shots_made_or_missed = 1) ::
+          List(Events.made_opponent, Events.missed_opponent) ->
+            empty_fragment ::
+          // Free throws
+          List(Events.made_ft1_team, Events.missed_ft1_team) ->
+            empty_fragment.copy(ft_events = 1) ::
+          List(Events.made_ft_team, Events.missed_ft_team) -> //(legacy format)
+            empty_fragment.copy(ft_events = 1) ::
+          List(Events.made_ft2_team) -> //(only FT1s count)
+            empty_fragment ::
+          List(Events.made_ft1_team, Events.made_ft1_team, Events.made_ft1_team, Events.made_ft1_team) ->
+            empty_fragment.copy(ft_events = 1) :: //(at most one FT set per clump)
+          List(Events.made_ft_team, Events.made_ft_team, Events.made_ft_team, Events.made_ft_team) ->
+            empty_fragment.copy(ft_events = 1) :: //(at most one FT set per clump)
+          List(Events.made_ft1_opponent, Events.missed_ft_opponent) ->
+            empty_fragment ::
+          // Free throws that definitely _aren't_ and-1s:
+          List(Events.missed_ft1_team) -> //(not all single FTs are and-1s)
+            empty_fragment.copy(ft_events = 1) ::
+          List(Events.missed_ft_team) -> //(not all single FTs are and-1s; legacy)
+            empty_fragment.copy(ft_events = 1) ::
+          List(Events.made_ft1_team) -> //(not all single FTs are and-1s; legacy)
+            empty_fragment.copy(ft_events = 1) ::
+          List(Events.made_ft_team) -> //(not all single FTs are and-1s; legacy)
+            empty_fragment.copy(ft_events = 1) ::
+          List(Events.made_ft1_team, Events.missed_ft1_team, Events.made_team) -> //(2 FTs so ignore make)
+            empty_fragment.copy(shots_made_or_missed = 1, ft_events = 1) ::
+          List(Events.made_ft_team, Events.missed_ft_team, Events.made_team) -> //(2 FTs so ignore make; legacy)
+            empty_fragment.copy(shots_made_or_missed = 1, ft_events = 1) ::
+          List(Events.made_ft1_team, Events.missed_team) -> //(missed so ignore 1 FT; legacy)
+            empty_fragment.copy(shots_made_or_missed = 1, ft_events = 1) ::
+          List(Events.made_ft_team, Events.missed_team) -> //(missed so ignore 1 FT; legacy)
+            empty_fragment.copy(shots_made_or_missed = 1, ft_events = 1) ::
+          // and-1s (see also above/below-under-prev-testing)
+          List(Events.made_ft1_team, Events.made_team) ->
+            empty_fragment.copy(shots_made_or_missed = 1, ignored_and_ones = 1) ::
+          List(Events.made_ft_team, Events.made_team) -> //(legacy)
+            empty_fragment.copy(shots_made_or_missed = 1, ignored_and_ones = 1) ::
+          List(Events.missed_ft1_team, Events.made_team) ->
+            empty_fragment.copy(shots_made_or_missed = 1, ignored_and_ones = 1) ::
+          List(Events.missed_ft_team, Events.made_team) -> //(legacy)
+            empty_fragment.copy(shots_made_or_missed = 1, ignored_and_ones = 1) ::
+          List(Events.missed_ft1_opponent, Events.made_opponent) ->
+            empty_fragment ::
+          List(Events.missed_ft_opponent, Events.made_opponent) -> //(legacy)
+            empty_fragment ::
+          // offsetting techs/flagrants
+          List(Events.tech_team, Events.tech_opponent) ->
+            empty_fragment.copy(offsetting_bad_fouls = 1) ::
+          List(Events.flagrant_team, Events.flagrant_opponent) ->
+            empty_fragment.copy(offsetting_bad_fouls = 1) ::
+          List(Events.tech_team, Events.tech_opponent, Events.tech_team, Events.tech_opponent) ->
+            empty_fragment.copy(offsetting_bad_fouls = 1) :: //(counts at most for one)
+          List(Events.tech_team, Events.tech_opponent, Events.flagrant_team, Events.flagrant_opponent) ->
+            empty_fragment.copy(offsetting_bad_fouls = 1) :: //(counts at most for one)
+          List(Events.flagrant_team, Events.flagrant_opponent, Events.flagrant_team, Events.flagrant_opponent) ->
+            empty_fragment.copy(offsetting_bad_fouls = 1) :: //(counts at most for one)
+          // non-offsetting techs/flagrants
+          List(Events.flagrant_team, Events.tech_opponent) ->
+            empty_fragment.copy(bad_fouls = 1) ::
+          List(Events.tech_team, Events.flagrant_opponent) ->
+            empty_fragment.copy(bad_fouls = 1) ::
+          List(Events.flagrant_opponent) ->
+            empty_fragment.copy(bad_fouls = 1) ::
+          List(Events.tech_opponent, Events.tech_opponent) ->
+            empty_fragment.copy(bad_fouls = 1) :: //(counts at most for one)
+          List(Events.flagrant_opponent, Events.flagrant_opponent) ->
+            empty_fragment.copy(bad_fouls = 1) :: //(counts at most for one)
+          List(Events.tech_opponent) ->
+            empty_fragment.copy(bad_fouls = 1) ::
+          List(Events.tech_opponent, Events.tech_opponent, Events.tech_opponent) ->
+            empty_fragment.copy(bad_fouls = 1) :: //(counts at most for one)
+          // ORBs
+          List(Events.orb_team, Events.orb_team, Events.orb_team) ->
+            empty_fragment.copy(liveball_orbs = 3) ::
+          List(Events.orb_opponent) ->
+            empty_fragment ::
+          // deadball ORBs
+          List(Events.deadball_rb_team, Events.deadball_rb_team) -> //currently only handle new format rebounds
+            empty_fragment ::
+          List(Events.deadball_orb_team, Events.deadball_orb_team) ->
+            empty_fragment.copy(actual_deadball_orbs = 2) ::
+          List(
+            Events.deadball_orb_team, Events.deadball_orb_team,
+            Events.missed_ft1_team, Events.missed_ft2_team, Events.made_ft2_team
+          ) ->
+            empty_fragment.copy(ft_events = 1) ::
+          List(
+            Events.deadball_orb_team, Events.deadball_orb_team, // mismatch vs number of misses IGNORED
+            Events.missed_ft1_team, Events.made_ft2_team, Events.missed_ft2_team
+          ) ->
+            empty_fragment.copy(ft_events = 1) ::
+          List(
+            Events.deadball_orb_team, Events.deadball_orb_team, // only miss was the last free throw
+            Events.made_ft1_team, Events.made_ft2_team, Events.missed_ft2_team.copy(
+              team = Events.missed_ft2_team.team.map(_.replace(
+                Events.missed_ft2_team.score_str, "100-100"))
+            )
+          ) ->
+            empty_fragment.copy(ft_events = 1, actual_deadball_orbs = 2) ::
+          List(Events.deadball_orb_team.copy( //ignore end of period deadball rebounds
+            team = Events.deadball_orb_team.team.map(_.replace(
+              Events.deadball_orb_team.date_str, "00:00:10"
+            ))
+          )) ->
+            empty_fragment ::
+          List(Events.deadball_orb_opponent) ->
+            empty_fragment ::
+          // turnovers
+          List(Events.turnover_team, Events.turnover_team) ->
+            empty_fragment.copy(turnovers = 2) ::
+          List(Events.turnover_opponent) ->
+            empty_fragment ::
+          // misc other events
+          List(
+            Events.jump_won_team, Events.jump_won_opponent, Events.jump_lost_opponent,
+            Events.steal_team, Events.steal_opponent, Events.drb_team, Events.drb_opponent,
+            Events.foul_team, Events.foul_opponent
+          ) ->
+            empty_fragment ::
+          Nil
+
+        // Both directions and checking prev is ignored
+        def reverse_dir: LineupEvent.RawGameEvent => LineupEvent.RawGameEvent = {
+          case LineupEvent.RawGameEvent(a, Some(b), None) => LineupEvent.RawGameEvent(a, None, Some(b))
+          case LineupEvent.RawGameEvent(a, None, Some(b)) => LineupEvent.RawGameEvent(a, Some(b), None)
+          case ev => ev
+        }
+        tests.map { case (l, out) =>
+          (l, l.map(reverse_dir), out)
+        }.foreach { case (test_in, test_in_oppo, expected_out) =>
+          TestUtils.inside(
+            (test_in,
+              calculate_stats(ConcurrentClump(test_in), ConcurrentClump(Nil), Direction.Team),
+              calculate_stats(ConcurrentClump(test_in_oppo), ConcurrentClump(Nil), Direction.Opponent),
+              calculate_stats(ConcurrentClump(Nil), ConcurrentClump(test_in), Direction.Team),
+              calculate_stats(ConcurrentClump(Nil), ConcurrentClump(test_in_oppo), Direction.Opponent)
+            )
+          ) {
+            case (_, `expected_out`, `expected_out`, `empty_fragment`, `empty_fragment`) =>
+          }
+        }
+        val test_prevs =
+          // Check use of prev in determining and-1s
+          (List(Events.made_team), List(Events.missed_ft1_team),
+            empty_fragment.copy(ignored_and_ones = 1)) ::
+          (List(Events.made_team), List(Events.made_ft1_team),
+            empty_fragment.copy(ignored_and_ones = 1)) ::
+          (List(Events.missed_team), List(Events.made_ft1_team),
+            empty_fragment.copy(ft_events = 1)) ::
+          (List(Events.made_team, Events.made_opponent), List(Events.made_ft1_team),
+            empty_fragment.copy(ft_events = 1)) ::
+          // Check use of prev in determining deadball rebounds
+          (List(Events.missed_ft1_team), List(
+            Events.deadball_orb_team, Events.deadball_orb_team, // mismatch vs number of misses IGNORED
+            Events.made_ft2_team, Events.missed_ft2_team
+          ),
+            empty_fragment) ::
+          (List(Events.made_ft1_team), List(
+            Events.deadball_orb_team, Events.deadball_orb_team, // only miss was the last free throw
+            Events.made_ft2_team, Events.missed_ft2_team.copy(
+              team = Events.missed_ft2_team.team.map(_.replace(
+                Events.missed_ft2_team.score_str, "100-100"))
+            )
+          ),
+            empty_fragment.copy(actual_deadball_orbs = 2)) ::
+          Nil
+
+          test_prevs.map { case (prev, curr, out) =>
+            (prev, prev.map(reverse_dir), curr, curr.map(reverse_dir), out)
+          }.foreach { case (prev_in, prev_in_oppo, curr_in, curr_in_oppo, expected_out) =>
+            TestUtils.inside(
+              (prev_in, curr_in,
+                calculate_stats(ConcurrentClump(curr_in), ConcurrentClump(prev_in), Direction.Team),
+                calculate_stats(ConcurrentClump(curr_in_oppo), ConcurrentClump(prev_in_oppo), Direction.Opponent)
+              )
+            ) {
+              case (_, _, `expected_out`, `expected_out`) =>
+            }
+          }
+      }
+
+      "assign_to_right_lineup" - {
+//TODO TOTEST (lineup fixed, lineup_balancer)
       }
 
       "calculate_possessions" - {

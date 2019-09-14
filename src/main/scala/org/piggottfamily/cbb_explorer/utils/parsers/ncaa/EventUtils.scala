@@ -264,7 +264,6 @@ object EventUtils {
       case _ => None
     }
   }
-  //TODO: TOTEST
 
   /** Defensive rebound, including team/deadball etc */
   object ParseDefensiveRebound {
@@ -323,9 +322,6 @@ object EventUtils {
       case _ => None
     }
   }
-  //TODO: TOTEST
-
-  //TODO: categorize ORB vs DRB for easier stats collection
 
   // Free throws
 
@@ -365,7 +361,6 @@ object EventUtils {
       ParseFreeThrowMade.unapply(x)
     }
   }
-  //TODO TOTEST
 
   /** Presence of 1+ FTs in a possession (old format - will double count if split across clumps) */
   object ParseFreeThrowEvent {
@@ -384,7 +379,6 @@ object EventUtils {
       case _ => None
     }
   }
-  //TODO TOTEST
 
   // Turnover events
 
@@ -447,16 +441,16 @@ object EventUtils {
     private val technical_foul_regex = "[^,]+,[^,]+,(TEAM) +Commits Foul".r
     private val technical_foul_regex_new = "[^,]+,[^,]+,(.+), +foul technical.*".r
     def unapply(x: String): Option[String] = Option(x) match {
+      case Some(technical_foul_regex(player)) => Some(player)
       case Some(technical_foul_regex_new(player)) => Some(player)
       case _ => None
     }
   }
-//TODO: TOTEST
 
   /** Flagrant foul */
   object ParseFlagrantFoul {
     // New:
-    //"team": "03:42:00	Eric Carter, foul personal flagrant1;2freethrow	60-67"
+    //"team": "03:42:00,60-67,Eric Carter, foul personal flagrant1;2freethrow"
     // Legacy:
     //(haven't found any yet)
     private val flagrant_foul_regex_new = "[^,]+,[^,]+,(.+), +foul personal flagrant.*".r
@@ -465,7 +459,6 @@ object EventUtils {
       case _ => None
     }
   }
-//TODO: TOTEST
 
   /** Who was fouled? */
   object ParseFoulInfo {
@@ -495,7 +488,6 @@ object EventUtils {
       //(ORBs not needed becausee must be associated with one of the above actions)
     }
   }
-  //TODO TOTEST
 
   /** An offensive event that tells us who is which side in a possession */
   object ParseDefensiveActionEvent {
@@ -505,7 +497,6 @@ object EventUtils {
       //(Note there's insufficient info in fouls to use them here)
     }
   }
-  //TODO TOTEST
 
   /** A defensive event that provides context to an offensive action (eg turnovere) */
   object ParseDefensiveInfoEvent {
@@ -515,13 +506,10 @@ object EventUtils {
       case _ => None
     }
   }
-  //TODO TOTEST
 
   /** Any defensive event */
   object ParseDefensiveEvent {
     def unapply(x: String): Option[String] =
       ParseDefensiveActionEvent.unapply(x).orElse { ParseDefensiveInfoEvent.unapply(x) }
   }
-  //TODO TOTEST
-
 }

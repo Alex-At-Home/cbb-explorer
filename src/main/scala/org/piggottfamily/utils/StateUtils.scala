@@ -81,7 +81,6 @@ object StateUtils {
         (), (_: Clumper.Event[S, Unit, A]) => ((), false), (_: S, _: Unit, as: List[A]) => as.reverse
       )
     }
-
   }
   import StateTypes._
 
@@ -173,9 +172,9 @@ object StateUtils {
     case NoChange() => acc
     case StateChange(new_s) => acc.copy(s = new_s)
     case ConstantState(b) => acc.copy(bs = b :: acc.bs)
-    case ConstantStateMulti(bs) => acc.copy(bs = bs ++ acc.bs)
+    case ConstantStateMulti(bs) => acc.copy(bs = bs.reverse ++ acc.bs)
     case AllChange(new_s, b) => acc.copy(s = new_s, bs = b :: acc.bs)
-    case AllChangeMulti(new_s, bs) => acc.copy(s = new_s, bs = bs ++ acc.bs)
+    case AllChangeMulti(new_s, bs) => acc.copy(s = new_s, bs = bs.reverse ++ acc.bs)
   }
 
   //TODO scanLeft, which returns the same "list" type as input together with an incremental view of the state

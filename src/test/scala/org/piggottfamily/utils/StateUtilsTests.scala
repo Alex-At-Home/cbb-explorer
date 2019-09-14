@@ -40,11 +40,11 @@ object StateUtilsTests extends TestSuite {
           case StateEvent.Next(ctx, state, event) if 2 == event =>
             ctx.stateChange(state.copy(l = event.toString :: state.l))
           case StateEvent.Next(ctx, state, event) if 3 == event =>
-            ctx.constantState(List("3b", "3a"))
+            ctx.constantState(List("3a", "3b"))
           case StateEvent.Next(ctx, state, event) if 4 == event =>
             ctx.stateChange(state.copy(l = event.toString :: state.l), "4")
           case StateEvent.Next(ctx, state, event) if 5 == event =>
-            ctx.stateChange(state.copy(l = event.toString :: state.l), List("5b", "5a"))
+            ctx.stateChange(state.copy(l = event.toString :: state.l), List("5a", "5b"))
 
           case StateEvent.Complete(ctx, _) =>
             ctx.constantState("final")

@@ -78,21 +78,14 @@ trait PlayByPlayParser {
         build_partial_lineup_list(reversed_events.toIterator, box_lineup), box_lineup
       )
     }.map { events =>
-      // Slightly complicated because we need to transform the lineup events in pairs
-      // ie the contents of eventN can change the contents of eventN_1
-      // (specifically: we don't know if a possession has ended until we look at the first
-      //  raw event of the next lineup)
-      val processed_events = {
-        case class EvState(results: List[LineupEvent], last_event: Option[LineupEvent])
+      val processed_events = events.map(enrich_lineup _)
 
-        (events.foldLeft(EvState(Nil, None)) { (state, event) =>
-          val (processed_event, maybe_completed_event) = enrich_lineup(event, state.last_event)
-          EvState(maybe_completed_event.toList ++ state.results, Some(processed_event))
-        }) match {
-          case EvState(results, maybe_final_event) => (maybe_final_event.toList ++ results).reverse
-        }
-      }
-      processed_events.partition(e => validate_lineup(e, player_codes).isEmpty)
+      // Calculate possessions per lineup
+      var lineups_with_poss = PossessionUtils.calculate_possessions(
+        processed_events
+      )
+
+      lineups_with_poss.partition(e => validate_lineup(e, player_codes).isEmpty)
     }
   }
 
@@ -160,7 +153,7 @@ trait PlayByPlayParser {
             ascend_minutes(event, state.period) :: Nil
           )
         case Some(next_event) if event.min > next_event.min => // game break!
-          val game_break = Model.GameBreakEvent(duration_from_period(state.period))
+          val game_break = Model.GameBreakEvent(duration_from_period(state.period), event.score)
           val new_period = state.period + 1
           State(new_period,
             Some(event),
@@ -173,7 +166,10 @@ trait PlayByPlayParser {
           )
       }
     }
-    Model.GameEndEvent(duration_from_period(end_state.period)) :: end_state.game_events
+    Model.GameEndEvent(
+      duration_from_period(end_state.period),
+      end_state.last.map(_.score).getOrElse(Game.Score(0, 0))
+    ) :: end_state.game_events
   }
 
   /** Creates a Model.PlayByPlayEvent from the table entry + inserts game breaks
@@ -210,9 +206,9 @@ trait PlayByPlayParser {
           builders.event_opponent_finder(el, target_team_first)
         ) match {
           case EventUtils.ParseTeamSubIn(player) =>
-            Right(Model.SubInEvent(time_mins, player))
+            Right(Model.SubInEvent(time_mins, score, player))
           case EventUtils.ParseTeamSubOut(player) =>
-            Right(Model.SubOutEvent(time_mins, player))
+            Right(Model.SubOutEvent(time_mins, score, player))
 
           case (Some(team), None) =>
             Right(Model.OtherTeamEvent(time_mins, score, s"$time_str,$score_str,$team"))

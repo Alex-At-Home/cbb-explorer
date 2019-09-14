@@ -42,9 +42,9 @@ object ExtractorUtils {
       }
 
       event match {
-        case Model.SubInEvent(min, player_name) if state.is_active(min) =>
+        case Model.SubInEvent(min, _, player_name) if state.is_active(min) =>
           val tidier_player_name = tidy_player(player_name)
-          val completed_curr = complete_lineup(state.curr, min)
+          val completed_curr = complete_lineup(state.curr, state.prev, min)
           state.copy(
             curr = new_lineup_event(
               completed_curr, in = Some(tidier_player_name)
@@ -52,9 +52,9 @@ object ExtractorUtils {
             prev = completed_curr :: state.prev,
             old_format = is_old_format(player_name, state)
           )
-        case Model.SubOutEvent(min, player_name) if state.is_active(min) =>
+        case Model.SubOutEvent(min, _, player_name) if state.is_active(min) =>
           val tidier_player_name = tidy_player(player_name)
-          val completed_curr = complete_lineup(state.curr, min)
+          val completed_curr = complete_lineup(state.curr, state.prev, min)
           state.copy(
             curr = new_lineup_event(
               completed_curr, out = Some(tidier_player_name)
@@ -62,14 +62,14 @@ object ExtractorUtils {
             prev = completed_curr :: state.prev,
             old_format = is_old_format(player_name, state)
           )
-        case Model.SubInEvent(min, player_name) => // !state.is_active
+        case Model.SubInEvent(min, _, player_name) => // !state.is_active
           // Keep adding sub events
           val tidier_player_name = tidy_player(player_name)
           state.with_player_in(tidier_player_name).copy(
             old_format = is_old_format(player_name, state)
           )
 
-        case Model.SubOutEvent(min, player_name) => // !state.is_active
+        case Model.SubOutEvent(min, _, player_name) => // !state.is_active
           // Keep adding sub events
           val tidier_player_name = tidy_player(player_name)
           state.with_player_out(tidier_player_name).copy(
@@ -82,8 +82,8 @@ object ExtractorUtils {
         case Model.OtherOpponentEvent(min, score, event_string) =>
           state.with_opponent_event(min, event_string).with_latest_score(score)
 
-        case Model.GameBreakEvent(min) =>
-          val completed_curr = complete_lineup(state.curr, min)
+        case Model.GameBreakEvent(min, _) =>
+          val completed_curr = complete_lineup(state.curr, state.prev, min)
           val (new_lineup_id, new_players) =
             if (state.old_format.getOrElse(box_lineup.team.year.value < 2018)) {
               (starters_only.lineup_id, starters_only.players)
@@ -97,8 +97,8 @@ object ExtractorUtils {
             ),
             prev = completed_curr :: state.prev
           )
-        case Model.GameEndEvent(min) =>
-          state.copy(curr = complete_lineup(state.curr, min))
+        case Model.GameEndEvent(min, _) =>
+          state.copy(curr = complete_lineup(state.curr, state.prev, min))
       }
     }
     end_state.build()
@@ -218,23 +218,66 @@ object ExtractorUtils {
    * (non-sub-events) (sub-events) (non-sub events)
    * where ... all game events that reference players subbed out is in the first group,
    * all game events that reference players subbed in is in the second group, and
-   * if neither of these things holds then events that occur before the first sub
+   * FTs in the same direction as a pre-sub foul go in the same direction
+   * if neither of these things holds then events that occur lower/same score as the first sub
    * live in the first group, everything else lives in the second group
    * Simples!
    * Examples:
    * a) SUB_SET_1; REBOUND_X; SUB_SET_2 .. which should map to:
-   *    SET_SET_1; SUB_SET_2; REBOUND_X unless X is subbed out in one of the sub sets
+   *    REBOUND_X; SET_SET_1; SUB_SET_2 unless X is subbed in in one of the sub sets
+   *                                    OR occurs with a higher score that SUB_SET1
    * b) B FREE THROW; A REBOUND; A ENTERS ... which should map to:
    *    B FREE THROW; A ENTERS; A REBOUND
    * BUT
    * c) A FREE THROW; A LEAVES ... should stay the same
+   *
+   * Actually most of the cases don't involve subs and are FT0related, examples:
+   * (imagine these events come in totally random orders in practice!)
+
+   00:23:10		67-76	Anthony Cowan, foul personal 2freethrow
+   00:23:10	Aaron Jordan, foulon	67-76 <== (sometimes this name is wrong!)
+   00:23:10		67-76	Anthony Cowan, substitution out
+   00:23:10		67-76	Reese Mona, substitution in
+   (lineup break)
+   00:23:10	Aaron Jordan, freethrow 1of2 fastbreak made	67-77
+   00:23:10	Tevian Jones, substitution in	67-77
+   00:23:10	Adonis De La Rosa, substitution out	67-77
+   00:23:10	Aaron Jordan, freethrow 2of2 fastbreak made	67-78
+
+   or:
+   13:45:00		26-41	Aaron Wiggins, 2pt stepbackjumpshot missed
+   ---
+   13:43:00		26-41	Jalen Smith, substitution out
+   13:43:00		26-41	Ricky Lindo Jr., substitution in
+   (opp sub)
+   13:43:00		26-41	Team, rebound offensive team
+   13:43:00		26-41	Darryl Morsell, substitution out
+   13:43:00		26-41	Anthony Cowan, substitution in
+   13:38:00		26-43	Eric Ayala, 2pt drivinglayup 2ndchance;pointsinthepaint made
+   
+   *
    * (protected just to support testing)
    */
   protected [ncaa] def reorder_and_reverse(
     reversed_partial_events: Iterator[Model.PlayByPlayEvent]
   ): List[Model.PlayByPlayEvent] = {
     /** Ensures subs don't enclose plays */
-    def inner_sort(ordered_block: List[Model.PlayByPlayEvent]): List[Model.PlayByPlayEvent] = {
+    def inner_sort(pre_ordered_block: List[Model.PlayByPlayEvent]): List[Model.PlayByPlayEvent] = {
+      // first, order by score to get the weirdest cases out (and rank scoring shots earlier)
+      val ordered_block = pre_ordered_block.sortBy {
+        // events where the score increments live "in between" curr and next scores
+        case ev: Model.MiscGameEvent if
+          EventUtils.ParseFreeThrowMade.unapply(ev.event_string).nonEmpty ||
+          EventUtils.ParseShotMade.unapply(ev.event_string).nonEmpty
+        =>
+          (ev.score.scored, ev.score.allowed, 0)
+
+        // (subs live at the end)
+        case ev: Model.SubOutEvent => (ev.score.scored, ev.score.allowed, 10)
+        case ev: Model.SubInEvent => (ev.score.scored, ev.score.allowed, 10)
+
+        case ev => (ev.score.scored, ev.score.allowed, 1)
+      }
       val subs = (ordered_block.collect {
         case ev: Model.SubEvent => ev
       })
@@ -246,7 +289,8 @@ object ExtractorUtils {
           case _ => false
         }
         case class State(
-          seen_sub: Boolean,
+          sub_score: Option[Game.Score],
+          direction_team: Option[Boolean],
           group_1: List[Model.PlayByPlayEvent],
           group_2: List[Model.PlayByPlayEvent]
         ) {
@@ -256,30 +300,57 @@ object ExtractorUtils {
           }
         }
         /** Does the event reference a player who was subbed (in or out as param)? */
-        def event_refs_subbed_player(ev: Model.MiscGameEvent, in_or_out: List[Model.SubEvent]): Boolean = {
+        def event_refs_player(ev: Model.MiscGameEvent, in_or_out: List[Model.SubEvent]): Boolean = {
           //(don't need to worry about case because these names are all extracted from the same PbP source)
           in_or_out.exists { candidate =>
             ev.event_string.contains(candidate.player_name)
           }
         }
-        val starting_state = State(seen_sub = false, Nil, Nil)
+        val starting_state = State(None, None, Nil, Nil)
         /** Adds to either the "pre-sub" list of the "post-sub" one based on state */
         def add_to_state(state: State, ev: Model.PlayByPlayEvent) = {
-          if (state.seen_sub) {
+          def score_gt(s1: Game.Score, s2: Game.Score): Boolean = {
+            import scala.math.Ordering.Implicits._
+            Game.Score.unapply(s1).get > Game.Score.unapply(s2).get
+          }
+          if (state.sub_score.exists(score => score_gt(ev.score, score))) {
             state.copy(group_2 = ev :: state.group_2)
           } else {
-            state.copy(group_1 = ev :: state.group_1)
+            state.copy( //(log direction of pre-sub action, so can pull FTs from after the sub in)
+              direction_team = Option(ev).collect {
+                case ev: Model.MiscGameEvent
+                  if EventUtils.ParseFreeThrowEvent.unapply(ev.event_string).nonEmpty ||
+                      EventUtils.ParseShotMade.unapply(ev.event_string).nonEmpty ||
+                      EventUtils.ParseFoulInfo.unapply(ev.event_string).nonEmpty
+                  =>
+                    ev.is_team_dir
+
+                case ev: Model.MiscGameEvent
+                  if EventUtils.ParseTechnicalFoul.unapply(ev.event_string).nonEmpty ||
+                      EventUtils.ParsePersonalFoul.unapply(ev.event_string).nonEmpty
+                  =>
+                    !ev.is_team_dir
+              }.orElse(state.direction_team),
+              group_1 = ev :: state.group_1
+            )
           }
         }
         (ordered_block.foldLeft(starting_state) { (state, next_event) =>
           next_event match {
             case ev: Model.SubEvent => //(already added to "subs")
-              state.copy(seen_sub = true)
+              state.copy(sub_score = Some(ev.score))
+
+            // Always put FTs tied to pre-sub events in the first group
+            case ev: Model.MiscGameEvent
+              if EventUtils.ParseFreeThrowAttempt.unapply(ev.event_string).nonEmpty &&
+                state.direction_team.exists(_ == ev.is_team_dir)
+            =>
+              state.copy(group_1 = ev :: state.group_1)
 
             case ev: Model.OtherTeamEvent =>
-              if (event_refs_subbed_player(ev, sub_ins)) {
+              if (event_refs_player(ev, sub_ins)) {
                 state.copy(group_2 = ev :: state.group_2)
-              } else if (event_refs_subbed_player(ev, sub_outs)) {
+              } else if (event_refs_player(ev, sub_outs)) {
                 state.copy(group_1 = ev :: state.group_1)
               } else {
                 add_to_state(state, ev)
@@ -349,7 +420,7 @@ object ExtractorUtils {
   }
 
   /** Fills in/tidies up a partial lineup event following its completion */
-  private def complete_lineup(curr: LineupEvent, min: Double): LineupEvent = {
+  private def complete_lineup(curr: LineupEvent, prevs: List[LineupEvent], min: Double): LineupEvent = {
     val curr_players = curr.players.map(p => p.code -> p).toMap
     val curr_players_out = curr.players_out.map(p => p.code -> p).toMap
     val curr_players_in = curr.players_in.map(p => p.code -> p).toMap
@@ -361,6 +432,14 @@ object ExtractorUtils {
       duration_mins = min - curr.start_min,
       score_info = curr.score_info.copy(
         end_diff = curr.score_info.end.scored - curr.score_info.end.allowed
+      ),
+      team_stats = curr.team_stats.copy(
+        num_events = curr.raw_game_events.filter(_.team.isDefined).size,
+        num_possessions = 0 //(calculate later)
+      ),
+      opponent_stats = curr.opponent_stats.copy(
+        num_events = curr.raw_game_events.filter(_.opponent.isDefined).size, //TODO exclude subs
+        num_possessions = 0 //(calculate later)
       ),
       lineup_id = build_lineup_id(new_player_list),
       players = new_player_list.sortBy(_.code),
@@ -427,14 +506,14 @@ object ExtractorUtils {
         copy(
           curr = curr.copy(
             end_min = min,
-            raw_game_events = LineupEvent.RawGameEvent.team(event_string) :: curr.raw_game_events
+            raw_game_events = LineupEvent.RawGameEvent.team(event_string, min) :: curr.raw_game_events
           )
         )
       def with_opponent_event(min: Double, event_string: String): LineupBuildingState =
         copy(
           curr = curr.copy(
             end_min = min,
-            raw_game_events = LineupEvent.RawGameEvent.opponent(event_string) :: curr.raw_game_events
+            raw_game_events = LineupEvent.RawGameEvent.opponent(event_string, min) :: curr.raw_game_events
           )
         )
     }
@@ -445,11 +524,16 @@ object ExtractorUtils {
       def min: Double
       /** Update the minute (eg to switch from descending to ascending internal)*/
       def with_min(new_min: Double): PlayByPlayEvent
+      /** The current score */
+      def score: Game.Score
     }
     // Wildcard events
     sealed trait MiscGameEvent extends PlayByPlayEvent {
       /** The raw event string */
       def event_string: String
+
+      /** Whether the event is in the team direction */
+      def is_team_dir: Boolean
     }
     sealed trait SubEvent extends PlayByPlayEvent {
       /** The raw or processed substitute name */
@@ -457,22 +541,24 @@ object ExtractorUtils {
     }
     sealed trait MiscGameBreak extends PlayByPlayEvent
     // Concrete
-    case class SubInEvent(min: Double, player_name: String) extends SubEvent {
+    case class SubInEvent(min: Double, score: Game.Score, player_name: String) extends SubEvent {
       def with_min(new_min: Double): SubInEvent = copy(min = new_min)
     }
-    case class SubOutEvent(min: Double, player_name: String) extends SubEvent {
+    case class SubOutEvent(min: Double, score: Game.Score, player_name: String) extends SubEvent {
       def with_min(new_min: Double): SubOutEvent = copy(min = new_min)
     }
     case class OtherTeamEvent(min: Double, score: Game.Score, event_string: String) extends MiscGameEvent {
       def with_min(new_min: Double): OtherTeamEvent = copy(min = new_min)
+      def is_team_dir: Boolean = true
     }
     case class OtherOpponentEvent(min: Double, score: Game.Score, event_string: String) extends MiscGameEvent {
       def with_min(new_min: Double): OtherOpponentEvent = copy(min = new_min)
+      def is_team_dir: Boolean = false
     }
-    case class GameBreakEvent(min: Double) extends MiscGameBreak {
+    case class GameBreakEvent(min: Double, score: Game.Score) extends MiscGameBreak {
       def with_min(new_min: Double): GameBreakEvent = copy(min = new_min)
     }
-    case class GameEndEvent(min: Double) extends MiscGameBreak {
+    case class GameEndEvent(min: Double, score: Game.Score) extends MiscGameBreak {
       def with_min(new_min: Double): GameEndEvent = copy(min = new_min)
     }
   }

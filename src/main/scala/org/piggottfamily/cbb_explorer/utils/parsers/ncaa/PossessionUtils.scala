@@ -11,6 +11,9 @@ import com.softwaremill.quicklens._
 trait PossessionUtils {
   import ExtractorUtils._
   import StateUtils.StateTypes._
+  //(these used to live in here but moved them centrally)
+  import org.piggottfamily.cbb_explorer.models.ncaa.LineupEvent.RawGameEvent.Direction
+  import org.piggottfamily.cbb_explorer.models.ncaa.LineupEvent.RawGameEvent.PossessionEvent
 
   /** Debug flags */
   protected val show_end_of_raw_calcs = true
@@ -28,10 +31,6 @@ trait PossessionUtils {
 
   // Lots of data modelling:
 
-  /** Which team is in possession */
-  protected object Direction extends Enumeration {
-    val Init, Team, Opponent = Value
-  }
   /** State for building possession events */
   protected case class PossState(
     team_stats: PossCalcFragment,
@@ -60,26 +59,6 @@ trait PossessionUtils {
   ) {
     def min: Option[Double] = evs.headOption.map(_.min)
     def date_str: Option[String] = evs.headOption.map(_.date_str)
-  }
-
-  /** Utility for decomposing game events into offensive and defensive possessions */
-  protected case class PossessionEvent(dir: Direction.Value) {
-    /** The team in possession */
-    object AttackingTeam {
-      def unapply(x: LineupEvent.RawGameEvent): Option[String] = x match {
-        case LineupEvent.RawGameEvent.Team(event_str) if dir == Direction.Team => Some(event_str)
-        case LineupEvent.RawGameEvent.Opponent(event_str) if dir == Direction.Opponent => Some(event_str)
-        case _ => None
-      }
-    }
-    /** The team not in possession */
-    object DefendingTeam {
-      def unapply(x: LineupEvent.RawGameEvent): Option[String] = x match {
-        case LineupEvent.RawGameEvent.Team(event_str) if dir == Direction.Opponent => Some(event_str)
-        case LineupEvent.RawGameEvent.Opponent(event_str) if dir == Direction.Team => Some(event_str)
-        case _ => None
-      }
-    }
   }
 
   /** Maintains stats needed to calculate possessions for each lineup event */

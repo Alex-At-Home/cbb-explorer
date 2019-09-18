@@ -38,9 +38,11 @@ object EventUtilsTests extends TestSuite {
 
       val shot_missed_test_cases =
         "08:44:00,20-23,Bruno Fernando3, 2pt dunk missed" ::
+        "08:44:00,20-23,Joshua Tomaic, 2pt alleyoop missed" ::
         "08:44:00,20-23,WATKINS,MIKE1 missed Dunk" ::
         "08:44:00,20-23,Eric Carter, 2pt layup missed" ::
         "08:44:00,20-23,TOMAIC,JOSHUA missed Layup" ::
+        "08:44:00,20-23,HUERTER,KEVIN missed Tip In" ::
         "08:44:00,20-23,Ricky Lindo Jr., 2pt jumpshot missed" ::
         "08:44:00,20-23,SMITH,JALEN1 missed Two Point Jumper" ::
         "08:44:00,20-23,Eric Ayala2, 3pt jumpshot 2ndchance missed" ::
@@ -94,6 +96,11 @@ object EventUtilsTests extends TestSuite {
         "05:10,55-68,MASON III,FRANK Steal" ::
         Nil
 
+      val assist_test_cases =
+        "18:28:00,0-0,Kyle Guy, assist" ::
+        "19:49,0-2,EDWARDS,CARSEN Assist" ::
+        Nil
+
       val foul_test_cases =
         "10:00,51-60,TEAM Commits Foul" :: //(old style tech)
         "13:36:00,7-9,Jalen Smith3, foul personal shooting;2freethrow" ::
@@ -114,6 +121,7 @@ object EventUtilsTests extends TestSuite {
         turnover_test_cases ++
         blocked_test_cases ++
         stolen_test_cases ++
+        assist_test_cases ++
         foul_test_cases
       )
 
@@ -152,11 +160,42 @@ object EventUtilsTests extends TestSuite {
         }) {
           case `shots_made` =>
         }
-
       }
+      // Sub-categories
+      val rim_shots_made = List(
+        "Bruno Fernando1", "Bruno Fernando2", "WATKINS,MIKE",
+        "Jalen Smith", "BOLTON,RASIR", "STEVENS,LAMAR"
+      )
+      "ParseRimMade" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseRimMade(name) => name
+        }) {
+          case `rim_shots_made` =>
+        }
+      }
+      val ft_2p_made = rim_shots_made ++ List(
+        "Anthony Cowan", "STEVENS,LAMAR2"
+      )
+      "ParseTwoPointerMade" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseTwoPointerMade(name) => name
+        }) {
+          case `ft_2p_made` =>
+        }
+      }
+      "ParseThreePointerMade" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseThreePointerMade(name) => name
+        }) {
+          case List(
+            "Eric Ayala", "SMITH,JALEN"
+          ) =>
+        }
+      }
+
       val shots_missed = List(
-        "Bruno Fernando3", "WATKINS,MIKE1", "Eric Carter",
-        "TOMAIC,JOSHUA", "Ricky Lindo Jr.", "SMITH,JALEN1",
+        "Bruno Fernando3", "Joshua Tomaic", "WATKINS,MIKE1", "Eric Carter",
+        "TOMAIC,JOSHUA", "HUERTER,KEVIN", "Ricky Lindo Jr.", "SMITH,JALEN1",
         "Eric Ayala2", "DREAD,MYLES"
       )
       "ParseShotMissed" - {
@@ -166,7 +205,35 @@ object EventUtilsTests extends TestSuite {
             case `shots_missed` =>
           }
       }
-
+      // Sub-categories
+      val rim_missed = List(
+        "Bruno Fernando3", "Joshua Tomaic", "WATKINS,MIKE1",
+        "Eric Carter", "TOMAIC,JOSHUA", "HUERTER,KEVIN"
+      )
+      "ParseRimMissed" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseRimMissed(name) => name
+        }) {
+          case  `rim_missed` =>
+        }
+      }
+      val fg_2p_missed = rim_missed ++ List(
+        "Ricky Lindo Jr.", "SMITH,JALEN1"
+      )
+      "ParseTwoPointerMissed" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseTwoPointerMissed(name) => name
+        }) {
+          case `fg_2p_missed` =>
+        }
+      }
+      "ParseThreePointerMissed" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseThreePointerMissed(name) => name
+        }) {
+          case List("Eric Ayala2", "DREAD,MYLES") =>
+        }
+      }
       // Rebounds
       "ParseRebound" - {
         TestUtils.inside(all_test_cases.collect {
@@ -291,6 +358,15 @@ object EventUtilsTests extends TestSuite {
         }
       }
 
+      // Assists
+      "ParseAssist" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseAssist(name) => name
+        }) {
+          case List("Kyle Guy", "EDWARDS,CARSEN") =>
+        }
+      }
+
       // Fouls
       "ParsePersonalFoul" - {
         TestUtils.inside(all_test_cases.collect {
@@ -336,7 +412,7 @@ object EventUtilsTests extends TestSuite {
         }) {
           case `defensive_actions` =>
         }
-      }      
+      }
       "ParseDefensiveActionEvent" - {
         TestUtils.inside(all_test_cases.collect {
           case EventUtils.ParseDefensiveActionEvent(name) => name

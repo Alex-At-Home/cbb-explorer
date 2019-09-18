@@ -19,6 +19,7 @@ case class LineupEventStats(
 
   to: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
   stl: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
+  blk: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
   assist: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
 
   foul: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),

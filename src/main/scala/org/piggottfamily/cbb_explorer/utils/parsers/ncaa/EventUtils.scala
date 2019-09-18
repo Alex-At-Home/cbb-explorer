@@ -106,68 +106,91 @@ object EventUtils {
 
   // All the different types of shot
 
-  /** Dunk or "alleyoop" success */
-  object ParseDunkMade {
+  /** Dunk or "alleyoop" or layup success */
+  object ParseRimMade {
     // New:
     //Bruno Fernando, 2pt dunk 2ndchance;pointsinthepaint made
     //Bruno Fernando, 2pt alleyoop pointsinthepaint made
-    // Legacy:
-    // WATKINS,MIKE made Dunk
-
-    //TODO
-  }
-
-  /** Dunk or "alleyoop" missed */
-  object ParseDunkMissed {
-    //New:
-    //Bruno Fernando, 2pt dunk missed
-    // Legacy:
-    // WATKINS,MIKE missed Dunk
-
-    //TODO
-  }
-
-  /** Layup, success */
-  object ParseLayupMade {
-    // New:
     // Jalen Smith, 2pt layup 2ndchance;pointsinthepaint made
     // Legacy:
+    // WATKINS,MIKE made Dunk
     // BOLTON,RASIR made Layup
     // STEVENS,LAMAR made Tip In
 
-    //TODO
+    private val shot_made_regex = "[^,]+,[^,]+,(.+) made +(?:Dunk|Layup|Tip In)".r
+    private val shot_made_regex_new = "[^,]+,[^,]+,(.+), +2pt +(?:dunk|layup|alleyoop)(?:.* +)?made".r
+    def unapply(x: String): Option[String] = Option(x) match {
+      case Some(shot_made_regex(player)) => Some(player)
+      case Some(shot_made_regex_new(player)) => Some(player)
+      case _ => None
+    }
   }
-  object ParseLayupMissed {
-    // New:
+
+  /** Dunk or "alleyoop" or layup missed */
+  object ParseRimMissed {
+    //New:
+    //Bruno Fernando, 2pt dunk missed
     // Eric Carter, 2pt layup missed
     // Legacy:
+    // WATKINS,MIKE missed Dunk
     // TOMAIC,JOSHUA missed Layup
+    // 03:05,65-58,CEKOVSKY,MICHAL missed Tip In
 
-    //TODO
+    private val shot_missed_regex = "[^,]+,[^,]+,(.+) missed +(?:Dunk|Layup|Tip In)".r
+    private val shot_missed_regex_new = "[^,]+,[^,]+,(.+), +2pt +(?:dunk|layup|alleyoop)(?:.* +)?missed".r
+    def unapply(x: String): Option[String] = Option(x) match {
+      case Some(shot_missed_regex(player)) => Some(player)
+      case Some(shot_missed_regex_new(player)) => Some(player)
+      case _ => None
+    }
   }
-  object ParseMidrangeMade {
+
+  object ParseTwoPointerMade {
     // New:
-    // Anthony Cowan, 2pt jumpshot fromturnover;fastbreak made
+    // Eric Ayala, 2pt jumpshot made
     // Legacy:
-    // STEVENS,LAMAR made Two Point Jumper
+    // 18:49,43-27,YEBOAH,AKWASI made Two Point Jumper
+    //(plus ParseRimMade)
 
-    //TODO
+    private val shot_made_regex = "[^,]+,[^,]+,(.+) made (?!Three|Free Throw).*".r
+    private val shot_made_regex_new = "[^,]+,[^,]+,(.+), +2pt +(?:.* +)?made".r
+    def unapply(x: String): Option[String] = Option(x) match {
+      case Some(shot_made_regex(player)) => Some(player)
+      case Some(shot_made_regex_new(player)) => Some(player)
+      case _ => None
+    }
   }
-  object ParseMidrangeMissed {
+
+  object ParseTwoPointerMissed {
     // New:
-    // Ricky Lindo Jr., 2pt jumpshot missed
+    // Eric Ayala, 2pt jumpshot 2ndchance missed
     // Legacy:
-    // SMITH,JALEN missed Two Point Jumper
+    // 02:45,65-58,LINDSEY,SCOTTIE missed Two Point Jumper
+    //(plus ParseRimMissed)
 
-    //TODO
+    private val shot_missed_regex = "[^,]+,[^,]+,(.+) missed (?!Three|Free Throw).*".r
+    private val shot_missed_regex_new = "[^,]+,[^,]+,(.+), +2pt +(?:.* +)?missed".r
+  //TODO
+    def unapply(x: String): Option[String] = Option(x) match {
+      case Some(shot_missed_regex(player)) => Some(player)
+      case Some(shot_missed_regex_new(player)) => Some(player)
+      case _ => None
+    }
   }
+
   object ParseThreePointerMade {
     // New:
     // Eric Ayala, 3pt jumpshot made
     // Legacy:
     // SMITH,JALEN made Three Point Jumper
 
-    //TODO
+    private val shot_made_regex = "[^,]+,[^,]+,(.+) made Three Point.*".r
+    private val shot_made_regex_new = "[^,]+,[^,]+,(.+), +3pt +(?:.* +)?made".r
+    def unapply(x: String): Option[String] = Option(x) match {
+      case Some(shot_made_regex(player)) => Some(player)
+      case Some(shot_made_regex_new(player)) => Some(player)
+      case _ => None
+    }
   }
   object ParseThreePointerMissed {
     // New:
@@ -175,7 +198,13 @@ object EventUtils {
     // Legacy:
     // DREAD,MYLES missed Three Point Jumper
 
-    //TODO
+    private val shot_missed_regex = "[^,]+,[^,]+,(.+) missed Three Point.*".r
+    private val shot_missed_regex_new = "[^,]+,[^,]+,(.+), +3pt +(?:.* +)?missed".r
+    def unapply(x: String): Option[String] = Option(x) match {
+      case Some(shot_missed_regex(player)) => Some(player)
+      case Some(shot_missed_regex_new(player)) => Some(player)
+      case _ => None
+    }
   }
 
   /** Umbrella for all made shots, union of the above */
@@ -411,6 +440,21 @@ object EventUtils {
     def unapply(x: String): Option[String] = Option(x) match {
       case Some(stolen_regex(player)) => Some(player)
       case Some(stolen_regex_new(player)) => Some(player)
+      case _ => None
+    }
+  }
+
+  /** Assist */
+  object ParseAssist {
+    // New:
+    //18:28:00,0-0,Kyle Guy, assist
+    // Legacy:
+    //19:49,0-2,EDWARDS,CARSEN Assist
+    private val assist_regex = "[^,]+,[^,]+,(.+) +Assist".r
+    private val assist_regex_new = "[^,]+,[^,]+,(.+), +assist".r
+    def unapply(x: String): Option[String] = Option(x) match {
+      case Some(assist_regex(player)) => Some(player)
+      case Some(assist_regex_new(player)) => Some(player)
       case _ => None
     }
   }

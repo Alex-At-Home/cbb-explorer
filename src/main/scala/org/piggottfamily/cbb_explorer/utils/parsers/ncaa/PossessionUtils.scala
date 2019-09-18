@@ -153,8 +153,8 @@ trait PossessionUtils {
   protected def calculate_stats(
     clump: ConcurrentClump, prev: ConcurrentClump, dir: Direction.Value
   ): PossCalcFragment = {
-    val attackingTeam = PossessionEvent(dir).AttackingTeam
-    val defendingTeam = PossessionEvent(dir).DefendingTeam
+    val attacking_team = PossessionEvent(dir).AttackingTeam
+    val defending_team = PossessionEvent(dir).DefendingTeam
 
     /** Examples: have seen a spot when FTs aren't concurrent:
     11:02:00		45-37	Connor McCaffery, freethrow 1of2 2ndchance;fastbreak made
@@ -164,7 +164,7 @@ trait PossessionUtils {
     */
 
     val ft_event_this_clump: Boolean = clump.evs.collect {
-      case attackingTeam(EventUtils.ParseFreeThrowEvent(_)) => ()
+      case attacking_team(EventUtils.ParseFreeThrowEvent(_)) => ()
     }.nonEmpty
 
     /** Examples:
@@ -198,30 +198,30 @@ trait PossessionUtils {
     def combined_events_iterator = (clump.evs.iterator ++ prev.evs.iterator)
     val and_one: Int = if (
         (clump.evs.collect { //(there's exactly 1 FT)...
-          case attackingTeam(EventUtils.ParseFreeThrowMade(_)) => ()
-          case attackingTeam(EventUtils.ParseFreeThrowMissed(_)) => ()
+          case attacking_team(EventUtils.ParseFreeThrowMade(_)) => ()
+          case attacking_team(EventUtils.ParseFreeThrowMissed(_)) => ()
         }.size == 1) &&
           (clump.evs.collect { //...(either concurrent with a made shot)...
-            case attackingTeam(EventUtils.ParseShotMade(_)) => ()
+            case attacking_team(EventUtils.ParseShotMade(_)) => ()
           }.nonEmpty ||
             (prev.evs.collect { //...(or the last clump, but...
-              case attackingTeam(EventUtils.ParseShotMade(_)) => ()
+              case attacking_team(EventUtils.ParseShotMade(_)) => ()
             }.nonEmpty &&
             prev.evs.collect { // ... in that clump the opponent _didn't_ have possession)
-              case defendingTeam(EventUtils.ParseOffensiveEvent(_)) => ()
+              case defending_team(EventUtils.ParseOffensiveEvent(_)) => ()
             }.isEmpty)
           )
         ) 1 else 0
 
     val filtered_clump = clump.evs.filter {
-      case attackingTeam(EventUtils.ParseDeadballRebound(_)) => false
+      case attacking_team(EventUtils.ParseDeadballRebound(_)) => false
       case _ => true
     }
 
     // Shots made or missed
     val shots_made_or_missed: Int = filtered_clump.collect {
-      case attackingTeam(EventUtils.ParseShotMade(_)) => ()
-      case attackingTeam(EventUtils.ParseShotMissed(_)) => ()
+      case attacking_team(EventUtils.ParseShotMade(_)) => ()
+      case attacking_team(EventUtils.ParseShotMissed(_)) => ()
     }.size
 
     // Free throws
@@ -263,27 +263,27 @@ trait PossessionUtils {
     */
 
     val offsetting_tech: Int = if (filtered_clump.collect {
-      case attackingTeam(EventUtils.ParseTechnicalFoul(_)) => ()
+      case attacking_team(EventUtils.ParseTechnicalFoul(_)) => ()
     }.nonEmpty && filtered_clump.collect {
-      case defendingTeam(EventUtils.ParseTechnicalFoul(_)) => ()
+      case defending_team(EventUtils.ParseTechnicalFoul(_)) => ()
     }.nonEmpty) 1 else 0
 
     val offsetting_flagrant: Int = if (filtered_clump.collect {
-      case attackingTeam(EventUtils.ParseFlagrantFoul(_)) => ()
+      case attacking_team(EventUtils.ParseFlagrantFoul(_)) => ()
     }.nonEmpty && filtered_clump.collect {
-      case defendingTeam(EventUtils.ParseFlagrantFoul(_)) => ()
+      case defending_team(EventUtils.ParseFlagrantFoul(_)) => ()
     }.nonEmpty) 1 else 0
 
     val offsetting_tech_or_flagrant =
       if (offsetting_tech + offsetting_flagrant > 0) 1 else 0
 
     val tech_or_flagrant: Int = (if (filtered_clump.collect {
-      case defendingTeam(EventUtils.ParseTechnicalFoul(_)) => ()
-      case defendingTeam(EventUtils.ParseFlagrantFoul(_)) => ()
+      case defending_team(EventUtils.ParseTechnicalFoul(_)) => ()
+      case defending_team(EventUtils.ParseFlagrantFoul(_)) => ()
     }.nonEmpty) 1 else 0) - offsetting_tech_or_flagrant
 
     val orbs: Int = filtered_clump.collect {
-      case attackingTeam(EventUtils.ParseOffensiveRebound(_)) => ()
+      case attacking_team(EventUtils.ParseOffensiveRebound(_)) => ()
     }.size
 
     /** Examples:
@@ -330,25 +330,25 @@ trait PossessionUtils {
 
     // (explained in the block comment above)
     val recent_dead_ft_misses = List(prev.evs, clump.evs).flatten.collect {
-      case ev @ attackingTeam(EventUtils.ParseFreeThrowMade(_)) => ev
-      case ev @ attackingTeam(EventUtils.ParseFreeThrowMissed(_)) => ev
+      case ev @ attacking_team(EventUtils.ParseFreeThrowMade(_)) => ev
+      case ev @ attacking_team(EventUtils.ParseFreeThrowMissed(_)) => ev
     }.sortBy(ev => score_to_tuple(ev.score_str)).reverse match { // reverse => highest first
       case fts => fts.drop(1).collect {
-        case ev @ attackingTeam(EventUtils.ParseFreeThrowMissed(_)) => ev
+        case ev @ attacking_team(EventUtils.ParseFreeThrowMissed(_)) => ev
       }.size
     }
 
     // this can be wrong if the _prev_ clump had a technical/flagrant, we'll live with that
     val real_deadball_orbs =
       if ((recent_dead_ft_misses == 0) && (tech_or_flagrant == 0)) clump.evs.collect {
-        case ev @ attackingTeam(EventUtils.ParseOffensiveDeadballRebound(_))
+        case ev @ attacking_team(EventUtils.ParseOffensiveDeadballRebound(_))
 //TODO: is is deliberate that this only covers new format rebounds?
           if !ev.info.startsWith("00:00") //(see spurious deadball rebounds at the end of the period)
         => ()
       }.size else 0
 
     val turnovers = filtered_clump.collect {
-      case attackingTeam(EventUtils.ParseTurnover(_)) => ()
+      case attacking_team(EventUtils.ParseTurnover(_)) => ()
     }.size
 
     PossCalcFragment(

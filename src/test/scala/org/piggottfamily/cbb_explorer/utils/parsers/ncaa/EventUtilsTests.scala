@@ -108,6 +108,7 @@ object EventUtilsTests extends TestSuite {
         "06:43:00,55-79,Bruno Fernando5, foul technical classa;2freethrow" ::
         "02:28:00,27-38,Jalen Smith4, foulon" ::
         "03:42:00,10-10,Eric Carter1, foul personal flagrant1;2freethrow" ::
+        "02:28:00,27-38,Eric Ayala3, foul offensive" ::
         Nil
 
       val all_test_cases = (
@@ -387,6 +388,13 @@ object EventUtilsTests extends TestSuite {
           case EventUtils.ParseTechnicalFoul(name) => name
         }) {
           case List("TEAM", "Bruno Fernando5") =>
+        }
+      }
+      "ParseOffensiveFoul" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseOffensiveFoul(name) => name
+        }) {
+          case List("Eric Ayala3") =>
         }
       }
       "ParseFoulInfo" - {

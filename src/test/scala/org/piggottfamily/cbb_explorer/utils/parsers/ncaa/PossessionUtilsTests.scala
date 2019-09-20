@@ -67,6 +67,8 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
     val tech_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = tech_team.team.get)
     val flagrant_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "03:42:00,55-79,Eric Carter, foul personal flagrant1;2freethrow")
     val flagrant_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = flagrant_team.team.get)
+    // other:
+    val foul_off_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,Eric Ayala, foul offensive")
 
     def reverse_dir: LineupEvent.RawGameEvent => LineupEvent.RawGameEvent = {
       case LineupEvent.RawGameEvent(a, Some(b), None) => LineupEvent.RawGameEvent(a, None, Some(b))
@@ -173,7 +175,7 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
         val frag2 = PossCalcFragment(1, 3, 5, 7, 9, 11, 13, 15)
         val frag_sum = PossCalcFragment(2, 5, 8, 11, 14, 17, 20, 23)
 
-        frag1.sum(frag2) ==> frag_sum
+        PossCalcFragment.sum(frag1, frag2) ==> frag_sum
         frag1.total_poss ==> 2
         frag1.summary ==> "total=[2] = shots=[1] - (orbs=[2] + db_orbs=[3]) + (ft_sets=[4] - techs=[6]) + to=[8] { +1s=[5] offset_techs=[7] }"
       }

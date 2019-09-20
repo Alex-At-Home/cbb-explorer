@@ -316,6 +316,11 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
           ) -> List(
             modify[LineupEventStats](_.foul.total)
           ) ::
+          List(
+            Events.foul_off_team
+          ) -> List(
+            modify[LineupEventStats](_.foul.total)
+          ) ::
           Nil
         }
         val all_at_once = test_cases.fold(test_cases.head) {
@@ -357,6 +362,20 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
               .modify(_.team_stats.foul.total).setTo(1)
               .modify(_.opponent_stats.to.total).setTo(1)
         }
+      }
+      "sum" - {
+        val test1 = LineupEventStats.empty
+          .modify(_.num_possessions).setTo(1)
+          .modify(_.fg.made.total).setTo(2)
+          .modify(_.orb.total).setTo(3)
+        val test2 = LineupEventStats.empty
+          .modify(_.fg.made.total).setTo(3)
+          .modify(_.drb.total).setTo(4)
+        sum(test1, test2) ==> LineupEventStats.empty
+          .modify(_.num_possessions).setTo(1)
+          .modify(_.fg.made.total).setTo(5)
+          .modify(_.orb.total).setTo(3)
+          .modify(_.drb.total).setTo(4)
       }
     }
   }

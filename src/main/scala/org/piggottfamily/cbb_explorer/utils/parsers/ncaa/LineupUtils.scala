@@ -4,6 +4,9 @@ import org.piggottfamily.utils.StateUtils
 import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.models.ncaa._
 
+import shapeless.{Generic, Poly1}
+import shapeless.HList.ListCompat._
+
 import com.softwaremill.quicklens._
 
 /** Utilities related to building up the lineup stats */
@@ -67,6 +70,15 @@ trait LineupUtils {
       case _ => lineup //(we're good, nothing to do)
     }
   }
+
+  /** Useful scriptlet for checking results
+  // Show results
+  import org.piggottfamily.cbb_explorer.utils.parsers.ncaa.LineupUtils
+  val res = l.groupBy(t => (t.opponent, t.location_type)).mapValues(
+    _.foldLeft((LineupEventStats.empty,LineupEventStats.empty))
+    { (acc, v) => (LineupUtils.sum(acc._1, v.team_stats),LineupUtils.sum(acc._2, v.opponent_stats)) }
+  ).mapValues(to => (to._1.asJson.toString, to._2.asJson.toString))
+  */
 
   /** Takes a unfiltered set of game events
    *  builds all the counting stats
@@ -211,6 +223,11 @@ trait LineupUtils {
         =>
           increment_misc_stat(modify[StatsBuilder](_.curr.foul))(state)
 
+        case (state, event_parser.AttackingTeam(EventUtils.ParseOffensiveFoul(player)))
+          if player_filter.forall(_ == player)
+        =>
+          increment_misc_stat(modify[StatsBuilder](_.curr.foul))(state)
+
         case (state, _) => state
       }).curr
     }
@@ -227,5 +244,31 @@ trait LineupUtils {
     )
   }
 
+  // Very low level:
+
+  /** Adds two lineup stats objects together */
+  def sum(lhs: LineupEventStats, rhs: LineupEventStats): LineupEventStats = {
+    trait sum_int extends Poly1 {
+      implicit def case_int2 = at[(Int, Int)](lr => lr._1 + lr._2)
+    }
+    trait sum_shot extends sum_int {
+      val gen_shot = Generic[LineupEventStats.ShotClockStats]
+      object sum_int_obj extends sum_int
+      implicit def case_shot2 =
+        at[(LineupEventStats.ShotClockStats, LineupEventStats.ShotClockStats)] { lr =>
+          gen_shot.from((gen_shot.to(lr._1) zip gen_shot.to(lr._2)).map(sum_int_obj))
+        }
+    }
+    object sum extends sum_shot {
+      val gen_fg = Generic[LineupEventStats.FieldGoalStats]
+      object sum_shot_obj extends sum_shot
+      implicit def case_field2 =
+        at[(LineupEventStats.FieldGoalStats, LineupEventStats.FieldGoalStats)] { lr =>
+          gen_fg.from((gen_fg.to(lr._1) zip gen_fg.to(lr._2)).map(sum_shot_obj))
+        }
+    }
+    val gen_lineup = Generic[LineupEventStats]
+    gen_lineup.from((gen_lineup.to(lhs) zip gen_lineup.to(rhs)).map(sum))
+  }
 }
 object LineupUtils extends LineupUtils

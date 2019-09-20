@@ -7,6 +7,9 @@ import scala.util.Try
 
 import com.softwaremill.quicklens._
 
+import shapeless.{Generic, Poly1}
+import shapeless.HList.ListCompat._
+
 /** Utilities related to calculation possession from raw game events */
 trait PossessionUtils {
   import ExtractorUtils._
@@ -72,16 +75,6 @@ trait PossessionUtils {
     offsetting_bad_fouls: Int = 0,
     turnovers: Int = 0
   ) {
-    def sum(rhs: PossCalcFragment) = this.copy(
-      shots_made_or_missed = this.shots_made_or_missed + rhs.shots_made_or_missed,
-      liveball_orbs = this.liveball_orbs + rhs.liveball_orbs,
-      actual_deadball_orbs = this.actual_deadball_orbs + rhs.actual_deadball_orbs,
-      ft_events = this.ft_events + rhs.ft_events,
-      ignored_and_ones = this.ignored_and_ones + rhs.ignored_and_ones,
-      bad_fouls = this.bad_fouls + rhs.bad_fouls,
-      offsetting_bad_fouls = this.offsetting_bad_fouls + rhs.offsetting_bad_fouls,
-      turnovers = this.turnovers + rhs.turnovers
-    )
     def total_poss = {
       shots_made_or_missed - (liveball_orbs + actual_deadball_orbs) +
       (ft_events - bad_fouls) + turnovers
@@ -91,6 +84,16 @@ trait PossessionUtils {
       s"shots=[$shots_made_or_missed] - (orbs=[$liveball_orbs] + db_orbs=[$actual_deadball_orbs]) + " +
       s"(ft_sets=[$ft_events] - techs=[$bad_fouls]) + to=[$turnovers]" +
       s" { +1s=[$ignored_and_ones] offset_techs=[$offsetting_bad_fouls] }"
+    }
+  }
+  object PossCalcFragment {
+    /** Adds 2 calc fragments together */
+    def sum(lhs: PossCalcFragment, rhs: PossCalcFragment): PossCalcFragment = {
+      val gen = Generic[PossCalcFragment]
+      object sum extends Poly1 {
+        implicit def caseInt2 = at[(Int, Int)](lr => lr._1 + lr._2)
+      }
+      gen.from((gen.to(lhs) zip gen.to(rhs)).map(sum))
     }
   }
 
@@ -530,14 +533,14 @@ trait PossessionUtils {
         val opponent_stats = calculate_stats(clump, state.prev_clump, Direction.Opponent)
 
         diagnostic_state = diagnostic_state.copy(  //(display only)
-          team_stats = diagnostic_state.team_stats.sum(team_stats),
-          opponent_stats = diagnostic_state.opponent_stats.sum(opponent_stats),
+          team_stats = PossCalcFragment.sum(diagnostic_state.team_stats, team_stats),
+          opponent_stats = PossCalcFragment.sum(diagnostic_state.opponent_stats, opponent_stats),
         )
 
         val (new_state, enriched_lineups) = if (lineups.isEmpty) {
           val updated_state = state.copy(
-            team_stats = state.team_stats.sum(team_stats),
-            opponent_stats = state.opponent_stats.sum(opponent_stats),
+            team_stats = PossCalcFragment.sum(state.team_stats, team_stats),
+            opponent_stats = PossCalcFragment.sum(state.opponent_stats, opponent_stats),
             prev_clump = clump
           )
           (updated_state, Nil)

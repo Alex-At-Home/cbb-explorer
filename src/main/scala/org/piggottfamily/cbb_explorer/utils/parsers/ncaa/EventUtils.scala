@@ -504,6 +504,19 @@ object EventUtils {
     }
   }
 
+  /** Offensive foul - just used for counting stats, so not worrying about flagrant vs normal etc */
+  object ParseOffensiveFoul {
+    // New:
+    //"team": "Eric Ayala, foul offensive"
+    // Legacy:
+    //(haven't found any yet)
+    private val off_foul_regex_new = "[^,]+,[^,]+,(.+), +foul offensive.*".r
+    def unapply(x: String): Option[String] = Option(x) match {
+      case Some(off_foul_regex_new(player)) => Some(player)
+      case _ => None
+    }
+  }
+
   /** Who was fouled? */
   object ParseFoulInfo {
     // New:

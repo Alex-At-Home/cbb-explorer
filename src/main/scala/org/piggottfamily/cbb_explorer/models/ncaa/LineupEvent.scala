@@ -79,6 +79,31 @@ object LineupEvent {
     object Opponent {
       def unapply(x: RawGameEvent): Option[String] = x.opponent
     }
+
+    /** Which team is in possession */
+    object Direction extends Enumeration {
+      val Init, Team, Opponent = Value
+    }
+
+    /** Utility for decomposing game events into offensive and defensive possessions */
+    case class PossessionEvent(dir: Direction.Value) {
+      /** The team in possession */
+      object AttackingTeam {
+        def unapply(x: RawGameEvent): Option[String] = x match {
+          case RawGameEvent.Team(event_str) if dir == Direction.Team => Some(event_str)
+          case RawGameEvent.Opponent(event_str) if dir == Direction.Opponent => Some(event_str)
+          case _ => None
+        }
+      }
+      /** The team not in possession */
+      object DefendingTeam {
+        def unapply(x: RawGameEvent): Option[String] = x match {
+          case RawGameEvent.Team(event_str) if dir == Direction.Opponent => Some(event_str)
+          case RawGameEvent.Opponent(event_str) if dir == Direction.Team => Some(event_str)
+          case _ => None
+        }
+      }
+    }
   }
 
   /** Info about the score at the start and end of the event */

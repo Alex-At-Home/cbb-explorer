@@ -9,6 +9,7 @@ case class LineupEventStats(
 
   fg: LineupEventStats.FieldGoalStats = LineupEventStats.FieldGoalStats(),
   fg_rim: LineupEventStats.FieldGoalStats = LineupEventStats.FieldGoalStats(),
+  fg_mid: LineupEventStats.FieldGoalStats = LineupEventStats.FieldGoalStats(),
   fg_2p: LineupEventStats.FieldGoalStats = LineupEventStats.FieldGoalStats(),
   fg_3p: LineupEventStats.FieldGoalStats = LineupEventStats.FieldGoalStats(),
   ft: LineupEventStats.FieldGoalStats = LineupEventStats.FieldGoalStats(),
@@ -18,9 +19,10 @@ case class LineupEventStats(
 
   to: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
   stl: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
-  assists: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
+  blk: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
+  assist: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
 
-  fouls: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
+  foul: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
 
   pts: Int = 0,
   plus_minus: Int = 0
@@ -49,14 +51,10 @@ object LineupEventStats {
    * Break down of counting stats specific to field goals/shot clock
    * @param attempts The number of shot attempts, successful or not
    * @param made The number of successful shot attempts
-   * @param pct A rounded integer with the %
-   * @param pct A rounded integer with the effective % given the shot type
    */
   case class FieldGoalStats(
     attempts: ShotClockStats = ShotClockStats(),
-    made: ShotClockStats = ShotClockStats(),
-    pct: ShotClockStats = ShotClockStats(),
-    effective_pct: ShotClockStats = ShotClockStats()
+    made: ShotClockStats = ShotClockStats()
   )
 
 }

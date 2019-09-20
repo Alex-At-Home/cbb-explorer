@@ -10,54 +10,76 @@ import org.piggottfamily.cbb_explorer.models.ncaa._
 object PossessionUtilsTests extends TestSuite with PossessionUtils {
   import ExtractorUtils._
   import StateUtils.StateTypes._
+  //(these used to live in here but moved them centrally)
+  import org.piggottfamily.cbb_explorer.models.ncaa.LineupEvent.RawGameEvent.Direction
+  import org.piggottfamily.cbb_explorer.models.ncaa.LineupEvent.RawGameEvent.PossessionEvent
+
+  /** A handy compilation of events */
+  object Events {
+    val jump_won_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "19:58:00,0-0,Bruno Fernando, jumpball won")
+    val jump_won_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = jump_won_team.team.get)
+    val jump_lost_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "19:58:00,0-0,Kavell Bigby-Williams, jumpball lost")
+
+    val turnover_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "08:44:00,20-23,Bruno Fernando, turnover badpass")
+    val turnover_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = turnover_team.team.get)
+    val steal_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,55-68,MASON III,FRANK Steal")
+    val steal_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = steal_team.team.get)
+
+    val made_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,SMITH,JALEN made Three Point Jumper")
+    val made_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = made_team.team.get)
+    val missed_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "02:28:00,27-38,Eric Ayala, 3pt jumpshot 2ndchance missed")
+    val missed_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = missed_team.team.get)
+    val made_ft_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,DREAD,MYLES made Free Throw")
+    val made_ft_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = made_ft_team.team.get)
+    val made_ft1_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,55-68,Kevin Anderson, freethrow 1of2 made")
+    val made_ft1_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = made_ft1_team.team.get)
+    val made_ft2_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,55-68,Kevin Anderson, freethrow 2of2 made")
+    val made_ft2_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = made_ft2_team.team.get)
+    val missed_ft_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,DREAD,MYLES missed Free Throw")
+    val missed_ft_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = missed_ft_team.team.get)
+    val missed_ft1_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,55-68,Kevin Anderson, freethrow 1of2 missed")
+    val missed_ft1_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = missed_ft1_team.team.get)
+    val missed_ft2_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,55-68,Kevin Anderson, freethrow 2of2 missed")
+    val missed_ft2_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = missed_ft2_team.team.get)
+    // other shots:
+    val made_3p_team = made_team
+    val missed_3p_team = missed_team
+    val made_rim_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,Eric Carter, 2pt layup made")
+    val made_mid_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,Eric Ayala, 2pt jumpshot made")
+    val missed_rim_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,Eric Carter, 2pt layup missed")
+    val missed_mid_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,Eric Ayala, 2pt jumpshot missed")
+
+    val orb_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,Darryl Morsell, rebound offensive")
+    val orb_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = orb_team.team.get)
+    val drb_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,Darryl Morsell, rebound defensive")
+    val drb_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = drb_team.team.get)
+    val deadball_rb_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,TEAM Deadball Rebound")
+    val deadball_rb_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = deadball_rb_team.team.get)
+    val deadball_orb_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "04:28:0,52-59,Team, rebound offensivedeadball")
+    val deadball_orb_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = deadball_orb_team.team.get)
+    // other events
+    val assist_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,Kyle Guy, assist")
+    val block_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,04:53,55-69,LAYMAN,JAKE Blocked Shot")
+
+    val foul_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,MYKHAILIUK,SVI Commits Foul")
+    val foul_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = foul_team.team.get)
+    val tech_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "06:43:00,55-79,Bruno Fernando, foul technical classa;2freethrow")
+    val tech_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = tech_team.team.get)
+    val flagrant_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "03:42:00,55-79,Eric Carter, foul personal flagrant1;2freethrow")
+    val flagrant_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = flagrant_team.team.get)
+    // other:
+    val foul_off_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,Eric Ayala, foul offensive")
+
+    def reverse_dir: LineupEvent.RawGameEvent => LineupEvent.RawGameEvent = {
+      case LineupEvent.RawGameEvent(a, Some(b), None) => LineupEvent.RawGameEvent(a, None, Some(b))
+      case LineupEvent.RawGameEvent(a, None, Some(b)) => LineupEvent.RawGameEvent(a, Some(b), None)
+      case ev => ev
+    }
+  }
 
   val tests = Tests {
     "PossessionUtils" - {
 
-      /** A handy compilation of events */
-      object Events {
-        val jump_won_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "19:58:00,0-0,Bruno Fernando, jumpball won")
-        val jump_won_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = jump_won_team.team.get)
-        val jump_lost_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = "19:58:00,0-0,Kavell Bigby-Williams, jumpball lost")
-
-        val turnover_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "08:44:00,20-23,Bruno Fernando, turnover badpass")
-        val turnover_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = turnover_team.team.get)
-        val steal_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,55-68,MASON III,FRANK Steal")
-        val steal_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = steal_team.team.get)
-
-        val made_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,SMITH,JALEN made Three Point Jumper")
-        val made_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = made_team.team.get)
-        val missed_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "02:28:00,27-38,Eric Ayala, 3pt jumpshot 2ndchance missed")
-        val missed_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = missed_team.team.get)
-        val made_ft_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,DREAD,MYLES made Free Throw")
-        val made_ft_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = made_ft_team.team.get)
-        val made_ft1_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,55-68,Kevin Anderson, freethrow 1of2 made")
-        val made_ft1_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = made_ft1_team.team.get)
-        val made_ft2_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,55-68,Kevin Anderson, freethrow 2of2 made")
-        val made_ft2_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = made_ft2_team.team.get)
-        val missed_ft_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,DREAD,MYLES missed Free Throw")
-        val missed_ft_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = missed_ft_team.team.get)
-        val missed_ft1_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,55-68,Kevin Anderson, freethrow 1of2 missed")
-        val missed_ft1_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = missed_ft1_team.team.get)
-        val missed_ft2_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,55-68,Kevin Anderson, freethrow 2of2 missed")
-        val missed_ft2_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = missed_ft2_team.team.get)
-
-        val orb_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,Darryl Morsell, rebound offensive")
-        val orb_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = orb_team.team.get)
-        val drb_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,Darryl Morsell, rebound defensive")
-        val drb_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = drb_team.team.get)
-        val deadball_rb_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,TEAM Deadball Rebound")
-        val deadball_rb_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = deadball_rb_team.team.get)
-        val deadball_orb_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "04:28:0,52-59,Team, rebound offensivedeadball")
-        val deadball_orb_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = deadball_orb_team.team.get)
-
-        val foul_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,MYKHAILIUK,SVI Commits Foul")
-        val foul_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = foul_team.team.get)
-        val tech_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "06:43:00,55-79,Bruno Fernando, foul technical classa;2freethrow")
-        val tech_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = tech_team.team.get)
-        val flagrant_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "03:42:00,55-79,Eric Carter, foul personal flagrant1;2freethrow")
-        val flagrant_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = flagrant_team.team.get)
-      }
       val base_lineup = LineupEvent(
         date = new DateTime(),
         location_type = Game.LocationType.Home,
@@ -153,7 +175,7 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
         val frag2 = PossCalcFragment(1, 3, 5, 7, 9, 11, 13, 15)
         val frag_sum = PossCalcFragment(2, 5, 8, 11, 14, 17, 20, 23)
 
-        frag1.sum(frag2) ==> frag_sum
+        PossCalcFragment.sum(frag1, frag2) ==> frag_sum
         frag1.total_poss ==> 2
         frag1.summary ==> "total=[2] = shots=[1] - (orbs=[2] + db_orbs=[3]) + (ft_sets=[4] - techs=[6]) + to=[8] { +1s=[5] offset_techs=[7] }"
       }
@@ -290,13 +312,8 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
           Nil
 
         // Both directions and checking prev is ignored
-        def reverse_dir: LineupEvent.RawGameEvent => LineupEvent.RawGameEvent = {
-          case LineupEvent.RawGameEvent(a, Some(b), None) => LineupEvent.RawGameEvent(a, None, Some(b))
-          case LineupEvent.RawGameEvent(a, None, Some(b)) => LineupEvent.RawGameEvent(a, Some(b), None)
-          case ev => ev
-        }
         tests.map { case (l, out) =>
-          (l, l.map(reverse_dir), out)
+          (l, l.map(Events.reverse_dir), out)
         }.foreach { case (test_in, test_in_oppo, expected_out) =>
           TestUtils.inside(
             (test_in,
@@ -336,7 +353,7 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
           Nil
 
           test_prevs.map { case (prev, curr, out) =>
-            (prev, prev.map(reverse_dir), curr, curr.map(reverse_dir), out)
+            (prev, prev.map(Events.reverse_dir), curr, curr.map(Events.reverse_dir), out)
           }.foreach { case (prev_in, prev_in_oppo, curr_in, curr_in_oppo, expected_out) =>
             TestUtils.inside(
               (prev_in, curr_in,

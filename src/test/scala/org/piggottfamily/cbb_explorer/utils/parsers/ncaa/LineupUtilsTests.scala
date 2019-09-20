@@ -6,33 +6,37 @@ import org.piggottfamily.cbb_explorer.utils.TestUtils
 import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.models.ncaa._
 
+import com.softwaremill.quicklens._
+
 object LineupUtilsTests extends TestSuite with LineupUtils {
+  import PossessionUtilsTests.Events //(handy compilation of game events)
 
   val tests = Tests {
+
+    val base_lineup = LineupEvent(
+      date = new DateTime(),
+      location_type = Game.LocationType.Home,
+      start_min = 0.0,
+      end_min = -100.0,
+      duration_mins = 0.0,
+      score_info = LineupEvent.ScoreInfo(
+        Game.Score(1, 1), Game.Score(3, 2), 2, 1
+      ),
+      team = TeamSeasonId(TeamId("TeamA"), Year(2017)),
+      opponent = TeamSeasonId(TeamId("TeamB"), Year(2017)),
+      lineup_id = LineupEvent.LineupId.unknown,
+      players = Nil,
+      players_in = Nil,
+      players_out = Nil,
+      raw_game_events = Nil,
+      team_stats = LineupEventStats.empty,
+      opponent_stats = LineupEventStats.empty
+    )
+
     "LineupUtils" - {
       "enrich_lineup" - {
         val test_events_1 = LineupEvent.RawGameEvent(0.0, Some("19:58:00,0-0,team1.1"), None) :: Nil
         val test_events_2 = LineupEvent.RawGameEvent(0.0, None, Some("19:58:00,0-0,opp1.1")) :: Nil
-
-        val base_lineup = LineupEvent(
-          date = new DateTime(),
-          location_type = Game.LocationType.Home,
-          start_min = 0.0,
-          end_min = -100.0,
-          duration_mins = 0.0,
-          score_info = LineupEvent.ScoreInfo(
-            Game.Score(1, 1), Game.Score(3, 2), 2, 1
-          ),
-          team = TeamSeasonId(TeamId("TeamA"), Year(2017)),
-          opponent = TeamSeasonId(TeamId("TeamB"), Year(2017)),
-          lineup_id = LineupEvent.LineupId.unknown,
-          players = Nil,
-          players_in = Nil,
-          players_out = Nil,
-          raw_game_events = Nil,
-          team_stats = LineupEventStats.empty,
-          opponent_stats = LineupEventStats.empty
-        )
 
         val test_lineup_1 = base_lineup.copy(raw_game_events = test_events_1)
         val test_lineup_2 = base_lineup.copy(raw_game_events = test_events_2)
@@ -177,6 +181,201 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
         TestUtils.inside(fix_possible_score_swap_bug(swapped_lineup, incorrect_box_score)) {
           case fixed_lineup if fixed_lineup == swapped_lineup =>
         }
+      }
+      "enrich_stats" - {
+        val team_dir = LineupEvent.RawGameEvent.Direction.Team
+        val oppo_dir = LineupEvent.RawGameEvent.Direction.Opponent
+        val team_event_filter = LineupEvent.RawGameEvent.PossessionEvent(team_dir)
+        val oppo_event_filter = LineupEvent.RawGameEvent.PossessionEvent(oppo_dir)
+        val zero_stats = LineupEventStats()
+        val test_cases = {
+          // Edge cases
+          List(
+          ) -> List()
+          List(
+            Events.made_opponent //(ignored, wrong direction)
+          ) -> List() ::
+          // Shots
+          List(
+            Events.made_3p_team
+          ) -> List(
+            modify[LineupEventStats](_.fg_3p.attempts.total),
+            modify[LineupEventStats](_.fg.attempts.total),
+            modify[LineupEventStats](_.fg_3p.made.total),
+            modify[LineupEventStats](_.fg.made.total)
+          ) ::
+          List(
+            Events.missed_3p_team
+          ) -> List(
+            modify[LineupEventStats](_.fg_3p.attempts.total),
+            modify[LineupEventStats](_.fg.attempts.total)
+          ) ::
+          List(
+            Events.made_rim_team
+          ) -> List(
+            modify[LineupEventStats](_.fg_2p.attempts.total),
+            modify[LineupEventStats](_.fg_rim.attempts.total),
+            modify[LineupEventStats](_.fg.attempts.total),
+            modify[LineupEventStats](_.fg_2p.made.total),
+            modify[LineupEventStats](_.fg_rim.made.total),
+            modify[LineupEventStats](_.fg.made.total)
+          ) ::
+          List(
+            Events.missed_rim_team
+          ) -> List(
+            modify[LineupEventStats](_.fg_2p.attempts.total),
+            modify[LineupEventStats](_.fg_rim.attempts.total),
+            modify[LineupEventStats](_.fg.attempts.total)
+          ) ::
+          List(
+            Events.made_mid_team
+          ) -> List(
+            modify[LineupEventStats](_.fg_2p.attempts.total),
+            modify[LineupEventStats](_.fg_mid.attempts.total),
+            modify[LineupEventStats](_.fg.attempts.total),
+            modify[LineupEventStats](_.fg_2p.made.total),
+            modify[LineupEventStats](_.fg_mid.made.total),
+            modify[LineupEventStats](_.fg.made.total)
+          ) ::
+          List(
+            Events.missed_mid_team
+          ) -> List(
+            modify[LineupEventStats](_.fg_2p.attempts.total),
+            modify[LineupEventStats](_.fg_mid.attempts.total),
+            modify[LineupEventStats](_.fg.attempts.total)
+          ) ::
+          // Free throws
+          List(
+            Events.made_ft_team
+          ) -> List(
+            modify[LineupEventStats](_.ft.attempts.total),
+            modify[LineupEventStats](_.ft.made.total)
+          ) ::
+          List(
+            Events.missed_ft_team
+          ) -> List(
+            modify[LineupEventStats](_.ft.attempts.total)
+          ) ::
+          // Misc
+          // (rebounds)
+          List(
+            Events.orb_team
+          ) -> List(
+            modify[LineupEventStats](_.orb.total)
+          ) ::
+          List(
+            Events.drb_team
+          ) -> List(
+            modify[LineupEventStats](_.drb.total)
+          ) ::
+          List(
+            Events.deadball_orb_team
+          ) -> List(
+          ) ::
+          List(
+            Events.deadball_rb_team //(not ideal because could be a defensive rebound)
+          ) -> List(
+          ) ::
+          // (steals)
+          List(
+            Events.steal_team
+          ) -> List(
+            modify[LineupEventStats](_.stl.total)
+          ) ::
+          // (turnovers)
+          List(
+            Events.turnover_team
+          ) -> List(
+            modify[LineupEventStats](_.to.total)
+          ) ::
+          // (assists)
+          List(
+            Events.assist_team
+          ) -> List(
+            modify[LineupEventStats](_.assist.total)
+          ) ::
+          // (blocks)
+          List(
+            Events.block_team
+          ) -> List(
+            modify[LineupEventStats](_.blk.total)
+          ) ::
+          // Fouls:
+          List(
+            Events.foul_team
+          ) -> List(
+            modify[LineupEventStats](_.foul.total)
+          ) ::
+          List(
+            Events.flagrant_team
+          ) -> List(
+            modify[LineupEventStats](_.foul.total)
+          ) ::
+          List(
+            Events.tech_team
+          ) -> List(
+            modify[LineupEventStats](_.foul.total)
+          ) ::
+          List(
+            Events.foul_off_team
+          ) -> List(
+            modify[LineupEventStats](_.foul.total)
+          ) ::
+          Nil
+        }
+        val all_at_once = test_cases.fold(test_cases.head) {
+          (acc, v) => (acc._1 ++ v._1, acc._2 ++ v._2)
+        }
+        val all_test_cases = test_cases ++ List(all_at_once)
+        List(team_event_filter, oppo_event_filter).foreach { filter =>
+          val adjusted_test_cases = (test_cases ++ List(all_at_once)).map {
+            case tuple if filter == team_event_filter => tuple
+            case (in, out) => (in.map(Events.reverse_dir), out)
+          }
+          adjusted_test_cases.foreach { case (test_case, expected_transforms) =>
+            TestUtils.inside((test_case, enrich_stats(test_case, filter)(zero_stats))) {
+              case (_, stats) =>
+                stats ==> expected_transforms.foldLeft(zero_stats) {
+                  (acc, v) => v.using(_ + 1)(acc)
+                }
+            }
+          }
+        }
+        // Check player filter works:
+        val player_filter_test = List(
+          Events.foul_team, Events.tech_team
+        )
+        TestUtils.inside(
+          enrich_stats(player_filter_test, team_event_filter, Some("Bruno Fernando"))(zero_stats)
+        ) {
+          case stats =>
+            stats ==> zero_stats.modify(_.foul.total).setTo(1)
+        }
+      }
+      "add_stats_to_lineups" - {
+        val test_lineup = base_lineup.copy(
+          raw_game_events = List(Events.foul_team, Events.turnover_opponent)
+        )
+        TestUtils.inside(add_stats_to_lineups(test_lineup)) {
+          case lineup =>
+            lineup ==> test_lineup
+              .modify(_.team_stats.foul.total).setTo(1)
+              .modify(_.opponent_stats.to.total).setTo(1)
+        }
+      }
+      "sum" - {
+        val test1 = LineupEventStats.empty
+          .modify(_.num_possessions).setTo(1)
+          .modify(_.fg.made.total).setTo(2)
+          .modify(_.orb.total).setTo(3)
+        val test2 = LineupEventStats.empty
+          .modify(_.fg.made.total).setTo(3)
+          .modify(_.drb.total).setTo(4)
+        sum(test1, test2) ==> LineupEventStats.empty
+          .modify(_.num_possessions).setTo(1)
+          .modify(_.fg.made.total).setTo(5)
+          .modify(_.orb.total).setTo(3)
+          .modify(_.drb.total).setTo(4)
       }
     }
   }

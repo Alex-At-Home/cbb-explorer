@@ -1,442 +1,470 @@
 {
-   "aggregation_table": {
-      "pipelines": [],
-      "query": {
-         "_source": "$$field_filters",
-         "query": {
-            "bool": {
-               "filter": [],
-               "must_not": [],
-               "should": [],
-               "must": [
-                  {
-                     "script": {
-                        "script": "$$script_field(game_filter)"
-                     }
-                  },
-                  {
-                     "query_string": {
-                        "query": "$$query"
-                     }
-                  }
-               ]
-            }
-         }
-      },
-      "buckets": [],
-      "script_fields": [
-         {
-            "name": "off_ppp",
-            "script": "if (doc[\"team_stats.num_possessions\"].value > 0) {\n   return 100.0*doc[\"team_stats.pts\"].value/doc[\"team_stats.num_possessions\"].value;\n} else {\n   return 0.0;\n}\n"
-         },
-         {
-            "name": "def_ppp",
-            "script": "if (doc[\"opponent_stats.num_possessions\"].value > 0) {\n   return 100.0*doc[\"opponent_stats.pts\"].value/doc[\"opponent_stats.num_possessions\"].value;\n} else {\n   return 0.0;\n}\n"
-         },
-         {
-            "name": "kp_adj_off",
-            "params": {
-               "pbp_to_kp": "$$lookupMap(PBP2KP_Teams)",
-               "kp": "$$lookupMap(KP_lookup_2019)"
-            },
-            "script": "def kp_name = params.pbp_to_kp[doc[\"opponent.team.keyword\"].value];\nif (kp_name != null) {\ndef oppo = params.kp[kp_name.pbp_kp_team];\nif (oppo != null) {\n   return oppo['stats.adj_off.value'];\n} else {\n   return null;\n}\n} else {\n   return null;\n}"
-         },
-         {
-            "name": "kp_adj_def",
-            "params": {
-               "pbp_to_kp": "$$lookupMap(PBP2KP_Teams)",
-               "kp": "$$lookupMap(KP_lookup_2019)"
-            },
-            "script": "def kp_name = params.pbp_to_kp[doc[\"opponent.team.keyword\"].value];\nif (kp_name != null) {\ndef oppo = params.kp[kp_name.pbp_kp_team];\nif (oppo != null) {\n   return oppo['stats.adj_def.value'];\n} else {\n   return null;\n}\n} else {\n   return null;\n}"
-         },
-         {
-            "name": "game_filter",
-            "params": {
-               "pbp_to_kp": "$$lookupMap(PBP2KP_Teams)",
-               "kp": "$$lookupMap(KP_lookup_2019)",
-               "game_filter": "$$lookupMap(MdOnOffGameFilter)"
-            },
-            "script": "def kp_name = params.pbp_to_kp[doc[\"opponent.team.keyword\"].value];\nif (kp_name != null) {\ndef oppo = params.kp[kp_name.pbp_kp_team];\nif (oppo != null) {\n   def kp_rank = oppo['stats.adj_margin.rank'];\n   def game_filter = params.game_filter.game_filter;\n   //TODO: high major\n   return (kp_rank >= game_filter.min_kp) && (kp_rank <= game_filter.max_kp);\n} else {\n   return false;\n}\n} else {\n   return false;\n}\n"
-         },
-         {
-            "name": "off_efg",
-            "script": "def attempts = doc['team_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (doc['team_stats.fg_2p.made.total'].value + 1.5*doc['team_stats.fg_3p.made.total'].value)/attempts;\n} else {\n   return 0;\n}"
-         },
-         {
-            "name": "def_efg",
-            "script": "def attempts = doc['opponent_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (doc['opponent_stats.fg_2p.made.total'].value + 1.5*doc['opponent_stats.fg_3p.made.total'].value)/attempts;\n} else {\n   return 0;\n}"
-         },
-         {
-            "name": "off_to",
-            "script": "if (doc[\"team_stats.num_possessions\"].value > 0) {\n   return 1.0*doc[\"team_stats.to.total\"].value/doc[\"team_stats.num_possessions\"].value;\n} else {\n   return 0.0;\n}"
-         },
-         {
-            "name": "def_to",
-            "script": "if (doc[\"opponent_stats.num_possessions\"].value > 0) {\n   return 1.0*doc[\"opponent_stats.to.total\"].value/doc[\"opponent_stats.num_possessions\"].value;\n} else {\n   return 0.0;\n}"
-         },
-         {
-            "name": "off_ftr",
-            "script": "def attempts = doc['team_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['team_stats.ft.attempts.total'].value)/attempts;\n} else {\n   return 0;\n}"
-         },
-         {
-            "name": "def_ftr",
-            "script": "def attempts = doc['opponent_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['opponent_stats.ft.attempts.total'].value)/attempts;\n} else {\n   return 0;\n}"
-         },
-         {
-            "name": "off_orb",
-            "script": "def orb = doc['team_stats.orb.total'].value;\ndef drb = doc['opponent_stats.drb.total'].value;\n\nif (orb + drb > 0) {\n   return 1.0*orb/(orb + drb);\n} else {\n   return 0;\n}"
-         },
-         {
-            "name": "def_orb",
-            "script": "def drb = doc['team_stats.drb.total'].value;\ndef orb = doc['opponent_stats.orb.total'].value;\n\nif (orb + drb > 0) {\n   return 1.0*orb/(orb + drb);\n} else {\n   return 0;\n}"
-         },
-         {
-            "name": "off_orb_total",
-            "script": "def orb = doc['team_stats.orb.total'].value;\ndef drb = doc['opponent_stats.drb.total'].value;\nreturn orb + drb;"
-         },
-         {
-            "name": "def_orb_total",
-            "script": "def drb = doc['team_stats.drb.total'].value;\ndef orb = doc['opponent_stats.orb.total'].value;\nreturn orb + drb;"
-         },
-         {
-            "name": "off_2p",
-            "script": "def attempts = doc['team_stats.fg_2p.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['team_stats.fg_2p.made.total'].value)/attempts;\n} else {\n   return 0;\n}"
-         },
-         {
-            "name": "def_2p",
-            "script": "def attempts = doc['opponent_stats.fg_2p.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['opponent_stats.fg_2p.made.total'].value)/attempts;\n} else {\n   return 0;\n}"
-         },
-         {
-            "name": "off_3pr",
-            "script": "def attempts = doc['team_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['team_stats.fg_3p.attempts.total'].value)/attempts;\n} else {\n   return 0;\n}"
-         },
-         {
-            "name": "def_3pr",
-            "script": "def attempts = doc['opponent_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['opponent_stats.fg_3p.attempts.total'].value)/attempts;\n} else {\n   return 0;\n}"
-         },
-         {
-            "name": "off_2pmidr",
-            "script": "def attempts = doc['team_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['team_stats.fg_mid.attempts.total'].value)/attempts;\n} else {\n   return 0;\n}"
-         },
-         {
-            "name": "def_2pmidr",
-            "script": "def attempts = doc['opponent_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['opponent_stats.fg_mid.attempts.total'].value)/attempts;\n} else {\n   return 0;\n}"
-         },
-         {
-            "name": "off_2primr",
-            "script": "def attempts = doc['team_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['team_stats.fg_rim.attempts.total'].value)/attempts;\n} else {\n   return 0;\n}"
-         },
-         {
-            "name": "def_2primr",
-            "script": "def attempts = doc['opponent_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['opponent_stats.fg_rim.attempts.total'].value)/attempts;\n} else {\n   return 0;\n}"
-         },
-         {
-            "name": "off_3p",
-            "script": "def attempts = doc['team_stats.fg_3p.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['team_stats.fg_3p.made.total'].value)/attempts;\n} else {\n   return 0;\n}"
-         },
-         {
-            "name": "def_3p",
-            "script": "def attempts = doc['opponent_stats.fg_3p.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['opponent_stats.fg_3p.made.total'].value)/attempts;\n} else {\n   return 0;\n}"
-         }
-      ],
-      "metrics": [
-         {
-            "agg_type": "sum",
-            "name": "points_scored",
-            "config": {
-               "field": "team_stats.pts"
-            }
-         },
-         {
-            "agg_type": "sum",
-            "name": "points_allowed",
-            "config": {
-               "field": "opponent_stats.pts"
-            }
-         },
-         {
-            "agg_type": "sum",
-            "name": "off_poss",
-            "config": {
-               "field": "team_stats.num_possessions"
-            }
-         },
-         {
-            "agg_type": "sum",
-            "name": "def_poss",
-            "config": {
-               "field": "opponent_stats.num_possessions"
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "off_ppp",
-            "config": {
-               "weight": {
-                  "field": "team_stats.num_possessions"
-               },
-               "value": {
-                  "script": "$$script_field(off_ppp)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "def_ppp",
-            "config": {
-               "weight": {
-                  "field": "opponent_stats.num_possessions"
-               },
-               "value": {
-                  "script": "$$script_field(def_ppp)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "adj_opp_off",
-            "location": "automatic",
-            "config": {
-               "weight": {
-                  "field": "opponent_stats.num_possessions"
-               },
-               "value": {
-                  "script": "$$script_field(kp_adj_off)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "adj_opp_def",
-            "config": {
-               "weight": {
-                  "field": "team_stats.num_possessions"
-               },
-               "value": {
-                  "script": "$$script_field(kp_adj_def)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "off_efg",
-            "config": {
-               "weight": {
-                  "field": "team_stats.fg.attempts.total"
-               },
-               "value": {
-                  "script": "$$script_field(off_efg)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "def_efg",
-            "config": {
-               "weight": {
-                  "field": "opponent_stats.fg.attempts.total"
-               },
-               "value": {
-                  "script": "$$script_field(def_efg)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "off_to",
-            "config": {
-               "weight": {
-                  "field": "team_stats.num_possessions"
-               },
-               "value": {
-                  "script": "$$script_field(off_to)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "def_to",
-            "config": {
-               "weight": {
-                  "field": "opponent_stats.num_possessions"
-               },
-               "value": {
-                  "script": "$$script_field(def_to)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "off_ftr",
-            "config": {
-               "weight": {
-                  "field": "team_stats.fg.attempts.total"
-               },
-               "value": {
-                  "script": "$$script_field(off_ftr)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "def_ftr",
-            "config": {
-               "weight": {
-                  "field": "opponent_stats.fg.attempts.total"
-               },
-               "value": {
-                  "script": "$$script_field(def_ftr)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "off_orb",
-            "config": {
-               "weight": {
-                  "script": "$$script_field(off_orb_total)"
-               },
-               "value": {
-                  "script": "$$script_field(off_orb)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "def_orb",
-            "config": {
-               "weight": {
-                  "script": "$$script_field(def_orb_total)"
-               },
-               "value": {
-                  "script": "$$script_field(def_orb)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "off_2p",
-            "config": {
-               "weight": {
-                  "field": "team_stats.fg_2p.attempts.total"
-               },
-               "value": {
-                  "script": "$$script_field(off_2p)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "def_2p",
-            "config": {
-               "weight": {
-                  "field": "opponent_stats.fg_2p.attempts.total"
-               },
-               "value": {
-                  "script": "$$script_field(def_2p)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "off_3pr",
-            "config": {
-               "weight": {
-                  "field": "team_stats.fg.attempts.total"
-               },
-               "value": {
-                  "script": "$$script_field(off_3pr)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "def_3pr",
-            "config": {
-               "weight": {
-                  "field": "opponent_stats.fg.attempts.total"
-               },
-               "value": {
-                  "script": "$$script_field(def_3pr)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "off_2pmidr",
-            "config": {
-               "weight": {
-                  "field": "team_stats.fg.attempts.total"
-               },
-               "value": {
-                  "script": "$$script_field(off_2pmidr)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "def_2pmidr",
-            "config": {
-               "weight": {
-                  "field": "opponent_stats.fg.attempts.total"
-               },
-               "value": {
-                  "script": "$$script_field(def_2pmidr)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "off_2primr",
-            "config": {
-               "weight": {
-                  "field": "team_stats.fg.attempts.total"
-               },
-               "value": {
-                  "script": "$$script_field(off_2primr)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "def_2primr",
-            "config": {
-               "weight": {
-                  "field": "opponent_stats.fg.attempts.total"
-               },
-               "value": {
-                  "script": "$$script_field(def_2primr)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "off_3p",
-            "config": {
-               "weight": {
-                  "field": "team_stats.fg_3p.attempts.total"
-               },
-               "value": {
-                  "script": "$$script_field(off_3p)"
-               }
-            }
-         },
-         {
-            "agg_type": "weighted_avg",
-            "name": "def_3p",
-            "config": {
-               "weight": {
-                  "field": "opponent_stats.fg_3p.attempts.total"
-               },
-               "value": {
-                  "script": "$$script_field(def_3p)"
-               }
-            }
-         }
-      ],
-      "index_pattern": "maryland_2018",
-      "enabled": true
-   },
+  "aggregation_table": {
+     "pipelines": [],
+     "query": {
+        "_source": "$$field_filters",
+        "query": {
+           "bool": {
+              "filter": [],
+              "must_not": [],
+              "should": [],
+              "must": [
+                 {
+                    "script": {
+                       "script": "$$script_field(game_filter)"
+                    }
+                 },
+                 {
+                    "query_string": {
+                       "query": "$$query"
+                    }
+                 }
+              ]
+           }
+        }
+     },
+     "buckets": [
+        {
+           "agg_type": "terms",
+           "name": "dummy_terms",
+           "config": {
+              "size": 10000,
+              "script": "return '0'"
+           },
+           "field_filter": "-doc_count_error_upper_bound,-sum_other_doc_count"
+        }
+     ],
+     "script_fields": [
+        {
+           "name": "off_ppp",
+           "script": "if (doc[\"team_stats.num_possessions\"].value > 0) {\n   return 100.0*doc[\"team_stats.pts\"].value/doc[\"team_stats.num_possessions\"].value;\n} else {\n   return 0.0;\n}\n"
+        },
+        {
+           "name": "def_ppp",
+           "script": "if (doc[\"opponent_stats.num_possessions\"].value > 0) {\n   return 100.0*doc[\"opponent_stats.pts\"].value/doc[\"opponent_stats.num_possessions\"].value;\n} else {\n   return 0.0;\n}\n"
+        },
+        {
+           "name": "kp_adj_off",
+           "params": {
+              "pbp_to_kp": "$$lookupMap(PBP2KP_Teams)",
+              "kp": "$$lookupMap(KP_lookup_2019)"
+           },
+           "script": "def kp_name = params.pbp_to_kp[doc[\"opponent.team.keyword\"].value];\nif (kp_name != null) {\ndef oppo = params.kp[kp_name.pbp_kp_team];\nif (oppo != null) {\n   return oppo['stats.adj_off.value'];\n} else {\n   return null;\n}\n} else {\n   return null;\n}"
+        },
+        {
+           "name": "kp_adj_def",
+           "params": {
+              "pbp_to_kp": "$$lookupMap(PBP2KP_Teams)",
+              "kp": "$$lookupMap(KP_lookup_2019)"
+           },
+           "script": "def kp_name = params.pbp_to_kp[doc[\"opponent.team.keyword\"].value];\nif (kp_name != null) {\ndef oppo = params.kp[kp_name.pbp_kp_team];\nif (oppo != null) {\n   return oppo['stats.adj_def.value'];\n} else {\n   return null;\n}\n} else {\n   return null;\n}"
+        },
+        {
+           "name": "game_filter",
+           "params": {
+              "pbp_to_kp": "$$lookupMap(PBP2KP_Teams)",
+              "kp": "$$lookupMap(KP_lookup_2019)",
+              "game_filter": "$$lookupMap(MdOnOffGameFilter)"
+           },
+           "script": "def kp_name = params.pbp_to_kp[doc[\"opponent.team.keyword\"].value];\nif (kp_name != null) {\ndef oppo = params.kp[kp_name.pbp_kp_team];\nif (oppo != null) {\n   def kp_rank = oppo['stats.adj_margin.rank'];\n   def game_filter = params.game_filter.game_filter;\n   //TODO: high major\n   return (kp_rank >= game_filter.min_kp) && (kp_rank <= game_filter.max_kp);\n} else {\n   return false;\n}\n} else {\n   return false;\n}\n"
+        },
+        {
+           "name": "off_efg",
+           "script": "def attempts = doc['team_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (doc['team_stats.fg_2p.made.total'].value + 1.5*doc['team_stats.fg_3p.made.total'].value)/attempts;\n} else {\n   return 0;\n}"
+        },
+        {
+           "name": "def_efg",
+           "script": "def attempts = doc['opponent_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (doc['opponent_stats.fg_2p.made.total'].value + 1.5*doc['opponent_stats.fg_3p.made.total'].value)/attempts;\n} else {\n   return 0;\n}"
+        },
+        {
+           "name": "off_to",
+           "script": "if (doc[\"team_stats.num_possessions\"].value > 0) {\n   return 1.0*doc[\"team_stats.to.total\"].value/doc[\"team_stats.num_possessions\"].value;\n} else {\n   return 0.0;\n}"
+        },
+        {
+           "name": "def_to",
+           "script": "if (doc[\"opponent_stats.num_possessions\"].value > 0) {\n   return 1.0*doc[\"opponent_stats.to.total\"].value/doc[\"opponent_stats.num_possessions\"].value;\n} else {\n   return 0.0;\n}"
+        },
+        {
+           "name": "off_orb",
+           "script": "def orb = doc['team_stats.orb.total'].value;\ndef drb = doc['opponent_stats.drb.total'].value;\n\nif (orb + drb > 0) {\n   return 1.0*orb/(orb + drb);\n} else {\n   return 0;\n}"
+        },
+        {
+           "name": "def_orb",
+           "script": "def drb = doc['team_stats.drb.total'].value;\ndef orb = doc['opponent_stats.orb.total'].value;\n\nif (orb + drb > 0) {\n   return 1.0*orb/(orb + drb);\n} else {\n   return 0;\n}"
+        },
+        {
+           "name": "off_orb_total",
+           "script": "def orb = doc['team_stats.orb.total'].value;\ndef drb = doc['opponent_stats.drb.total'].value;\nreturn orb + drb;"
+        },
+        {
+           "name": "def_orb_total",
+           "script": "def drb = doc['team_stats.drb.total'].value;\ndef orb = doc['opponent_stats.orb.total'].value;\nreturn orb + drb;"
+        },
+        {
+           "name": "off_2p",
+           "script": "def attempts = doc['team_stats.fg_2p.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['team_stats.fg_2p.made.total'].value)/attempts;\n} else {\n   return 0;\n}"
+        },
+        {
+           "name": "def_2p",
+           "script": "def attempts = doc['opponent_stats.fg_2p.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['opponent_stats.fg_2p.made.total'].value)/attempts;\n} else {\n   return 0;\n}"
+        },
+        {
+           "name": "off_3pr",
+           "script": "def attempts = doc['team_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['team_stats.fg_3p.attempts.total'].value)/attempts;\n} else {\n   return 0;\n}"
+        },
+        {
+           "name": "def_3pr",
+           "script": "def attempts = doc['opponent_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['opponent_stats.fg_3p.attempts.total'].value)/attempts;\n} else {\n   return 0;\n}"
+        },
+        {
+           "name": "off_2pmidr",
+           "script": "def attempts = doc['team_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['team_stats.fg_mid.attempts.total'].value)/attempts;\n} else {\n   return 0;\n}"
+        },
+        {
+           "name": "def_2pmidr",
+           "script": "def attempts = doc['opponent_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['opponent_stats.fg_mid.attempts.total'].value)/attempts;\n} else {\n   return 0;\n}"
+        },
+        {
+           "name": "off_2primr",
+           "script": "def attempts = doc['team_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['team_stats.fg_rim.attempts.total'].value)/attempts;\n} else {\n   return 0;\n}"
+        },
+        {
+           "name": "def_2primr",
+           "script": "def attempts = doc['opponent_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['opponent_stats.fg_rim.attempts.total'].value)/attempts;\n} else {\n   return 0;\n}"
+        },
+        {
+           "name": "off_3p",
+           "script": "def attempts = doc['team_stats.fg_3p.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['team_stats.fg_3p.made.total'].value)/attempts;\n} else {\n   return 0;\n}"
+        },
+        {
+           "name": "def_3p",
+           "script": "def attempts = doc['opponent_stats.fg_3p.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['opponent_stats.fg_3p.made.total'].value)/attempts;\n} else {\n   return 0;\n}"
+        }
+     ],
+     "metrics": [
+        {
+           "agg_type": "sum",
+           "name": "points_scored",
+           "config": {
+              "field": "team_stats.pts"
+           }
+        },
+        {
+           "agg_type": "sum",
+           "name": "points_allowed",
+           "config": {
+              "field": "opponent_stats.pts"
+           }
+        },
+        {
+           "agg_type": "sum",
+           "name": "off_poss",
+           "config": {
+              "field": "team_stats.num_possessions"
+           }
+        },
+        {
+           "agg_type": "sum",
+           "name": "def_poss",
+           "config": {
+              "field": "opponent_stats.num_possessions"
+           }
+        },
+        {
+           "agg_type": "weighted_avg",
+           "name": "off_ppp",
+           "config": {
+              "weight": {
+                 "field": "team_stats.num_possessions"
+              },
+              "value": {
+                 "script": "$$script_field(off_ppp)"
+              }
+           }
+        },
+        {
+           "agg_type": "weighted_avg",
+           "name": "def_ppp",
+           "config": {
+              "weight": {
+                 "field": "opponent_stats.num_possessions"
+              },
+              "value": {
+                 "script": "$$script_field(def_ppp)"
+              }
+           }
+        },
+        {
+           "agg_type": "weighted_avg",
+           "name": "adj_opp_off",
+           "location": "automatic",
+           "config": {
+              "weight": {
+                 "field": "opponent_stats.num_possessions"
+              },
+              "value": {
+                 "script": "$$script_field(kp_adj_off)"
+              }
+           }
+        },
+        {
+           "agg_type": "weighted_avg",
+           "name": "adj_opp_def",
+           "config": {
+              "weight": {
+                 "field": "team_stats.num_possessions"
+              },
+              "value": {
+                 "script": "$$script_field(kp_adj_def)"
+              }
+           }
+        },
+        {
+           "agg_type": "weighted_avg",
+           "name": "off_efg",
+           "config": {
+              "weight": {
+                 "field": "team_stats.fg.attempts.total"
+              },
+              "value": {
+                 "script": "$$script_field(off_efg)"
+              }
+           }
+        },
+        {
+           "agg_type": "weighted_avg",
+           "name": "def_efg",
+           "config": {
+              "weight": {
+                 "field": "opponent_stats.fg.attempts.total"
+              },
+              "value": {
+                 "script": "$$script_field(def_efg)"
+              }
+           }
+        },
+        {
+           "agg_type": "weighted_avg",
+           "name": "off_to",
+           "config": {
+              "weight": {
+                 "field": "team_stats.num_possessions"
+              },
+              "value": {
+                 "script": "$$script_field(off_to)"
+              }
+           }
+        },
+        {
+           "agg_type": "weighted_avg",
+           "name": "def_to",
+           "config": {
+              "weight": {
+                 "field": "opponent_stats.num_possessions"
+              },
+              "value": {
+                 "script": "$$script_field(def_to)"
+              }
+           }
+        },
+        {
+           "agg_type": "weighted_avg",
+           "name": "off_orb",
+           "config": {
+              "weight": {
+                 "script": "$$script_field(off_orb_total)"
+              },
+              "value": {
+                 "script": "$$script_field(off_orb)"
+              }
+           }
+        },
+        {
+           "agg_type": "weighted_avg",
+           "name": "def_orb",
+           "config": {
+              "weight": {
+                 "script": "$$script_field(def_orb_total)"
+              },
+              "value": {
+                 "script": "$$script_field(def_orb)"
+              }
+           }
+        },
+        {
+           "agg_type": "weighted_avg",
+           "name": "off_2p",
+           "config": {
+              "weight": {
+                 "field": "team_stats.fg_2p.attempts.total"
+              },
+              "value": {
+                 "script": "$$script_field(off_2p)"
+              }
+           }
+        },
+        {
+           "agg_type": "weighted_avg",
+           "name": "def_2p",
+           "config": {
+              "weight": {
+                 "field": "opponent_stats.fg_2p.attempts.total"
+              },
+              "value": {
+                 "script": "$$script_field(def_2p)"
+              }
+           }
+        },
+        {
+           "agg_type": "weighted_avg",
+           "name": "off_3pr",
+           "config": {
+              "weight": {
+                 "field": "team_stats.fg.attempts.total"
+              },
+              "value": {
+                 "script": "$$script_field(off_3pr)"
+              }
+           }
+        },
+        {
+           "agg_type": "weighted_avg",
+           "name": "def_3pr",
+           "config": {
+              "weight": {
+                 "field": "opponent_stats.fg.attempts.total"
+              },
+              "value": {
+                 "script": "$$script_field(def_3pr)"
+              }
+           }
+        },
+        {
+           "agg_type": "weighted_avg",
+           "name": "off_2pmidr",
+           "config": {
+              "weight": {
+                 "field": "team_stats.fg.attempts.total"
+              },
+              "value": {
+                 "script": "$$script_field(off_2pmidr)"
+              }
+           }
+        },
+        {
+           "agg_type": "weighted_avg",
+           "name": "def_2pmidr",
+           "config": {
+              "weight": {
+                 "field": "opponent_stats.fg.attempts.total"
+              },
+              "value": {
+                 "script": "$$script_field(def_2pmidr)"
+              }
+           }
+        },
+        {
+           "agg_type": "weighted_avg",
+           "name": "off_2primr",
+           "config": {
+              "weight": {
+                 "field": "team_stats.fg.attempts.total"
+              },
+              "value": {
+                 "script": "$$script_field(off_2primr)"
+              }
+           }
+        },
+        {
+           "agg_type": "weighted_avg",
+           "name": "def_2primr",
+           "config": {
+              "weight": {
+                 "field": "opponent_stats.fg.attempts.total"
+              },
+              "value": {
+                 "script": "$$script_field(def_2primr)"
+              }
+           }
+        },
+        {
+           "agg_type": "weighted_avg",
+           "name": "off_3p",
+           "config": {
+              "weight": {
+                 "field": "team_stats.fg_3p.attempts.total"
+              },
+              "value": {
+                 "script": "$$script_field(off_3p)"
+              }
+           }
+        },
+        {
+           "agg_type": "weighted_avg",
+           "name": "def_3p",
+           "config": {
+              "weight": {
+                 "field": "opponent_stats.fg_3p.attempts.total"
+              },
+              "value": {
+                 "script": "$$script_field(def_3p)"
+              }
+           }
+        },
+        {
+           "agg_type": "sum",
+           "name": "total_off_fta",
+           "config": {
+              "field": "team_stats.ft.attempts.total"
+           }
+        },
+        {
+           "agg_type": "sum",
+           "name": "total_off_fga",
+           "config": {
+              "field": "team_stats.fg.attempts.total"
+           }
+        },
+        {
+           "agg_type": "bucket_script",
+           "name": "off_ftr",
+           "config": {
+              "buckets_path": {
+                 "my_var2": "total_off_fga",
+                 "my_var1": "total_off_fta"
+              },
+              "script": "params.my_var1 / params.my_var2"
+           }
+        },
+        {
+           "agg_type": "sum",
+           "name": "total_def_fta",
+           "config": {
+              "field": "opponent_stats.ft.attempts.total"
+           }
+        },
+        {
+           "agg_type": "sum",
+           "name": "total_def_fga",
+           "config": {
+              "field": "opponent_stats.fg.attempts.total"
+           }
+        },
+        {
+           "agg_type": "bucket_script",
+           "name": "def_ftr",
+           "config": {
+              "buckets_path": {
+                 "my_var2": "total_def_fga",
+                 "my_var1": "total_def_fta"
+              },
+              "script": "params.my_var1 / params.my_var2"
+           }
+        }
+     ],
+     "index_pattern": "maryland_2018",
+     "enabled": true
+  },
    "common": {
       "headers": {
          "position": "top",

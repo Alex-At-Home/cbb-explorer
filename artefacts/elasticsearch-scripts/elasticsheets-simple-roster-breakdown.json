@@ -1,0 +1,144 @@
+{
+   "aggregation_table": {
+      "pipelines": [
+         {
+            "agg_type": "bucket_sort",
+            "name": "sort",
+            "config": {
+               "from": 0,
+               "sort": [
+                  {
+                     "poss_count": {
+                        "order": "desc"
+                     }
+                  }
+               ],
+               "size": 100
+            }
+         }
+      ],
+      "query": {
+         "_source": "$$field_filters",
+         "query": {
+            "bool": {
+               "filter": [],
+               "must_not": [],
+               "should": [],
+               "must": [
+                  {
+                     "script": {
+                        "script": "$$script_field(game_filter)"
+                     }
+                  },
+                  {
+                     "query_string": {
+                        "query": "$$query"
+                     }
+                  }
+               ]
+            }
+         }
+      },
+      "buckets": [
+         {
+            "agg_type": "terms",
+            "name": "global",
+            "config": {
+               "size": 10000,
+               "script": "'all'"
+            },
+            "field_filter": "-doc_count_error_upper_bound,-sum_other_doc_count"
+         },
+         {
+            "agg_type": "terms",
+            "name": "player",
+            "location": "automatic",
+            "config": {
+               "field": "players.id.keyword",
+               "size": 100
+            },
+            "field_filter": "-doc_count_error_upper_bound,-sum_other_doc_count"
+         }
+      ],
+      "script_fields": [
+         {
+            "name": "game_filter",
+            "params": {
+               "pbp_to_kp": "$$lookupMap(PBP2KP_Teams)",
+               "kp": "$$lookupMap(KP_lookup_2019)",
+               "game_filter": "$$lookupMap(MdOnOffGameFilter)"
+            },
+            "script": "def kp_name = params.pbp_to_kp[doc[\"opponent.team.keyword\"].value];\nif (kp_name != null) {\ndef oppo = params.kp[kp_name.pbp_kp_team];\nif (oppo != null) {\n   def kp_rank = oppo['stats.adj_margin.rank'];\n   def game_filter = params.game_filter.game_filter;\n   //TODO: high major\n   return (kp_rank >= game_filter.min_kp) && (kp_rank <= game_filter.max_kp);\n} else {\n   return false;\n}\n} else {\n   return false;\n}\n"
+         }
+      ],
+      "metrics": [
+         {
+            "agg_type": "sum",
+            "name": "poss_count",
+            "location": "automatic",
+            "config": {
+               "field": "team_stats.num_possessions"
+            }
+         },
+         {
+            "agg_type": "sum",
+            "name": "global_poss_count",
+            "location": "global",
+            "config": {
+               "field": "team_stats.num_possessions"
+            }
+         }
+      ],
+      "index_pattern": "maryland_2018",
+      "enabled": true
+   },
+   "common": {
+      "headers": {
+         "position": "top",
+         "field_filters": [
+            "# eg -x.*.y / +x.y (start with -s where possible)",
+            "# pre-built groups: $$<name>",
+            "#(note fields are laid out in match order)",
+            "player.key",
+            "poss_count.*",
+            "global_poss_count.*"
+         ],
+         "exclude_filtered_fields_from_autocomplete": true,
+         "field_aliases": [
+            "#field.path=Alias To Use",
+            "#(note fields are laid out in order within filter matches)",
+            "player.key=player",
+            "poss_count.value=poss_count",
+            "global_poss_count.value=global_poss_count"
+         ],
+         "autocomplete_filters": [
+            "# eg x, -x.*.y, +x.y (start with -s if possible)",
+            "# pre-built groups: $$<name>"
+         ]
+      },
+      "pagination": {
+         "local": {
+            "position": "bottom"
+         },
+         "source": "none"
+      },
+      "query": {
+         "local": {
+            "position": "top"
+         },
+         "source": "local"
+      },
+      "skip": {
+         "rows": "",
+         "cols": ""
+      },
+      "formatting": {
+         "theme": "none",
+         "include_note": true
+      },
+      "status": {
+         "merge": false,
+         "position": "top"
+      }
+   }
+}

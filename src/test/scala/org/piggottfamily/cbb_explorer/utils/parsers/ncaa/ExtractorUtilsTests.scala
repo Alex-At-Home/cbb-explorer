@@ -20,6 +20,17 @@ object ExtractorUtilsTests extends TestSuite {
         }
         //TODO add some other cases (single name, no space for intermediate)
       }
+      "parse_team_name" - {
+        TestUtils.inside(parse_team_name(List("TeamA", "TeamB"), TeamId("TeamA"))) {
+          case Right(("TeamA", "TeamB", true)) =>
+        }
+        TestUtils.inside(parse_team_name(List("TeamB", "TeamA"), TeamId("TeamA"))) {
+          case Right(("TeamA", "TeamB", false)) =>
+        }
+        TestUtils.inside(parse_team_name(List("#1 TeamA", "#3 TeamB"), TeamId("TeamA"))) {
+          case Right(("TeamA", "TeamB", true)) =>
+        }
+      }
 
       "validate_lineup" - {
         val now = new DateTime()

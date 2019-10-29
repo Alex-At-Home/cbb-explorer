@@ -1,0 +1,29 @@
+#================================ Input =====================================
+
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - ./misc_conf_2018.ndjson
+  json.keys_under_root: true
+
+#================================ Output =====================================
+
+setup.ilm.enabled: false
+
+cloud.id: "ADD_CLOUD_ID"
+cloud.auth: "ADD_USER:ADD_PASSWORD"
+
+output.elasticsearch:
+  indices:
+    - index: "misc_conf_2018"
+      when.regexp:
+        log.file.path: ".*/misc_conf_2018.ndjson"
+
+setup.template.enabled: false
+
+#================================ Logging =====================================
+
+# Sets log level. The default log level is info.
+# Available log levels are: error, warning, info, debug
+logging.level: info

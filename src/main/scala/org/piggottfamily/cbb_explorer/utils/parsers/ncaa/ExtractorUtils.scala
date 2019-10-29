@@ -106,6 +106,9 @@ object ExtractorUtils {
 
   // Utils with some exernal usefulness
 
+  /** the list in parse_team_name can have seed numbers, eg '#10 Iowa' */
+  val remove_seed_regex = "([#][0-9]+ +)?([^ ].*)".r
+
   /** Pulls team name from "title" table element, matching the target and opponent teams
     * returns the target team, the opposing team, and whether the target team is first (vs second)
   */
@@ -113,7 +116,9 @@ object ExtractorUtils {
     : Either[ParseError, (String, String, Boolean)] =
   {
     val target_team_str = target_team.name
-    teams.map(_.trim) match {
+    teams.collect {
+      case remove_seed_regex(_, just_team) => just_team
+    }.map(_.trim) match {
       case List(`target_team_str`, opponent) =>
         Right((target_team_str, opponent, true))
 
@@ -254,7 +259,7 @@ object ExtractorUtils {
    13:43:00		26-41	Darryl Morsell, substitution out
    13:43:00		26-41	Anthony Cowan, substitution in
    13:38:00		26-43	Eric Ayala, 2pt drivinglayup 2ndchance;pointsinthepaint made
-   
+
    *
    * (protected just to support testing)
    */

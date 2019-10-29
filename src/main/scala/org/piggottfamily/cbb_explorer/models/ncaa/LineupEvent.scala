@@ -14,8 +14,9 @@ import org.joda.time.DateTime
  * @param opponent The opposing team
  * @param lineup_id A string that defines the set of players on the floor (via per player codes)
  * @param players A mapping from the player code used in the lineup to the full name
- * @param raw_team_events A list of the event strings from the NCAA website for the team under analysis
- * @param raw_opponent_events A list of the event strings for the opposting teams
+ * @param players_in The list of players who subbed in for this event
+ * @param players_out The list of players who subbed out for this event
+ * @param raw_game_events A list of the event strings from the NCAA website for the teams under analysis
  * @param team_stats The numerical stats extracted for the lineup (for the team under analysis)
  * @param opponent_stats The numerical stats extracted for the lineup (for the opposing team)
  */

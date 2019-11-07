@@ -1,16 +1,26 @@
 package org.piggottfamily.cbb_explorer.utils
 
 import ammonite.ops._
+import java.nio.file.attribute.FileTime
 
 /** File utils */
 trait FileUtils {
 
   /** List a set of files with a given exension in */
-  def list_files(root_dir: Path, extension: Option[String]): List[Path] = {
+  def list_files(
+    root_dir: Path, extension: Option[String], time_filter: Option[Long => Boolean] = None
+  ): List[Path] = {
     (extension match {
       case Some(ext) => ls! root_dir |? (_.ext == ext)
       case None => ls! root_dir
-    }).toList
+    }).filter { path =>
+      time_filter match {
+        case Some(lambda) =>
+          val file_stat = stat! path
+          lambda(file_stat.mtime.toMillis)
+        case None => true
+      }
+    }.toList
   }
 
   /** Reads a file into a string */

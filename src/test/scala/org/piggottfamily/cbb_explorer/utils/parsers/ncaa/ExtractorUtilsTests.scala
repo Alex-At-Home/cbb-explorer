@@ -35,6 +35,9 @@ object ExtractorUtilsTests extends TestSuite {
         TestUtils.inside(parse_team_name(List("#1 TeamA", "#3 TeamB"), TeamId("TeamA"))) {
           case Right(("TeamA", "TeamB", true)) =>
         }
+        TestUtils.inside(parse_team_name(List("#1 TeamA (1-1)", "TeamB (4-1)"), TeamId("TeamA"))) {
+          case Right(("TeamA", "TeamB", true)) =>
+        }
       }
 
       "validate_lineup" - {

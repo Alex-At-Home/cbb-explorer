@@ -18,29 +18,38 @@ object BuildLineups {
       println("""
         |--in=<<in-dir-up-to-conf-then-year>>
         |--out=<<out-dir-in-which-files-are-placed>>
+        |[--full] (includes player in/out and raw events)
+        |[--from=<<filter-files-before-this-unix-timestamp>>]
         """)
       System.exit(-1)
     }
-    val inDir = args.toList
+    val in_dir = args.toList
       .map(_.trim).filter(_.startsWith("--in="))
       .headOption.map(_.split("=", 2)(1))
       .getOrElse {
         throw new Exception("--in is needed")
       }
-    val outDir = args
+    val out_dir = args
       .map(_.trim).filter(_.startsWith("--out="))
       .headOption.map(_.split("=", 2)(1))
       .getOrElse {
         throw new Exception("--out is needed")
       }
-    //TODO: need a filter
-    //TODO: need a diff mode? Or maybe a date threshold
+    val strip_unused_data =
+      !args.toList.map(_.trim).exists(_ == "--full")
 
+    val maybe_filter = args
+      .map(_.trim).filter(_.startsWith("--from="))
+      .headOption
+        .map(_.split("=", 2)(1))
+        .map(_.toLong)
+
+    //TODO: need a team filter
 
     // Get year and then conference
 
-    val dirSegments = inDir.split("/").toList
-    val (conference, year) = dirSegments.takeRight(2) match {
+    val dir_segments = in_dir.split("/").toList
+    val (conference, year) = dir_segments.takeRight(2) match {
       case s1 :: s2 :: Nil if Try(s2.toInt).isSuccess => (s1, s2.toInt)
       case _ => throw new Exception("--in needs to end <<path>>/:conference/:year")
     }
@@ -51,24 +60,35 @@ object BuildLineups {
     val storage_controller = new StorageController()
 
     // Iterate over directories
-    val subdirs = ls! Path(inDir)
+    val subdirs = ls! Path(in_dir)
     val all_games = subdirs.flatMap { subdir =>
       //TODO: add some error validation
-      val getTeamId = "(.*)_([0-9]+)$".r
+      val get_team_id = "(.*)_([0-9]+)$".r
       subdir.last match {
-        case getTeamId(teamName, teamId) => //TODO: need to decode this
-          val teamDir =  subdir/ "stats.ncaa.org"
-          val decodedTeamName = URLDecoder.decode(teamName.replace("+", " "))
-          ncaa_lineup_controller.build_team_lineups(teamDir, TeamId(decodedTeamName))
+        case get_team_id(team_name, team_id) =>
+          val team_dir =  subdir/ "stats.ncaa.org"
+          val decoded_team_name = URLDecoder.decode(team_name.replace("+", " "))
+          ncaa_lineup_controller.build_team_lineups(
+            team_dir, TeamId(decoded_team_name),
+            min_time_filter = maybe_filter.map(_*1000) //(convert to ms)
+          )
         case _ =>
           println(s"Skipping unrecognized dir ${subdir.toString}")
           List()
       }
     }
+    val time_filter_suffix = maybe_filter.map("_" + _).getOrElse("")
     storage_controller.write_lineups(
-      lineups = all_games.toList,
-      file_root = Path(outDir),
-      file_name = s"${conference}_$year.ndjson"
+      lineups = all_games.map(l => strip_unused_data match {
+        case true => l.copy(
+          players_in = Nil,
+          players_out = Nil,
+          raw_game_events = Nil
+        )
+        case false => l
+      }).toList,
+      file_root = Path(out_dir),
+      file_name = s"${conference}_$year${time_filter_suffix}.ndjson"
     )
   }
 }

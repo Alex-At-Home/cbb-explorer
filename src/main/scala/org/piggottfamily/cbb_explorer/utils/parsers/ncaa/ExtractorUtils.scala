@@ -106,8 +106,8 @@ object ExtractorUtils {
 
   // Utils with some exernal usefulness
 
-  /** the list in parse_team_name can have seed numbers, eg '#10 Iowa' */
-  val remove_seed_regex = "([#][0-9]+ +)?([^ ].*)".r
+  /** the list in parse_team_name can have seed numbers and results, eg '#10 Iowa (3-3)' */
+  val extract_team_regex = "([#][0-9]+ +)?([^ ].*?)( *[(][0-9]+-[0-9]+[)])?".r
 
   /** Pulls team name from "title" table element, matching the target and opponent teams
     * returns the target team, the opposing team, and whether the target team is first (vs second)
@@ -117,7 +117,7 @@ object ExtractorUtils {
   {
     val target_team_str = target_team.name
     teams.collect {
-      case remove_seed_regex(_, just_team) => just_team
+      case extract_team_regex(_, just_team, _) => just_team
     }.map(_.trim) match {
       case List(`target_team_str`, opponent) =>
         Right((target_team_str, opponent, true))
@@ -184,7 +184,7 @@ object ExtractorUtils {
       }
     }
     def transform_first_name(fragment: String): String = {
-      if (DataQualityIssues.playersWithDuplicateNames(name)) {
+      if (DataQualityIssues.playersWithDuplicateNames(name.toLowerCase)) {
         first_last(fragment)
       } else {
         transform(fragment, 2)

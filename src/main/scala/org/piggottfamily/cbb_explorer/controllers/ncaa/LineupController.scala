@@ -16,7 +16,10 @@ import scala.util.{Try, Success, Failure}
 class LineupController(d: Dependencies = Dependencies())
 {
   /** Builds up a list of a team's good lineups (logging but otherwise ignoring errors) */
-  def build_team_lineups(root_dir: Path, team: TeamId, game_id_filter: Option[Regex] = None)
+  def build_team_lineups(
+    root_dir: Path, team: TeamId,
+    game_id_filter: Option[Regex] = None, min_time_filter: Option[Long] = None
+  )
     : List[LineupEvent] =
   {
     sealed trait LineupError
@@ -43,8 +46,16 @@ class LineupController(d: Dependencies = Dependencies())
       Set[String]()
     }
 
+    // Get lineups for selected games
+
+    val file_filter = min_time_filter.map { min_time =>
+      (file_time: Long) => {
+        file_time > min_time
+      }
+    }
+
     val lineups = for {
-      game <- d.file_manager.list_files(root_dir / play_by_play_dir, Some("html")).iterator
+      game <- d.file_manager.list_files(root_dir / play_by_play_dir, Some("html"), file_filter).iterator
 
       game_id = game.last.split("[.]")(0)
       if game_id_filter.forall(_.findFirstIn(game_id).isDefined)

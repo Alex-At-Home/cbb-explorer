@@ -98,6 +98,10 @@ trait BoxscoreParser {
         builders.boxscore_finder(doc, target_team_first)
       ).left.map(single_error_completer)
 
+      validated_lineup <- validate_box_score(
+        starting_lineup
+      ).left.map(single_error_completer)
+
     } yield LineupEvent(
       date,
       location_type,
@@ -108,7 +112,7 @@ trait BoxscoreParser {
       team = TeamSeasonId(TeamId(team), year),
       opponent = TeamSeasonId(TeamId(opponent), year),
       lineup_id = LineupEvent.LineupId.unknown,
-      players = starting_lineup.map(build_player_code),
+      players = validated_lineup,
       players_in = Nil,
       players_out = Nil,
       raw_game_events = Nil,
@@ -118,7 +122,6 @@ trait BoxscoreParser {
   }
 
   // Utils
-
   /** Gets the box score's period from the filename */
   protected def parse_period_from_filename(filename: String)
     : Either[ParseError, Int] =
@@ -203,5 +206,20 @@ trait BoxscoreParser {
     }
   }
 
+  /** Checks there are no duplicates in the lineup */
+  protected def validate_box_score(lineup: List[String]):
+    Either[ParseError, List[LineupEvent.PlayerCodeId]] =
+  {
+    def has_dups(l: List[LineupEvent.PlayerCodeId]): Boolean = {
+      l.size != l.map(_.code).toSet.size
+    }
+    lineup.map(build_player_code) match {
+      case l if has_dups(l) =>
+        Left(ParseUtils.build_sub_error(`parent_fills_in`)(
+          s"Duplicate players: [$l]"
+        ))
+      case l => Right(l)
+    }
+  }
 }
 object BoxscoreParser extends BoxscoreParser

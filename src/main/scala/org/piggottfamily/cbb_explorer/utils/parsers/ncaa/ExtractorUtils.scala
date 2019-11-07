@@ -169,11 +169,25 @@ object ExtractorUtils {
 
   /** Builds a player code out of the name, with various formats supported */
   def build_player_code(name: String): LineupEvent.PlayerCodeId = {
+    def first_last(fragment: String): String = {
+      if (fragment.isEmpty) {
+        ""
+      } else {
+        s"${fragment(0).toUpper}${fragment(fragment.length - 1).toLower}"
+      }
+    }
     def transform(fragment: String, max_len: Int): String = {
       if (fragment.isEmpty) {
         ""
       } else {
         s"${fragment(0).toUpper}${fragment.take(max_len).tail.toLowerCase}"
+      }
+    }
+    def transform_first_name(fragment: String): String = {
+      if (DataQualityIssues.playersWithDuplicateNames(name)) {
+        first_last(fragment)
+      } else {
+        transform(fragment, 2)
       }
     }
     val code = (name.split("\\s*,\\s*", 2).toList match {
@@ -211,7 +225,7 @@ object ExtractorUtils {
         } else {
           ""
         }
-        transform(head, 2) + middle + transform(tail.last, player_code_max_length)
+        transform_first_name(head) + middle + transform(tail.last, player_code_max_length)
     }
     LineupEvent.PlayerCodeId(code, PlayerId(name))
   }

@@ -18,6 +18,11 @@ object ExtractorUtilsTests extends TestSuite {
         TestUtils.inside(build_player_code(test_name)) {
           case LineupEvent.PlayerCodeId("FiRaSurname", PlayerId(`test_name`)) =>
         }
+        val twin_name = "Mitchell, Makhi"
+        TestUtils.inside(build_player_code(twin_name)) {
+          case LineupEvent.PlayerCodeId("MiMitchell", PlayerId(`twin_name`)) =>
+        }
+
         //TODO add some other cases (single name, no space for intermediate)
       }
       "parse_team_name" - {

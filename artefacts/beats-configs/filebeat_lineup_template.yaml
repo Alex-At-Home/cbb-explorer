@@ -4,7 +4,9 @@ filebeat.inputs:
 - type: log
   enabled: true
   paths:
-    - ./misc_conf_2018.ndjson
+    - ./misc_conf_20*.ndjson
+    - ./women_bigten_20*.ndjson
+    - ./bigten_20*.ndjson
   json.keys_under_root: true
 
 #================================ Output =====================================
@@ -16,15 +18,15 @@ cloud.auth: "ADD_USER:ADD_PASSWORD"
 
 output.elasticsearch:
   indices:
-    - index: "misc_conf_2018"
+    - index: "misc_conf_%{[team.year]}"
       when.regexp:
-        log.file.path: ".*/misc_conf_2018.ndjson"
-    - index: "women_bigten_2018"
+        log.file.path: ".*/misc_conf_[0-9]+(_.*)?.ndjson"
+    - index: "women_bigten_%{[team.year]}"
       when.regexp:
-        log.file.path: ".*/women_bigten_2018.ndjson"
-    - index: "bigten_2018"
+        log.file.path: ".*/women_bigten_[0-9]+(_.*)?.ndjson"
+    - index: "bigten_%{[team.year]}"
       when.regexp:
-        log.file.path: ".*/bigten_2018.ndjson"
+        log.file.path: ".*/bigten_[0-9]+(_.*)?.ndjson"
 
 setup.template.enabled: false
 

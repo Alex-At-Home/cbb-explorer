@@ -41,10 +41,10 @@ object TeamIdParserTests extends TestSuite {
       )
       TestUtils.inside(TeamIdParser.build_lineup_cli_array(test_in).toList) {
         case List(
-          (ConferenceId("SEC"), "450591::Kentucky"),
+          (ConferenceId("SEC"), "   '450591::Kentucky'"),
           (ConferenceId("B1G"),
-          """1::Penn+St.
-1000::Michigan+St.""")
+          """   '1::Penn+St.'
+   '1000::Michigan+St.'""")
         ) =>
       }
     }

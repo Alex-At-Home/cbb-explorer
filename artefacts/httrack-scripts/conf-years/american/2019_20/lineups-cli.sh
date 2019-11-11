@@ -3,12 +3,22 @@
 #(source .lineup.env first to set up these variables)
 #CRAWL_PATH=TODO
 #ROOT_URL=TODO
-#(to get the team navigate to https://$PBP_ROOT_URL/reports/attendance?id=XXX (couln)
+#(to get the team navigate to https://$PBP_ROOT_URL/reports/attendance?id=17900
 # pick the team, select the year, then the team id is the last bit of the URL)
-YEAR=2018
-CONF=women_bigten
+YEAR=2019
+CONF=american
 array=(
-    '451711::Maryland'
+'486905::Memphis'
+'486718::Wichita+St.'
+'486676::Temple'
+'486812::UConn'
+'486658::South+Fla.'
+'486694::Tulsa'
+'486860::Houston'
+'486800::UCF'
+'486828::East+Carolina'
+'486664::SMU'
+'486693::Tulane'
 )
 
 #TODO add TEAM filter

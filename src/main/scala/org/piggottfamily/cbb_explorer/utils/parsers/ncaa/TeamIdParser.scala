@@ -86,7 +86,7 @@ trait TeamIdParser {
     : Map[ConferenceId, String] =
   {
     in.groupBy(_._3).mapValues(_.map { case (TeamId(team), team_id, _) =>
-      s"$team_id::${URLEncoder.encode(team)}"
+      s"   '$team_id::${URLEncoder.encode(team)}'"
     }.mkString("\n"))
   }
 }

@@ -2,12 +2,12 @@
    "aggregation_table": {
       "pipelines": [],
       "map_reduce": {
-         "reduce": "//Called once on \"states\",\n//a list of the return\n//values from each shard's\n//combine:\n//return states.stream()\n//   .collect(finalCollector);",
+         "reduce": "//Called once on \"states\",\n//a list of the return\n//values from each shard's\n//combine:\n//return states.stream()\n// .collect(finalCollector);",
          "init": "//Init \"state\" variable, eg:\n//(list or map)\n//state.collect = [];\n//state.collect = [:];",
-         "lib": "//Add internal logic here\n//to keep the map/etc scripts\n//easier to follow.\n//Everything in here is \n//available to all other\n//scripts. Eg:\n//def myFunction(def param) {\n// return value   \n//}",
+         "lib": "//Add internal logic here\n//to keep the map/etc scripts\n//easier to follow.\n//Everything in here is \n//available to all other\n//scripts. Eg:\n//def myFunction(def param) {\n// return value \n//}",
          "params": {},
-         "map": "//Update state with info\n//from \"doc\" or \"params._source\"\n//(called once per doc)\n//eg state.collect.add(\n//    doc['field'].value\n// );\n// or (fold)\n// state.collect.stat += \n//    doc['field'].value;",
-         "combine": "//Called once per shard\n//once all docs processed\n//eg:\n//return state.collect\n//   .stream()\n//   .filter(t => true)\n//   .collect(shardCollector);"
+         "map": "//Update state with info\n//from \"doc\" or \"params._source\"\n//(called once per doc)\n//eg state.collect.add(\n// doc['field'].value\n// );\n// or (fold)\n// state.collect.stat += \n// doc['field'].value;",
+         "combine": "//Called once per shard\n//once all docs processed\n//eg:\n//return state.collect\n// .stream()\n// .filter(t => true)\n// .collect(shardCollector);"
       },
       "query": {
          "_source": "$$field_filters",
@@ -33,6 +33,25 @@
       },
       "buckets": [
          {
+            "name": "tri_filter",
+            "agg_type": "filters",
+            "config": {
+               "filters": {
+                  "on": {
+                     "query_string": {
+                        "query": "players.id:Ayala"
+                     }
+                  },
+                  "off": {
+                     "query_string": {
+                        "query": "NOT players.id:Ayala"
+                     }
+                  }
+               }
+            },
+            "location": "automatic"
+         },
+         {
             "agg_type": "terms",
             "name": "dummy_terms",
             "config": {
@@ -45,11 +64,11 @@
       "script_fields": [
          {
             "name": "off_ppp",
-            "script": "if (doc[\"team_stats.num_possessions\"].value > 0) {\n   return 100.0*doc[\"team_stats.pts\"].value/doc[\"team_stats.num_possessions\"].value;\n} else {\n   return 0.0;\n}\n"
+            "script": "if (doc[\"team_stats.num_possessions\"].value > 0) {\n return 100.0*doc[\"team_stats.pts\"].value/doc[\"team_stats.num_possessions\"].value;\n} else {\n return 0.0;\n}\n"
          },
          {
             "name": "def_ppp",
-            "script": "if (doc[\"opponent_stats.num_possessions\"].value > 0) {\n   return 100.0*doc[\"opponent_stats.pts\"].value/doc[\"opponent_stats.num_possessions\"].value;\n} else {\n   return 0.0;\n}\n"
+            "script": "if (doc[\"opponent_stats.num_possessions\"].value > 0) {\n return 100.0*doc[\"opponent_stats.pts\"].value/doc[\"opponent_stats.num_possessions\"].value;\n} else {\n return 0.0;\n}\n"
          },
          {
             "name": "kp_adj_off",
@@ -57,7 +76,7 @@
                "pbp_to_kp": "$$lookupMap(PBP2KP_Teams)",
                "kp": "$$lookupMap(KP_lookup_2019)"
             },
-            "script": "def kp_name = params.pbp_to_kp[doc[\"opponent.team.keyword\"].value];\nif (kp_name != null) {\ndef oppo = params.kp[kp_name.pbp_kp_team];\nif (oppo != null) {\n   return oppo['stats.adj_off.value'];\n} else {\n   return null;\n}\n} else {\n   return null;\n}"
+            "script": "def kp_name = params.pbp_to_kp[doc[\"opponent.team.keyword\"].value];\nif (kp_name != null) {\ndef oppo = params.kp[kp_name.pbp_kp_team];\nif (oppo != null) {\n return oppo['stats.adj_off.value'];\n} else {\n return null;\n}\n} else {\n return null;\n}"
          },
          {
             "name": "kp_adj_def",
@@ -65,40 +84,45 @@
                "pbp_to_kp": "$$lookupMap(PBP2KP_Teams)",
                "kp": "$$lookupMap(KP_lookup_2019)"
             },
-            "script": "def kp_name = params.pbp_to_kp[doc[\"opponent.team.keyword\"].value];\nif (kp_name != null) {\ndef oppo = params.kp[kp_name.pbp_kp_team];\nif (oppo != null) {\n   return oppo['stats.adj_def.value'];\n} else {\n   return null;\n}\n} else {\n   return null;\n}"
+            "script": "def kp_name = params.pbp_to_kp[doc[\"opponent.team.keyword\"].value];\nif (kp_name != null) {\ndef oppo = params.kp[kp_name.pbp_kp_team];\nif (oppo != null) {\n return oppo['stats.adj_def.value'];\n} else {\n return null;\n}\n} else {\n return null;\n}"
          },
          {
             "name": "game_filter",
             "params": {
                "pbp_to_kp": "$$lookupMap(PBP2KP_Teams)",
                "kp": "$$lookupMap(KP_lookup_2019)",
-               "game_filter": "$$lookupMap(MdOnOffGameFilter)"
+               "game_filter": {
+                  "game_filter": {
+                     "min_kp": 0,
+                     "max_kp": 400
+                  }
+               }
             },
-            "script": "def kp_name = params.pbp_to_kp[doc[\"opponent.team.keyword\"].value];\nif (kp_name != null) {\ndef oppo = params.kp[kp_name.pbp_kp_team];\nif (oppo != null) {\n   def kp_rank = oppo['stats.adj_margin.rank'];\n   def game_filter = params.game_filter.game_filter;\n   //TODO: high major\n   return (kp_rank >= game_filter.min_kp) && (kp_rank <= game_filter.max_kp);\n} else {\n   return false;\n}\n} else {\n   return false;\n}\n"
+            "script": "def kp_name = params.pbp_to_kp[doc[\"opponent.team.keyword\"].value];\nif (kp_name != null) {\ndef oppo = params.kp[kp_name.pbp_kp_team];\nif (oppo != null) {\n def kp_rank = oppo['stats.adj_margin.rank'];\n def game_filter = params.game_filter.game_filter;\n //TODO: high major\n return (kp_rank >= game_filter.min_kp) && (kp_rank <= game_filter.max_kp);\n} else {\n return false;\n}\n} else {\n return false;\n}\n"
          },
          {
             "name": "off_efg",
-            "script": "def attempts = doc['team_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (doc['team_stats.fg_2p.made.total'].value + 1.5*doc['team_stats.fg_3p.made.total'].value)/attempts;\n} else {\n   return 0;\n}"
+            "script": "def attempts = doc['team_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n return (doc['team_stats.fg_2p.made.total'].value + 1.5*doc['team_stats.fg_3p.made.total'].value)/attempts;\n} else {\n return 0;\n}"
          },
          {
             "name": "def_efg",
-            "script": "def attempts = doc['opponent_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (doc['opponent_stats.fg_2p.made.total'].value + 1.5*doc['opponent_stats.fg_3p.made.total'].value)/attempts;\n} else {\n   return 0;\n}"
+            "script": "def attempts = doc['opponent_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n return (doc['opponent_stats.fg_2p.made.total'].value + 1.5*doc['opponent_stats.fg_3p.made.total'].value)/attempts;\n} else {\n return 0;\n}"
          },
          {
             "name": "off_to",
-            "script": "if (doc[\"team_stats.num_possessions\"].value > 0) {\n   return 1.0*doc[\"team_stats.to.total\"].value/doc[\"team_stats.num_possessions\"].value;\n} else {\n   return 0.0;\n}"
+            "script": "if (doc[\"team_stats.num_possessions\"].value > 0) {\n return 1.0*doc[\"team_stats.to.total\"].value/doc[\"team_stats.num_possessions\"].value;\n} else {\n return 0.0;\n}"
          },
          {
             "name": "def_to",
-            "script": "if (doc[\"opponent_stats.num_possessions\"].value > 0) {\n   return 1.0*doc[\"opponent_stats.to.total\"].value/doc[\"opponent_stats.num_possessions\"].value;\n} else {\n   return 0.0;\n}"
+            "script": "if (doc[\"opponent_stats.num_possessions\"].value > 0) {\n return 1.0*doc[\"opponent_stats.to.total\"].value/doc[\"opponent_stats.num_possessions\"].value;\n} else {\n return 0.0;\n}"
          },
          {
             "name": "off_orb",
-            "script": "def orb = doc['team_stats.orb.total'].value;\ndef drb = doc['opponent_stats.drb.total'].value;\n\nif (orb + drb > 0) {\n   return 1.0*orb/(orb + drb);\n} else {\n   return 0;\n}"
+            "script": "def orb = doc['team_stats.orb.total'].value;\ndef drb = doc['opponent_stats.drb.total'].value;\n\nif (orb + drb > 0) {\n return 1.0*orb/(orb + drb);\n} else {\n return 0;\n}"
          },
          {
             "name": "def_orb",
-            "script": "def drb = doc['team_stats.drb.total'].value;\ndef orb = doc['opponent_stats.orb.total'].value;\n\nif (orb + drb > 0) {\n   return 1.0*orb/(orb + drb);\n} else {\n   return 0;\n}"
+            "script": "def drb = doc['team_stats.drb.total'].value;\ndef orb = doc['opponent_stats.orb.total'].value;\n\nif (orb + drb > 0) {\n return 1.0*orb/(orb + drb);\n} else {\n return 0;\n}"
          },
          {
             "name": "off_orb_total",
@@ -110,43 +134,43 @@
          },
          {
             "name": "off_2p",
-            "script": "def attempts = doc['team_stats.fg_2p.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['team_stats.fg_2p.made.total'].value)/attempts;\n} else {\n   return 0;\n}"
+            "script": "def attempts = doc['team_stats.fg_2p.attempts.total'].value;\n\nif (attempts > 0) {\n return (1.0*doc['team_stats.fg_2p.made.total'].value)/attempts;\n} else {\n return 0;\n}"
          },
          {
             "name": "def_2p",
-            "script": "def attempts = doc['opponent_stats.fg_2p.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['opponent_stats.fg_2p.made.total'].value)/attempts;\n} else {\n   return 0;\n}"
+            "script": "def attempts = doc['opponent_stats.fg_2p.attempts.total'].value;\n\nif (attempts > 0) {\n return (1.0*doc['opponent_stats.fg_2p.made.total'].value)/attempts;\n} else {\n return 0;\n}"
          },
          {
             "name": "off_3pr",
-            "script": "def attempts = doc['team_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['team_stats.fg_3p.attempts.total'].value)/attempts;\n} else {\n   return 0;\n}"
+            "script": "def attempts = doc['team_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n return (1.0*doc['team_stats.fg_3p.attempts.total'].value)/attempts;\n} else {\n return 0;\n}"
          },
          {
             "name": "def_3pr",
-            "script": "def attempts = doc['opponent_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['opponent_stats.fg_3p.attempts.total'].value)/attempts;\n} else {\n   return 0;\n}"
+            "script": "def attempts = doc['opponent_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n return (1.0*doc['opponent_stats.fg_3p.attempts.total'].value)/attempts;\n} else {\n return 0;\n}"
          },
          {
             "name": "off_2pmidr",
-            "script": "def attempts = doc['team_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['team_stats.fg_mid.attempts.total'].value)/attempts;\n} else {\n   return 0;\n}"
+            "script": "def attempts = doc['team_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n return (1.0*doc['team_stats.fg_mid.attempts.total'].value)/attempts;\n} else {\n return 0;\n}"
          },
          {
             "name": "def_2pmidr",
-            "script": "def attempts = doc['opponent_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['opponent_stats.fg_mid.attempts.total'].value)/attempts;\n} else {\n   return 0;\n}"
+            "script": "def attempts = doc['opponent_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n return (1.0*doc['opponent_stats.fg_mid.attempts.total'].value)/attempts;\n} else {\n return 0;\n}"
          },
          {
             "name": "off_2primr",
-            "script": "def attempts = doc['team_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['team_stats.fg_rim.attempts.total'].value)/attempts;\n} else {\n   return 0;\n}"
+            "script": "def attempts = doc['team_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n return (1.0*doc['team_stats.fg_rim.attempts.total'].value)/attempts;\n} else {\n return 0;\n}"
          },
          {
             "name": "def_2primr",
-            "script": "def attempts = doc['opponent_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['opponent_stats.fg_rim.attempts.total'].value)/attempts;\n} else {\n   return 0;\n}"
+            "script": "def attempts = doc['opponent_stats.fg.attempts.total'].value;\n\nif (attempts > 0) {\n return (1.0*doc['opponent_stats.fg_rim.attempts.total'].value)/attempts;\n} else {\n return 0;\n}"
          },
          {
             "name": "off_3p",
-            "script": "def attempts = doc['team_stats.fg_3p.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['team_stats.fg_3p.made.total'].value)/attempts;\n} else {\n   return 0;\n}"
+            "script": "def attempts = doc['team_stats.fg_3p.attempts.total'].value;\n\nif (attempts > 0) {\n return (1.0*doc['team_stats.fg_3p.made.total'].value)/attempts;\n} else {\n return 0;\n}"
          },
          {
             "name": "def_3p",
-            "script": "def attempts = doc['opponent_stats.fg_3p.attempts.total'].value;\n\nif (attempts > 0) {\n   return (1.0*doc['opponent_stats.fg_3p.made.total'].value)/attempts;\n} else {\n   return 0;\n}"
+            "script": "def attempts = doc['opponent_stats.fg_3p.attempts.total'].value;\n\nif (attempts > 0) {\n return (1.0*doc['opponent_stats.fg_3p.made.total'].value)/attempts;\n} else {\n return 0;\n}"
          }
       ],
       "metrics": [
@@ -580,72 +604,13 @@
             "# eg -x.*.y / +x.y (start with -s where possible)",
             "# pre-built groups: $$<name>",
             "#(note fields are laid out in match order)",
-            "off_ppp",
-            "def_ppp",
-            "off_poss",
-            "def_poss",
-            "adj_opp_off",
-            "adj_opp_def",
-            "$$skip1",
-            "$$skip2",
-            "off_3p",
-            "def_3p",
-            "off_efg",
-            "off_to",
-            "off_orb",
-            "off_ftr",
-            "def_efg",
-            "def_to",
-            "def_orb",
-            "def_ftr",
-            "off_2p",
-            "off_3pr",
-            "off_2pmidr",
-            "off_2primr",
-            "def_2p",
-            "def_3pr",
-            "def_2pmidr",
-            "def_2primr",
-            "off_2pmid",
-            "off_2prim",
-            "def_2pmid",
-            "def_2prim",
             ""
          ],
          "exclude_filtered_fields_from_autocomplete": true,
          "field_aliases": [
             "#field.path=Alias To Use",
             "#(note fields are laid out in order within filter matches)",
-            "#pts_scored=points_scored.value",
-            "#pts_allowed=points_allowed.value",
-            "off_ppp.value=off PP100",
-            "def_ppp.value=def PP100",
-            "off_poss.value=(off_poss)",
-            "def_poss.value=(def_poss)",
-            "adj_opp_off.value=(adj_opp_off)",
-            "adj_opp_def.value=(adj_opp_def)",
-            "off_3p.value=off 3P%",
-            "def_3p.value=def 3P%",
-            "off_efg.value=off_efg",
-            "def_efg.value=def_efg",
-            "off_to.value=off_to",
-            "def_to.value=def_to",
-            "off_ftr.value=off_ftr",
-            "def_ftr.value=def_ftr",
-            "off_orb.value=off_orb",
-            "def_orb.value=def_orb",
-            "off_2p.value=off_2p",
-            "off_3pr.value=off_3pr",
-            "off_2pmidr.value=off_2pmidr",
-            "off_2primr.value=off_2primr",
-            "def_2p.value=def_2p",
-            "def_3pr.value=def_3pr",
-            "def_2pmidr.value=def_2pmidr",
-            "def_2primr.value=def_2primr",
-            "off_2pmid.value=off_2pmid",
-            "off_2prim.value=off_2prim",
-            "def_2pmid.value=def_2pmid",
-            "def_2prim.value=def_2prim",
+            "",
             ""
          ],
          "autocomplete_filters": [
@@ -663,7 +628,7 @@
          "global": {
             "range_name": "F2"
          },
-         "source": "global",
+         "source": "local",
          "local": {
             "position": "top"
          }
@@ -687,7 +652,7 @@
          "global": {
             "range_name": "A17"
          },
-         "position": "global",
+         "position": "top",
          "merge": false
       }
    },
@@ -731,5 +696,6 @@
       "options": [],
       "endpoint": "",
       "enabled": false
-   }
+   },
+   "name": "Efficient on/off test"
 }

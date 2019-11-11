@@ -6,3 +6,4 @@ project/project/*
 .ensime
 .ensime_cache
 ensime.sbt
+.scripts.env

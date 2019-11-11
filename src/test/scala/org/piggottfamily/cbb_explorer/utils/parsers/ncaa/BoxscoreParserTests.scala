@@ -121,6 +121,16 @@ object BoxscoreParserTests extends TestSuite with BoxscoreParser {
           case Right(Game.Score(3, 6)) =>
         }
       }
+      "validate_box_score" - {
+        val good_lineup = "Player One" :: "Player Two" :: Nil
+        val bad_lineup = "Pete One" :: "Peter One" :: Nil
+        TestUtils.inside(validate_box_score(good_lineup)) {
+          case Right(l) => l.size == 2
+        }
+        TestUtils.inside(validate_box_score(bad_lineup)) {
+          case Left(e) =>
+        }
+      }
     }
   }
 }

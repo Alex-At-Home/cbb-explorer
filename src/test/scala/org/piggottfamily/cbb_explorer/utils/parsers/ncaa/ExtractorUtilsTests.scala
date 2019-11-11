@@ -18,7 +18,26 @@ object ExtractorUtilsTests extends TestSuite {
         TestUtils.inside(build_player_code(test_name)) {
           case LineupEvent.PlayerCodeId("FiRaSurname", PlayerId(`test_name`)) =>
         }
+        val twin_name = "Mitchell, Makhi"
+        TestUtils.inside(build_player_code(twin_name)) {
+          case LineupEvent.PlayerCodeId("MiMitchell", PlayerId(`twin_name`)) =>
+        }
+
         //TODO add some other cases (single name, no space for intermediate)
+      }
+      "parse_team_name" - {
+        TestUtils.inside(parse_team_name(List("TeamA", "TeamB"), TeamId("TeamA"))) {
+          case Right(("TeamA", "TeamB", true)) =>
+        }
+        TestUtils.inside(parse_team_name(List("TeamB", "TeamA"), TeamId("TeamA"))) {
+          case Right(("TeamA", "TeamB", false)) =>
+        }
+        TestUtils.inside(parse_team_name(List("#1 TeamA", "#3 TeamB"), TeamId("TeamA"))) {
+          case Right(("TeamA", "TeamB", true)) =>
+        }
+        TestUtils.inside(parse_team_name(List("#1 TeamA (1-1)", "TeamB (4-1)"), TeamId("TeamA"))) {
+          case Right(("TeamA", "TeamB", true)) =>
+        }
       }
 
       "validate_lineup" - {

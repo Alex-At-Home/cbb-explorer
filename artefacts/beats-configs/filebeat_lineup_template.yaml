@@ -1,0 +1,68 @@
+#================================ Input =====================================
+
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - ./misc_conf_20*.ndjson
+    - ./women_bigten_20*.ndjson
+    
+    - ./acc_20*.ndjson
+    - ./american_20*.ndjson
+    - ./atlanticten_20*.ndjson
+    - ./bigeast_20*.ndjson
+    - ./bigten_20*.ndjson
+    - ./bigtwelve_20*.ndjson
+    - ./pactwelve_20*.ndjson
+    - ./sec_20*.ndjson
+
+  json.keys_under_root: true
+
+#================================ Output =====================================
+
+setup.ilm.enabled: false
+
+cloud.id: "ADD_CLOUD_ID"
+cloud.auth: "ADD_USER:ADD_PASSWORD"
+
+output.elasticsearch:
+  indices:
+    - index: "misc_conf_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/misc_conf_[0-9]+(_.*)?.ndjson"
+    - index: "women_bigten_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/women_bigten_[0-9]+(_.*)?.ndjson"
+
+    - index: "acc_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/acc_[0-9]+(_.*)?.ndjson"
+    - index: "american_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/american_[0-9]+(_.*)?.ndjson"
+    - index: "atlanticten_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/atlanticten_[0-9]+(_.*)?.ndjson"
+    - index: "bigeast_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/bigeast_[0-9]+(_.*)?.ndjson"
+    - index: "bigten_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/bigten_[0-9]+(_.*)?.ndjson"
+    - index: "bigtwelve_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/bigtwelve_[0-9]+(_.*)?.ndjson"
+    - index: "pactwelve_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/pactwelve_[0-9]+(_.*)?.ndjson"
+    - index: "sec_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/sec_[0-9]+(_.*)?.ndjson"
+
+setup.template.enabled: false
+
+#================================ Logging =====================================
+
+# Sets log level. The default log level is info.
+# Available log levels are: error, warning, info, debug
+logging.level: info

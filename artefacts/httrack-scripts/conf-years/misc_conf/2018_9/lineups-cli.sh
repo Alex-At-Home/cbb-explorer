@@ -8,12 +8,7 @@
 YEAR=2018
 CONF=misc_conf
 array=(
-    '450591::Kentucky'
-    '450523::UConn'
-    '450601::Louisville'
-    '450770::Virginia'
-    '450612::Maryland'
-    '450514::Cincinnati'
+    '450562::Gonzaga'
     '450704::Saint%20Mary%27s%20%28CA%29'
 )
 

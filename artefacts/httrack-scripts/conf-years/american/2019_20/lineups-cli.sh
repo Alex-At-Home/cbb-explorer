@@ -8,6 +8,7 @@
 YEAR=2019
 CONF=american
 array=(
+'486803::Cincinnati'
 '486905::Memphis'
 '486718::Wichita+St.'
 '486676::Temple'

@@ -18,6 +18,7 @@ object BuildLineups {
       println("""
         |--in=<<in-dir-up-to-conf-then-year>>
         |--out=<<out-dir-in-which-files-are-placed>>
+        |[--team]=<<only include teams matching this string>>
         |[--full] (includes player in/out and raw events)
         |[--from=<<filter-files-before-this-unix-timestamp>>]
         """)
@@ -44,6 +45,10 @@ object BuildLineups {
         .map(_.split("=", 2)(1))
         .map(_.toLong)
 
+    val maybe_team_selector = args
+      .map(_.trim).filter(_.startsWith("--team="))
+      .headOption.map(_.split("=", 2)(1))
+
     //TODO: need a team filter
 
     // Get year and then conference
@@ -65,13 +70,20 @@ object BuildLineups {
       //TODO: add some error validation
       val get_team_id = "(.*)_([0-9]+)$".r
       subdir.last match {
-        case get_team_id(team_name, team_id) =>
+        case get_team_id(team_name, team_id)
+          if maybe_team_selector.forall(sel => team_name.contains(sel))
+        =>
           val team_dir =  subdir/ "stats.ncaa.org"
           val decoded_team_name = URLDecoder.decode(team_name.replace("+", " "))
           ncaa_lineup_controller.build_team_lineups(
             team_dir, TeamId(decoded_team_name),
             min_time_filter = maybe_filter.map(_*1000) //(convert to ms)
           )
+
+        case get_team_id(team_name, _) =>
+          println(s"Skipping unselected team with dir ${subdir.toString}")
+          List()
+
         case _ =>
           println(s"Skipping unrecognized dir ${subdir.toString}")
           List()

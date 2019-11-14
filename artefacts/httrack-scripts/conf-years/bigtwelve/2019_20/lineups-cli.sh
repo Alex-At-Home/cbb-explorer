@@ -16,7 +16,6 @@ array=(
 '486770::Baylor'
 '486687::Texas'
 '486877::Kansas+St.'
-'486877::Kansas+St.'
 '486961::Oklahoma'
 '486683::TCU'
 )

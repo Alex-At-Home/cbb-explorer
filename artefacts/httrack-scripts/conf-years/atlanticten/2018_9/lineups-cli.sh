@@ -5,21 +5,23 @@
 #ROOT_URL=TODO
 #(to get the team navigate to https://$PBP_ROOT_URL/reports/attendance?id=17900
 # pick the team, select the year, then the team id is the last bit of the URL)
-YEAR=2019
-CONF=pactwelve
+YEAR=2018
+CONF=atlanticten
 array=(
-'486762::Arizona'
-'xxx::Arizona+St.'
-'486965::Oregon'
-'486795::UCLA'
-'486699::Utah'
-'486711::Washington'
-'486810::Colorado'
-'486964::Oregon+St.'
-'486661::Southern+California'
-'486792::California'
-'486710::Washington+St.'
-'486671::Stanford'
+'450529::Dayton'
+'450767::VCU'
+'450703::Saint+Louis'
+'450693::Richmond'
+'450691::Rhode+Island'
+'450555::George+Mason'
+'450698::St.+Bonaventure'
+'450528::Davidson'
+'450702::Saint+Joseph%27s'
+'450614::Massachusetts'
+'450538::Duquesne'
+'450556::George+Washington'
+'450553::Fordham'
+'450592::La+Salle'
 )
 
 #TODO add TEAM filter

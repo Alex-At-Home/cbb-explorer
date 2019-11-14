@@ -89,5 +89,29 @@ trait TeamIdParser {
       s"   '$team_id::${URLEncoder.encode(team)}'"
     }.mkString("\n"))
   }
+
+  /** Builds a team list for cbb-on-off-analyzer
+      (insert the app-specific index key for each conference to get the JSON string)
+  */
+  def build_available_team_list(
+    in_by_year: Map[String, List[(TeamId, String, ConferenceId)]]
+  ) : Map[ConferenceId, String => String] =
+  {
+    in_by_year.toList.flatMap { case (key_year, team_list) =>
+      team_list.map(t3 => (t3._3, t3._1, key_year)) // conf -> team -> year
+    }.groupBy(_._1).mapValues { t3s_to_group_again => // (list of tuples, grouped by conf)
+      def by_conf_str(key: String): String = {
+        t3s_to_group_again.groupBy(_._2).map { case (TeamId(team), t3s) => //(list of tuples, grouped by team)
+          val by_year_str_fn = t3s.map { case (_, _, year_str) =>
+            s"""   { team: "$team", year: "$year_str", gender: "Men", index_template: "$key" },"""
+          }.mkString("\n")
+          s""" "$team": [
+$by_year_str_fn
+ ],"""
+        }.mkString("\n")
+      }
+      by_conf_str _
+    }
+  }
 }
 object TeamIdParser extends TeamIdParser

@@ -21,6 +21,8 @@ array=(
 '486956::Notre+Dame'
 '486774::Boston+College'
 '486709::Wake+Forest'
+'486840::Florida+St.'
+'486849::Georgia+Tech'
 )
 
 #TODO add TEAM filter

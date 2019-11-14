@@ -28,24 +28,51 @@ object TeamIdParserTests extends TestSuite {
 
   val tests = Tests {
     "TeamIdParser" - {
-      TestUtils.inside(TeamIdParser.get_team_triples("filename_test", team_id_html)) {
-        case Right(List(
-          (TeamId("Syracuse"), "450738", ConferenceId("ACC")),
-          (TeamId("Kentucky"), "450591", ConferenceId("SEC"))
-        )) =>
+      "get_team_triples" - {
+        TestUtils.inside(TeamIdParser.get_team_triples("filename_test", team_id_html)) {
+          case Right(List(
+            (TeamId("Syracuse"), "450738", ConferenceId("ACC")),
+            (TeamId("Kentucky"), "450591", ConferenceId("SEC"))
+          )) =>
+        }
       }
       val test_in = List(
         (TeamId("Penn St."), "1", ConferenceId("B1G")),
         (TeamId("Michigan St."), "1000", ConferenceId("B1G")),
         (TeamId("Kentucky"), "450591", ConferenceId("SEC"))
       )
-      TestUtils.inside(TeamIdParser.build_lineup_cli_array(test_in).toList) {
-        case List(
-          (ConferenceId("SEC"), "   '450591::Kentucky'"),
-          (ConferenceId("B1G"),
-          """   '1::Penn+St.'
+      "build_lineup_cli_array" - {
+        TestUtils.inside(TeamIdParser.build_lineup_cli_array(test_in).toList) {
+          case List(
+            (ConferenceId("SEC"), "   '450591::Kentucky'"),
+            (ConferenceId("B1G"),
+            """   '1::Penn+St.'
    '1000::Michigan+St.'""")
-        ) =>
+          ) =>
+        }
+      }
+      "build_available_team_list" - {
+        val test_in_2 = List(
+          (TeamId("Penn St."), "11", ConferenceId("B1G")),
+          (TeamId("Maryland"), "10", ConferenceId("B1G"))
+        )
+        val res = TeamIdParser.build_available_team_list(Map(
+          "2018/9" -> test_in,
+          "2019/20" -> test_in_2
+        ))
+        res(ConferenceId("B1G"))("test") ==>  """ "Maryland": [
+   { team: "Maryland", year: "2019/20", gender: "Men", index_template: "test" },
+ ],
+ "Penn St.": [
+   { team: "Penn St.", year: "2018/9", gender: "Men", index_template: "test" },
+   { team: "Penn St.", year: "2019/20", gender: "Men", index_template: "test" },
+ ],
+ "Michigan St.": [
+   { team: "Michigan St.", year: "2018/9", gender: "Men", index_template: "test" },
+ ],"""
+        res(ConferenceId("SEC"))("test2") ==>  """ "Kentucky": [
+   { team: "Kentucky", year: "2018/9", gender: "Men", index_template: "test2" },
+ ],"""
       }
     }
   }

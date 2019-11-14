@@ -21,6 +21,7 @@ array=(
 '486903::Massachusetts'
 '486827::Duquesne'
 '486991::Saint+Joseph%27s'
+'486817::Davidson'
 )
 
 #TODO add TEAM filter

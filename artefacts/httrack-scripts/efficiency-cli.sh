@@ -1,4 +1,5 @@
 # Need to set up authentication first, ie "cookies.txt" in the working directory in the format
+# (NOT the EFF_CRAWL_PATH, the _working_ path!)
 # $EFF_ROOT_URL      TRUE    /       FALSE   1999999999      PHPSESSID     ADD_SESSION_ID
 #EFF_CRAWL_PATH=$1
 #EFF_ROOT_URL=$2

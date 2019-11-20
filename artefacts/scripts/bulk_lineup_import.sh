@@ -7,7 +7,7 @@ sleep 2
 export CURR_YEAR=${CURR_YEAR:="2019"}
 export CURR_YEAR_STR=${CURR_YEAR_STR:="2019_20"}
 
-export CONFS="acc american atlanticten bigeast bigten bigtwelve pactwelve sec misc_conf"
+export CONFS="acc american atlanticten bigeast bigten bigtwelve pactwelve sec misc_conf women_bigten"
 #export CONFS="misc_conf"
 #export CONFS="bigten"
 

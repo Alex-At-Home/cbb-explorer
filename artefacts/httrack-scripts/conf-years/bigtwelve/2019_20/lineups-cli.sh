@@ -38,7 +38,14 @@ for index in "${array[@]}" ; do
     #TODO: only do this if you want to remove and recalc everything, otherwise will find deltas
     #rm -rf $CONF_CRAWL_PATH
     mkdir -p $CONF_CRAWL_PATH
-    httrack "http://$PBP_ROOT_URL/teams/$TEAMID" --continue --depth=3 --path $CONF_CRAWL_PATH --robots=0 "-*" "+$PBP_ROOT_URL/contests/*/box_score" "+$PBP_ROOT_URL/game/index/*" +"$PBP_ROOT_URL/game/box_score/*?period_no=1" +"$PBP_ROOT_URL/game/play_by_play/*"
+    # Remove the main crawl file from the caches:
+    if [ -e $CONF_CRAWL_PATH/hts-cache/old.zip ]; then
+      zip -d $CONF_CRAWL_PATH/hts-cache/old.zip "$PBP_ROOT_URL/teams/$TEAMID"
+    fi
+    if [ -e $CONF_CRAWL_PATH/hts-cache/new.zip ]; then
+      zip -d $CONF_CRAWL_PATH/hts-cache/new.zip "$PBP_ROOT_URL/teams/$TEAMID"
+    fi
+    httrack "$PBP_ROOT_URL/teams/$TEAMID" --continue --depth=3 --path $CONF_CRAWL_PATH --robots=0 "-*" "+$PBP_ROOT_URL/contests/*/box_score" "+$PBP_ROOT_URL/game/index/*" +"$PBP_ROOT_URL/game/box_score/*?period_no=1" +"$PBP_ROOT_URL/game/play_by_play/*"
 
     #Check for any errors:
     ERRS=$(grep -c 'Error:' $CONF_CRAWL_PATH/hts-log.txt)

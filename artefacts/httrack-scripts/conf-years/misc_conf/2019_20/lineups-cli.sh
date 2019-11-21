@@ -5,7 +5,7 @@
 #ROOT_URL=TODO
 #(to get the team navigate to https://$PBP_ROOT_URL/reports/attendance?id=17900
 # pick the team, select the year, then the team id is the last bit of the URL)
-YEAR=2018
+YEAR=2019
 CONF=misc_conf
 array=(
     '486851::Gonzaga'

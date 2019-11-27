@@ -11,6 +11,9 @@ export CONFS=${CONFS:="acc american atlanticten bigeast bigten bigtwelve pactwel
 echo ">>>>>>> Extracting from [$CURR_TIME] for [$CURR_YEAR]/[$CURR_YEAR_STR] on [$CONFS]"
 sleep 2
 
+mkdir -p $PBP_OUT_DIR/archive
+mv $PBP_OUT_DIR/*.ndjson $PBP_OUT_DIR/archive
+
 for i in $CONFS; do
   echo "******* Extracting conference [$i]"
   $PBP_SRC_ROOT/artefacts/httrack-scripts/conf-years/${i}/${CURR_YEAR_STR}/lineups-cli.sh

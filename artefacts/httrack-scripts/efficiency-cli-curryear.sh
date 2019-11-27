@@ -4,6 +4,12 @@
 #EFF_CRAWL_PATH=$1
 #EFF_ROOT_URL=$2
 
+# Check if we have a valid cookie:
+if ! curl -H "Cookie: PHPSESSID=$(more $PWD/cookies.txt | tail -n 1 | awk '{print $7}')" -I "https://$EFF_ROOT_URL/summary.php" | grep "HTTP/2 200"; then
+  echo "Create authentication context first"
+  exit -1
+fi
+
 # Clears this year's data from the cache before rerunning a full crawl:
 if [ -e $EFF_CRAWL_PATH/hts-cache/old.zip ]; then
   zip  -d  $EFF_CRAWL_PATH/hts-cache/new.zip  \

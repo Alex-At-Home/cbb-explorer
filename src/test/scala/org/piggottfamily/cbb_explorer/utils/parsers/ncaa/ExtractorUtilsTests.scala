@@ -85,16 +85,16 @@ object ExtractorUtilsTests extends TestSuite {
           case List() =>
         }
         TestUtils.inside(LineupAnalyzer.validate_lineup(lineup_too_many, all_player_set).toList) {
-          case List(ValidationError.WrongNumberOfPlayers) =>
+          case List(LineupAnalyzer.ValidationError.WrongNumberOfPlayers) =>
         }
         TestUtils.inside(LineupAnalyzer.validate_lineup(lineup_too_few, all_player_set).toList) {
-          case List(ValidationError.WrongNumberOfPlayers) =>
+          case List(LineupAnalyzer.ValidationError.WrongNumberOfPlayers) =>
         }
         TestUtils.inside(LineupAnalyzer.validate_lineup(lineup_unknown_player, all_player_set).toList) {
-          case List(ValidationError.UnknownPlayers) =>
+          case List(LineupAnalyzer.ValidationError.UnknownPlayers) =>
         }
         TestUtils.inside(LineupAnalyzer.validate_lineup(lineup_multi_bad, all_player_set).toList) {
-          case List(ValidationError.WrongNumberOfPlayers, ValidationError.UnknownPlayers) =>
+          case List(LineupAnalyzer.ValidationError.WrongNumberOfPlayers, LineupAnalyzer.ValidationError.UnknownPlayers) =>
         }
       }
 

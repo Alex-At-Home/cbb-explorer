@@ -85,7 +85,26 @@ trait PlayByPlayParser {
         processed_events
       )
 
-      lineups_with_poss.partition(e => validate_lineup(e, player_codes).isEmpty)
+      // Get good and bad lineups (together with context)
+      // Use the context to fix the bad lineups if possible
+
+      val tmp_lineups = lineups_with_poss.map(Some(_))
+      val zip_lineups = tmp_lineups zip (tmp_lineups.drop(1) ++ List(None))
+
+      val (good_lineups, bad_lineups) = zip_lineups.partition {
+        case (Some(e), e_next) => LineupAnalyzer.validate_lineup(e, player_codes).isEmpty
+      }
+      val bad_lineup_clumps = LineupAnalyzer.clump_bad_lineups(
+        bad_lineups.flatMap { case (opt_e, maybe_e) => opt_e.map((_, maybe_e)).toList }
+      )
+      val fixed_or_not = bad_lineup_clumps.map(clump =>
+        LineupAnalyzer.analyze_and_fix_clumps(clump, player_codes)
+      )
+      val final_good_lineups = good_lineups.flatMap(_._1.toList) ++
+            fixed_or_not.flatMap(_._1)
+      val final_bad_lineups = fixed_or_not.flatMap(_._2.evs)
+
+      (final_good_lineups, final_bad_lineups)
     }
   }
 

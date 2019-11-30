@@ -81,19 +81,19 @@ object ExtractorUtilsTests extends TestSuite {
         val lineup_unknown_player = base_lineup.copy(players = unknown_player)
         val lineup_multi_bad = base_lineup.copy(players = multi_bad)
 
-        TestUtils.inside(validate_lineup(good_lineup, all_player_set).toList) {
+        TestUtils.inside(LineupAnalyzer.validate_lineup(good_lineup, all_player_set).toList) {
           case List() =>
         }
-        TestUtils.inside(validate_lineup(lineup_too_many, all_player_set).toList) {
+        TestUtils.inside(LineupAnalyzer.validate_lineup(lineup_too_many, all_player_set).toList) {
           case List(ValidationError.WrongNumberOfPlayers) =>
         }
-        TestUtils.inside(validate_lineup(lineup_too_few, all_player_set).toList) {
+        TestUtils.inside(LineupAnalyzer.validate_lineup(lineup_too_few, all_player_set).toList) {
           case List(ValidationError.WrongNumberOfPlayers) =>
         }
-        TestUtils.inside(validate_lineup(lineup_unknown_player, all_player_set).toList) {
+        TestUtils.inside(LineupAnalyzer.validate_lineup(lineup_unknown_player, all_player_set).toList) {
           case List(ValidationError.UnknownPlayers) =>
         }
-        TestUtils.inside(validate_lineup(lineup_multi_bad, all_player_set).toList) {
+        TestUtils.inside(LineupAnalyzer.validate_lineup(lineup_multi_bad, all_player_set).toList) {
           case List(ValidationError.WrongNumberOfPlayers, ValidationError.UnknownPlayers) =>
         }
       }

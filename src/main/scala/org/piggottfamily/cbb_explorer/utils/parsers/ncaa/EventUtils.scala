@@ -7,6 +7,15 @@ import org.piggottfamily.cbb_explorer.models.ncaa._
 /** Utilities related to converting strings into structure events */
 object EventUtils {
 
+  /** Pulls the player out */
+  object ParseAnyPlay {
+    private val any_play_regex = "[^,]+,[^,]+,(.+)[, ].*".r
+    def unapply(x: String): Option[String] = Option(x) match {
+      case Some(any_play_regex(player)) => Some(player)
+      case _ => None
+    }
+  }
+
   /////////////////////////////////////////////////
 
   // Date-time parser

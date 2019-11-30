@@ -7,6 +7,7 @@ import org.piggottfamily.cbb_explorer.models.ncaa._
 import org.piggottfamily.cbb_explorer.controllers.ncaa.LineupController
 import org.piggottfamily.cbb_explorer.controllers.StorageController
 import org.piggottfamily.cbb_explorer.controllers.StorageController.JsonParserImplicits._
+import org.piggottfamily.cbb_explorer.utils.parsers.ncaa.ExtractorUtils
 import scala.util.Try
 import java.net.URLDecoder
 
@@ -66,7 +67,7 @@ object BuildLineups {
 
     // Iterate over directories
     val subdirs = ls! Path(in_dir)
-    val all_games = subdirs.flatMap { subdir =>
+    val (good_games, lineup_errors) = subdirs.map { subdir =>
       //TODO: add some error validation
       val get_team_id = "(.*)_([0-9]+)$".r
       subdir.last match {
@@ -82,16 +83,18 @@ object BuildLineups {
 
         case get_team_id(team_name, _) =>
           println(s"Skipping unselected team with dir ${subdir.toString}")
-          List()
+          (List(), List())
 
         case _ =>
           println(s"Skipping unrecognized dir ${subdir.toString}")
-          List()
+          (List(), List())
       }
+    }.foldLeft((List[LineupEvent](), List[LineupEvent]())) { case ((all_good, all_bad), (new_good, new_bad)) =>
+      (all_good ++ new_good, all_bad ++ new_bad)
     }
     val time_filter_suffix = maybe_filter.map("_" + _).getOrElse("")
     storage_controller.write_lineups(
-      lineups = all_games.map(l => strip_unused_data match {
+      lineups = good_games.map(l => strip_unused_data match {
         case true => l.copy(
           players_in = Nil,
           players_out = Nil,
@@ -102,5 +105,12 @@ object BuildLineups {
       file_root = Path(out_dir),
       file_name = s"${conference}_$year${time_filter_suffix}.ndjson"
     )
+    // Add some information about bad lineups:
+    println(s"Total lineup errors: [${lineup_errors.size}] (good: [${good_games.size}])")
+    val num_good_possessions = good_games.foldLeft(0) { (acc, lineup) => acc + lineup.team_stats.num_possessions }
+    val num_bad_possessions = lineup_errors.foldLeft(0) { (acc, lineup) => acc + lineup.team_stats.num_possessions }
+    println(s"Total possession errors: [$num_bad_possessions] (good: [$num_good_possessions])")
+    val bad_lineup_analysis = ExtractorUtils.LineupAnalyzer.categorize_bad_lineups(lineup_errors);
+    println(s"Bad lineup analysis: [$bad_lineup_analysis]")
   }
 }

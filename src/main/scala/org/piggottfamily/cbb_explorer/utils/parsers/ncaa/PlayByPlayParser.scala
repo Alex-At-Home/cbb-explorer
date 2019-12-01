@@ -98,7 +98,7 @@ trait PlayByPlayParser {
         bad_lineups.flatMap { case (opt_e, maybe_e) => opt_e.map((_, maybe_e)).toList }
       )
       val fixed_or_not = bad_lineup_clumps.map(clump =>
-        LineupAnalyzer.analyze_and_fix_clumps(clump, player_codes)
+        LineupAnalyzer.analyze_and_fix_clumps(clump, box_lineup, player_codes)
       )
       val final_good_lineups = good_lineups.flatMap(_._1.toList) ++
             fixed_or_not.flatMap(_._1)

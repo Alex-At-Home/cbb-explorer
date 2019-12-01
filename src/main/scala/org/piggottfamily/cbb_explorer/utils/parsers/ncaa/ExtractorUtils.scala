@@ -25,15 +25,11 @@ object ExtractorUtils {
   ): List[LineupEvent] = {
     val starters_only = box_lineup.copy(players = box_lineup.players.take(5))
     // Use this to render player names in their more readable format
-    val all_players_map = box_lineup.players.map(p => p.code -> p.id.name).toMap
+    val tidy_ctx = LineupAnalyzer.build_tidy_player_context(box_lineup)
 
     val starting_state = Model.LineupBuildingState(starters_only)
     val partial_events = reorder_and_reverse(reversed_partial_events)
     val end_state = partial_events.foldLeft(starting_state) { (state, event) =>
-      def tidy_player(p: String): String =
-        all_players_map
-          .get(build_player_code(p).code)
-          .getOrElse(p)
 
       /** Detect old format the first time a player name is encountered by looking for all upper case */
       def is_old_format(p: String, s: Model.LineupBuildingState): Option[Boolean] = s.old_format match {
@@ -43,7 +39,7 @@ object ExtractorUtils {
 
       event match {
         case Model.SubInEvent(min, _, player_name) if state.is_active(min) =>
-          val tidier_player_name = tidy_player(player_name)
+          val tidier_player_name = LineupAnalyzer.tidy_player(player_name, tidy_ctx)
           val completed_curr = complete_lineup(state.curr, state.prev, min)
           state.copy(
             curr = new_lineup_event(
@@ -53,7 +49,7 @@ object ExtractorUtils {
             old_format = is_old_format(player_name, state)
           )
         case Model.SubOutEvent(min, _, player_name) if state.is_active(min) =>
-          val tidier_player_name = tidy_player(player_name)
+          val tidier_player_name = LineupAnalyzer.tidy_player(player_name, tidy_ctx)
           val completed_curr = complete_lineup(state.curr, state.prev, min)
           state.copy(
             curr = new_lineup_event(
@@ -64,14 +60,14 @@ object ExtractorUtils {
           )
         case Model.SubInEvent(min, _, player_name) => // !state.is_active
           // Keep adding sub events
-          val tidier_player_name = tidy_player(player_name)
+          val tidier_player_name = LineupAnalyzer.tidy_player(player_name, tidy_ctx)
           state.with_player_in(tidier_player_name).copy(
             old_format = is_old_format(player_name, state)
           )
 
         case Model.SubOutEvent(min, _, player_name) => // !state.is_active
           // Keep adding sub events
-          val tidier_player_name = tidy_player(player_name)
+          val tidier_player_name = LineupAnalyzer.tidy_player(player_name, tidy_ctx)
           state.with_player_out(tidier_player_name).copy(
             old_format = is_old_format(player_name, state)
           )
@@ -165,25 +161,34 @@ object ExtractorUtils {
         transform(fragment, 2)
       }
     }
-    val code = (name.split("\\s*,\\s*", 2).toList match {
+    val code = ((name.split("\\s*,\\s*", 3).toList match {
       case all_name_set :: Nil =>
         all_name_set.split("\\s+").toList
       case last_name_set :: first_name_set :: Nil =>
         first_name_set.split("\\s+").toList ++ last_name_set.split("\\s+").toList
+      case last_name_set :: suffix :: first_name_set :: Nil =>
+        first_name_set.split("\\s+").toList ++ last_name_set.split("\\s+").toList ++ List(suffix)
       case _ => Nil //(impossible by construction of split)
     }).map {
       _.toLowerCase
-    }.filterNot { candidate => // get rid or jr/sr/ii/etc
-      candidate.size < 2 ||
-      candidate(0).isDigit ||
-      candidate == "the" ||
-      candidate == "first" || candidate == "second" || candidate == "third" ||
-      candidate == "jr" || candidate == "jr." ||
-      candidate == "sr" || candidate == "sr." ||
-        (candidate.startsWith("ii") &&
-          (candidate.endsWith("ii") || candidate.endsWith("i."))
-        )
     } match {
+      case head :: tail => // don't ever filter the head
+        def name_filter(candidate: String): Boolean =
+          candidate(0).isDigit ||
+          candidate == "the" ||
+          candidate == "first" || candidate == "second" || candidate == "third" ||
+          candidate == "jr" || candidate == "jr." ||
+          candidate == "sr" || candidate == "sr." ||
+          candidate == "iv" || candidate == "vi" || //(that's enough surely??!)
+            (candidate.startsWith("ii") &&
+              (candidate.endsWith("ii") || candidate.endsWith("i."))
+            )
+
+        List(head).filterNot(name_filter) ++ tail.filterNot { candidate => // get rid or jr/sr/ii/etc
+          candidate.size < 2 || name_filter(candidate)
+        }
+      case Nil =>  Nil
+    }) match {
       case Nil => ""
       case head :: Nil => transform(head, player_code_max_length)
       case head :: tail => //(tail is non Nil, hence tail.last is well-formed)
@@ -583,6 +588,36 @@ object ExtractorUtils {
       val WrongNumberOfPlayers, UnknownPlayers = Value
     }
 
+    case class TidyPlayerContext(
+      all_players_map: Map[String, String],
+      alt_all_players_map: Map[String, List[String]]
+    )
+
+    /** Builds some alternative maps of player codes vs player names */
+    def build_tidy_player_context(box_lineup: LineupEvent): TidyPlayerContext = {
+      val all_players_map = box_lineup.players.map(p => p.code -> p.id.name).toMap
+      // Sometimes the game has SURNAME,INITIAL instead of SURNAME,NAME
+      val alt_all_players_map = all_players_map.toList.groupBy { case (code, name) =>
+        if ((code.length >= 3) && code(2).isUpper) { // AaBbb... -> ABbbbbb
+          code(0) + code.drop(2)
+        } else {
+          code
+        }
+      }.mapValues(_.map(pp => pp._2)) //ie code -> list(names)
+      TidyPlayerContext(all_players_map, alt_all_players_map)
+    }
+    /** Grabs the tidy version of a player's name from the box score */
+    def tidy_player(p: String, ctx: TidyPlayerContext): String = {
+      val player_id = build_player_code(p)
+      ctx.all_players_map //TODO: ALSO under scoring stats, need to handle "SURNAME,F" (ie initial only)
+        .get(player_id.code)
+        .orElse { // See if it's the alternative
+          ctx.alt_all_players_map.get(player_id.code).collect {
+            case unique :: Nil => unique
+          }
+        }.getOrElse(p) //(this will get rejected later on, in validate_lineup)
+    }
+
     /** Pulls out inconsistent lineups (self healing seems harder
       * based on cases I've seen, eg
       * player B enters game+player A leaves game ...
@@ -683,7 +718,7 @@ object ExtractorUtils {
      *  be the missing sub
      */
     protected def find_missing_subs(
-      clump: BadLineupClump, valid_player_codes: Set[String]
+      clump: BadLineupClump, box_lineup: LineupEvent, valid_player_codes: Set[String]
     ): (List[LineupEvent], BadLineupClump) = {
       // For trace level debugging
       val extra_debug = true
@@ -695,8 +730,9 @@ object ExtractorUtils {
       } else {
         // The set of candidate players:
         val expected_size_diff = candidates.size - 5;
+        val tidy_ctx = build_tidy_player_context(box_lineup)
 
-        if (extra_debug) {
+        if (extra_debug && debug) {
           println(s"$debug_prefix --------------------------------------------------")
           println(s"$debug_prefix CLUMP [+$expected_size_diff] size=[${clump.evs.size}] [?${clump.next_good.nonEmpty}]")
         }
@@ -709,10 +745,10 @@ object ExtractorUtils {
               if (clump.evs.headOption.contains(ev)) Set() else ev.players_out.filter(curr_candidates)
               //(for the first element, only look at which players are involved in PbP)
             val candidates_who_are_in_plays = ev.raw_game_events.flatMap(_.team.toList).collect {
-              case EventUtils.ParseAnyPlay(player) => build_player_code(player)
+              case EventUtils.ParseAnyPlay(player) => build_player_code(tidy_player(player, tidy_ctx))
             }.filter(curr_candidates)
 
-            if (extra_debug) {
+            if (extra_debug && debug) {
               display_lineup(ev, debug_prefix)
               println(s"$debug_prefix candidates=[${curr_candidates.map(_.code)}] - [${candidates_who_sub_out.map(_.code)}] - [${candidates_who_are_in_plays.map(_.code)}]")
             }
@@ -727,7 +763,8 @@ object ExtractorUtils {
             ev.copy(
               players = ev.players.filterNot(filtered_candidates)
             )
-          }.partition(validate_lineup(_, valid_player_codes).nonEmpty)
+          }.partition(validate_lineup(_, valid_player_codes).isEmpty)
+
           (good_lineups, BadLineupClump(bad_lineups, clump.next_good))
         } else {
           (Nil, clump)
@@ -746,25 +783,31 @@ object ExtractorUtils {
       val expected_size_diff = candidates.size - 5;
 
       println(s"$debug_prefix --------------------------------------------------")
-      println(s"$debug_prefix CLUMP [+$expected_size_diff] size=[${clump.evs.size}] [?${clump.next_good.nonEmpty}]")
+      println(s"$debug_prefix CLUMP [+$expected_size_diff] size=[${clump.evs.size}] [?${clump.next_good.nonEmpty}] [!${clump.evs.headOption.map(ev => validate_lineup(ev, valid_player_codes))}]")
+      println(s"$debug_prefix valid player codes: [$valid_player_codes]")
 
       println(s"$debug_prefix Unfixed\n${clump.evs.foreach(ev => display_lineup(ev, debug_prefix))}")
-      clump.next_good.foreach(ev => println(s"$$debug_prefix (next good)\n${display_lineup(ev, debug_prefix)}"))
+      clump.next_good.foreach(ev => println(s"$debug_prefix (next good)\n${display_lineup(ev, debug_prefix)}"))
     }
 
     /** Fixes certain cases where the lineup is corrupt */
     def analyze_and_fix_clumps(
-      clump: BadLineupClump, valid_player_codes: Set[String]
+      clump: BadLineupClump, box_lineup: LineupEvent, valid_player_codes: Set[String]
     ): (List[LineupEvent], BadLineupClump) = {
 
       //TODO: other ideas
       // 1) If a player who is supposed to be out and is subbed out (or vice versa)
       // 2) version of find_missing_subs that for <5 players
+      // 3) Look for lineups where all 5 players are mentioned:
+      // (see https://github.com/Alex-At-Home/cbb-explorer/issues/6#issuecomment-560131070)
+      // 4) Use minutes distributions
+      // 5) Use preceding clump's info:
+      // (see https://github.com/Alex-At-Home/cbb-explorer/issues/6#issuecomment-560132341)
 
       Some(clump).map { to_fix =>
         handle_common_sub_bug(to_fix, valid_player_codes)
       }.map { case (fixed, to_fix) =>
-        val (newly_fixed, still_to_fix) = find_missing_subs(to_fix, valid_player_codes)
+        val (newly_fixed, still_to_fix) = find_missing_subs(to_fix, box_lineup, valid_player_codes)
         (fixed ++ newly_fixed, still_to_fix)
       }.map { case (fixed, to_fix) =>
         if (debug && to_fix.evs.nonEmpty) { //(if debug flag enabled, display some info about unfixed clumps)

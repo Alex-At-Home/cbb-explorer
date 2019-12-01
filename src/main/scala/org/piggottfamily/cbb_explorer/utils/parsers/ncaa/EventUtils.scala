@@ -9,7 +9,7 @@ object EventUtils {
 
   /** Pulls the player out */
   object ParseAnyPlay {
-    private val any_play_regex = "[^,]+,[^,]+,(.+)[, ].*".r
+    private val any_play_regex = "[^,]+,[^,]+,(.+)[, ].*".r //TODO does this work with 17:03,2-5,MAYER,M Enters Game
     def unapply(x: String): Option[String] = Option(x) match {
       case Some(any_play_regex(player)) => Some(player)
       case _ => None

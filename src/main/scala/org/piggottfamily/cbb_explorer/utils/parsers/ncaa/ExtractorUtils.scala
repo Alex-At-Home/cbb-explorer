@@ -598,16 +598,21 @@ object ExtractorUtils {
       alt_all_players_map: Map[String, List[String]]
     )
 
+    /** AaBbb... -> ABbbbbb, see below for explanation */
+    private def truncate_code(code: String): String = {
+      if ((code.length >= 3) && code(2).isUpper) { // AaBbb... -> ABbbbbb
+        code(0) + code.drop(2)
+      } else {
+        code
+      }
+    }
+
     /** Builds some alternative maps of player codes vs player names */
     def build_tidy_player_context(box_lineup: LineupEvent): TidyPlayerContext = {
       val all_players_map = box_lineup.players.map(p => p.code -> p.id.name).toMap
       // Sometimes the game has SURNAME,INITIAL instead of SURNAME,NAME
       val alt_all_players_map = all_players_map.toList.groupBy { case (code, name) =>
-        if ((code.length >= 3) && code(2).isUpper) { // AaBbb... -> ABbbbbb
-          code(0) + code.drop(2)
-        } else {
-          code
-        }
+        truncate_code(code)
       }.mapValues(_.map(pp => pp._2)) //ie code -> list(names)
       TidyPlayerContext(all_players_map, alt_all_players_map)
     }
@@ -625,6 +630,18 @@ object ExtractorUtils {
           if (new_p != p) {
             Some(tidy_player(new_p, ctx))
           } else None
+        }.orElse {
+          // Often we see "D.J."" in the box lineup, and then (say) "Dan" in the PBP
+          val truncated_code = truncate_code(player_id.code)
+          ctx.alt_all_players_map.get(truncated_code).flatMap {
+            case unique :: Nil =>
+              // Insert a "j" for junior into the name and see if that fixes it:
+              val junior = truncated_code(0) + "j" + truncated_code.drop(1)
+              ctx.all_players_map.get(junior)
+
+            case _ => None
+          }
+
         }.getOrElse(p) //(this will get rejected later on, in validate_lineup)
     }
 

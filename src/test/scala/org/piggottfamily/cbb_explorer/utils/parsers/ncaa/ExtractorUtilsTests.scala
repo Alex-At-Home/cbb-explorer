@@ -42,7 +42,6 @@ object ExtractorUtilsTests extends TestSuite {
         TestUtils.inside(build_player_code(name_wrong_box_format)) {
           case LineupEvent.PlayerCodeId("DyOsetkowski", PlayerId(`name_right_box_format`)) =>
         }
-
         //TODO add some other cases (single name, no space for intermediate)
       }
       "parse_team_name" - {
@@ -427,11 +426,11 @@ object ExtractorUtilsTests extends TestSuite {
             }
         }
 
-        // Test alternative name format SURNAME,INITIAL
+        // Test alternative name format SURNAME,INITIAL (and other name issues, see tidy_player)
         // (include ugly case where there are multiple names in the alt format with the same first name:)
         val alt_format_box = box_lineup.copy(players =
           List(
-            "Mitchell, Makhel", "Mitchell, Makhi", "Kevin McClure", "Williams, Shaun"
+            "Mitchell, Makhel", "Mitchell, Makhi", "Kevin McClure", "Williams, Shaun", "Horne, P.J."
           ).map(build_player_code)
         )
 
@@ -439,12 +438,13 @@ object ExtractorUtilsTests extends TestSuite {
           Model.SubInEvent(0.1, Game.Score(0, 0), "Mitchell,M") ::
           Model.SubInEvent(0.1, Game.Score(0, 0), "NEAL-WILLIAMS,SHAUN") ::
           Model.SubOutEvent(0.1, Game.Score(0, 0), "MCCLURE,K") ::
+          Model.SubOutEvent(0.1, Game.Score(0, 0), "Preston Horne") ::
           Nil
 
         TestUtils.inside(build_partial_lineup_list(alt_format_test_events.toIterator, alt_format_box)) {
           case start :: event :: Nil =>
             event.players_in.map(_.code) ==> List("MMitchell", "ShWilliams")
-            event.players_out.map(_.code) ==> List("KeMcclure")
+            event.players_out.map(_.code) ==> List("KeMcclure", "PjHorne")
         }
       }
     }

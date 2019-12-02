@@ -586,7 +586,7 @@ object ExtractorUtils {
   /** Namespace for all the logic required to fix errors in the PbO data */
   object LineupAnalyzer {
     /** For debugging unknown cases */
-    private val debug = true
+    private val debug = false
 
     /** Possible ways in which a lineup can be declared invalid */
     object ValidationError extends Enumeration {
@@ -748,7 +748,7 @@ object ExtractorUtils {
       clump: BadLineupClump, box_lineup: LineupEvent, valid_player_codes: Set[String]
     ): (List[LineupEvent], BadLineupClump) = {
       // For trace level debugging
-      val extra_debug = true
+      val extra_debug = false
       val debug_prefix = "__fms__"
 
       val candidates = clump.evs.headOption.map(_.players).getOrElse(Nil).toSet
@@ -772,7 +772,8 @@ object ExtractorUtils {
               if (clump.evs.headOption.contains(ev)) Set() else ev.players_out.filter(curr_candidates)
               //(for the first element, only look at which players are involved in PbP)
             val candidates_who_are_in_plays = ev.raw_game_events.flatMap(_.team.toList).collect {
-              case EventUtils.ParseAnyPlay(player) => build_player_code(tidy_player(player, tidy_ctx))
+              case EventUtils.ParseAnyPlay(player) =>
+                build_player_code(tidy_player(player, tidy_ctx))
             }.filter(curr_candidates)
 
             if (extra_debug && debug) {

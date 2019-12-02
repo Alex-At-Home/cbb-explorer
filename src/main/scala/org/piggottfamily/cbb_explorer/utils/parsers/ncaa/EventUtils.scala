@@ -7,15 +7,6 @@ import org.piggottfamily.cbb_explorer.models.ncaa._
 /** Utilities related to converting strings into structure events */
 object EventUtils {
 
-  /** Pulls the player out */
-  object ParseAnyPlay {
-    private val any_play_regex = "[^,]+,[^,]+,(.+)[, ].*".r //TODO does this work with 17:03,2-5,MAYER,M Enters Game
-    def unapply(x: String): Option[String] = Option(x) match {
-      case Some(any_play_regex(player)) => Some(player)
-      case _ => None
-    }
-  }
-
   /////////////////////////////////////////////////
 
   // Date-time parser
@@ -69,6 +60,21 @@ object EventUtils {
   /////////////////////////////////////////////////
 
   // In-game events (NOTE: based on the combined time,score,event)
+
+  /** Pulls the player out */
+  object ParseAnyPlay {
+    //TODO: test
+    // WATKINS,MIKE made Dunk
+    // Jalen Smith, 2pt l
+
+    private val any_play_regex_old = "[^,]+,[^,]+,([A-Z0-9.,-]+) .*".r //(can't match on new because of +ve regex)
+    private val any_play_regex_new = "[^,]+,[^,]+,([^,]+), .*".r //(can't match on old because of ", ")
+    def unapply(x: String): Option[String] = Option(x) match {
+      case Some(any_play_regex_new(player)) => Some(player)
+      case Some(any_play_regex_old(player)) => Some(player)
+      case _ => None
+    }
+  }
 
   // Jump ball
 

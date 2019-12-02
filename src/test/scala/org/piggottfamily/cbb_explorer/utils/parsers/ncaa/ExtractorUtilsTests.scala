@@ -14,7 +14,7 @@ object ExtractorUtilsTests extends TestSuite {
 
       "build_player_code" - {
         val test_name =
-          "Surname, Firstname A B Iiii Iiiiaiii Jr Jr. Sr Sr. 4test the First second rAbbit Third"
+          "Surname, F.irstname A B Iiii Iiiiaiii Jr Jr. Sr Sr. 4test the First second rAbbit Third"
         TestUtils.inside(build_player_code(test_name)) {
           case LineupEvent.PlayerCodeId("FiRaSurname", PlayerId(`test_name`)) =>
         }
@@ -30,6 +30,17 @@ object ExtractorUtilsTests extends TestSuite {
         val jr_name_wrong = "Brown, Jr., Barry"
         TestUtils.inside(build_player_code(jr_name_wrong)) {
           case LineupEvent.PlayerCodeId("BaBrown", PlayerId(`jr_name_wrong`)) =>
+        }
+        // Check misspelling fixer
+        val name_wrong = "Dylan Ostekowski"
+        TestUtils.inside(build_player_code(name_wrong)) {
+          // (name remains wrong, but code is correct, so will get replaced by box score, see below)
+          case LineupEvent.PlayerCodeId("DyOsetkowski", PlayerId(`name_wrong`)) =>
+        }
+        val name_wrong_box_format = "Ostekowski, Dylan"
+        val name_right_box_format = "Osetkowski, Dylan"
+        TestUtils.inside(build_player_code(name_wrong_box_format)) {
+          case LineupEvent.PlayerCodeId("DyOsetkowski", PlayerId(`name_right_box_format`)) =>
         }
 
         //TODO add some other cases (single name, no space for intermediate)
@@ -419,17 +430,20 @@ object ExtractorUtilsTests extends TestSuite {
         // Test alternative name format SURNAME,INITIAL
         // (include ugly case where there are multiple names in the alt format with the same first name:)
         val alt_format_box = box_lineup.copy(players =
-          List("Mitchell, Makhel", "Mitchell, Makhi", "Kevin McClure").map(build_player_code)
+          List(
+            "Mitchell, Makhel", "Mitchell, Makhi", "Kevin McClure", "Williams, Shaun"
+          ).map(build_player_code)
         )
 
         val alt_format_test_events =
           Model.SubInEvent(0.1, Game.Score(0, 0), "Mitchell,M") ::
+          Model.SubInEvent(0.1, Game.Score(0, 0), "NEAL-WILLIAMS,SHAUN") ::
           Model.SubOutEvent(0.1, Game.Score(0, 0), "MCCLURE,K") ::
           Nil
 
         TestUtils.inside(build_partial_lineup_list(alt_format_test_events.toIterator, alt_format_box)) {
           case start :: event :: Nil =>
-            event.players_in.map(_.code) ==> List("MMitchell")
+            event.players_in.map(_.code) ==> List("MMitchell", "ShWilliams")
             event.players_out.map(_.code) ==> List("KeMcclure")
         }
       }

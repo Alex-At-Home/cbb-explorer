@@ -36,9 +36,10 @@ object ExtractorUtils {
         case None => Some(!p.exists(_.isLower))
         case _ => s.old_format //latched
       }
+      def no_team_keyword(s: String): Boolean = s.toLowerCase != "team"
 
       event match {
-        case Model.SubInEvent(min, _, player_name) if state.is_active(min) =>
+        case Model.SubInEvent(min, _, player_name) if state.is_active(min) && no_team_keyword(player_name) =>
           val tidier_player_name = LineupAnalyzer.tidy_player(player_name, tidy_ctx)
           val completed_curr = complete_lineup(state.curr, state.prev, min)
           state.copy(
@@ -58,7 +59,7 @@ object ExtractorUtils {
             prev = completed_curr :: state.prev,
             old_format = is_old_format(player_name, state)
           )
-        case Model.SubInEvent(min, _, player_name) => // !state.is_active
+        case Model.SubInEvent(min, _, player_name) if no_team_keyword(player_name) => // !state.is_active
           // Keep adding sub events
           val tidier_player_name = LineupAnalyzer.tidy_player(player_name, tidy_ctx)
           state.with_player_in(tidier_player_name).copy(
@@ -139,7 +140,9 @@ object ExtractorUtils {
   def duration_from_period(period: Int): Double = start_time_from_period(period + 1)
 
   /** Builds a player code out of the name, with various formats supported */
-  def build_player_code(name: String): LineupEvent.PlayerCodeId = {
+  def build_player_code(in_name: String): LineupEvent.PlayerCodeId = {
+    // Check full name vs map of misspellings
+    val name = DataQualityIssues.misspellings.get(in_name).getOrElse(in_name)
     def first_last(fragment: String): String = {
       if (fragment.isEmpty) {
         ""
@@ -169,20 +172,20 @@ object ExtractorUtils {
       case last_name_set :: suffix :: first_name_set :: Nil =>
         first_name_set.split("\\s+").toList ++ last_name_set.split("\\s+").toList ++ List(suffix)
       case _ => Nil //(impossible by construction of split)
-    }).map {
-      _.toLowerCase
+    }).map { name_part =>
+      val lower_case_name_part = name_part.toLowerCase.replace(".", "")
+      // Misspelled fragments:
+      DataQualityIssues.misspellings.get(lower_case_name_part).getOrElse(lower_case_name_part)
     } match {
       case head :: tail => // don't ever filter the head
         def name_filter(candidate: String): Boolean =
           candidate(0).isDigit ||
           candidate == "the" ||
           candidate == "first" || candidate == "second" || candidate == "third" ||
-          candidate == "jr" || candidate == "jr." ||
-          candidate == "sr" || candidate == "sr." ||
+          candidate == "jr" ||
+          candidate == "sr" ||
           candidate == "iv" || candidate == "vi" || //(that's enough surely??!)
-            (candidate.startsWith("ii") &&
-              (candidate.endsWith("ii") || candidate.endsWith("i."))
-            )
+            (candidate.startsWith("ii") && candidate.endsWith("ii"))
 
         List(head).filterNot(name_filter) ++ tail.filterNot { candidate => // get rid or jr/sr/ii/etc
           candidate.size < 2 || name_filter(candidate)
@@ -208,6 +211,8 @@ object ExtractorUtils {
         transform_first_name(head) + middle + transform(tail.last, player_code_max_length)
     }
     LineupEvent.PlayerCodeId(code, PlayerId(name))
+
+    //TODO: need to handle misspellings including fixing name
   }
 
   // Internal Utils
@@ -609,12 +614,17 @@ object ExtractorUtils {
     /** Grabs the tidy version of a player's name from the box score */
     def tidy_player(p: String, ctx: TidyPlayerContext): String = {
       val player_id = build_player_code(p)
-      ctx.all_players_map //TODO: ALSO under scoring stats, need to handle "SURNAME,F" (ie initial only)
+      ctx.all_players_map
         .get(player_id.code)
         .orElse { // See if it's the alternative
           ctx.alt_all_players_map.get(player_id.code).collect {
             case unique :: Nil => unique
           }
+        }.orElse { // Sometimes the first half of a double barrrel is missed
+          var new_p = p.replaceAll("[a-zA-Z]+-([a-zA-Z]+)", "$1")
+          if (new_p != p) {
+            Some(tidy_player(new_p, ctx))
+          } else None
         }.getOrElse(p) //(this will get rejected later on, in validate_lineup)
     }
 

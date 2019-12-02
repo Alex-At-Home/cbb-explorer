@@ -93,6 +93,7 @@ object BuildLineups {
       (all_good ++ new_good, all_bad ++ new_bad)
     }
     val time_filter_suffix = maybe_filter.map("_" + _).getOrElse("")
+    // Write good lineups
     storage_controller.write_lineups(
       lineups = good_games.map(l => strip_unused_data match {
         case true => l.copy(
@@ -104,6 +105,19 @@ object BuildLineups {
       }).toList,
       file_root = Path(out_dir),
       file_name = s"${conference}_$year${time_filter_suffix}.ndjson"
+    )
+    // Write bad lineups
+    storage_controller.write_lineups(
+      lineups = lineup_errors.map(l => strip_unused_data match {
+        case true => l.copy(
+          players_in = Nil,
+          players_out = Nil,
+          raw_game_events = Nil
+        )
+        case false => l
+      }).toList,
+      file_root = Path(out_dir),
+      file_name = s"bad_lineups_${conference}_$year${time_filter_suffix}.ndjson"
     )
     // Add some information about bad lineups:
     println(s"[LineupErrorAnalysis] Total lineup errors (conf=[$conference]) [${lineup_errors.size}] (good: [${good_games.size}])")

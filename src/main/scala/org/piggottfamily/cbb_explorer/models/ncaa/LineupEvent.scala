@@ -19,6 +19,7 @@ import org.joda.time.DateTime
  * @param raw_game_events A list of the event strings from the NCAA website for the teams under analysis
  * @param team_stats The numerical stats extracted for the lineup (for the team under analysis)
  * @param opponent_stats The numerical stats extracted for the lineup (for the opposing team)
+ * @param player_count_error If a lineup is "impossible", count the number of players in the lineup for analysis purposes
  */
 case class LineupEvent(
   date: DateTime,
@@ -35,7 +36,8 @@ case class LineupEvent(
   players_out: List[LineupEvent.PlayerCodeId],
   raw_game_events: List[LineupEvent.RawGameEvent],
   team_stats: LineupEventStats,
-  opponent_stats: LineupEventStats
+  opponent_stats: LineupEventStats,
+  player_count_error: Option[Int] = None
 )
 
 object LineupEvent {

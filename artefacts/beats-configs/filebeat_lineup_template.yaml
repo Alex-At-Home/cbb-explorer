@@ -6,7 +6,7 @@ filebeat.inputs:
   paths:
     - ./misc_conf_20*.ndjson
     - ./women_bigten_20*.ndjson
-    
+
     - ./acc_20*.ndjson
     - ./american_20*.ndjson
     - ./atlanticten_20*.ndjson
@@ -15,6 +15,8 @@ filebeat.inputs:
     - ./bigtwelve_20*.ndjson
     - ./pactwelve_20*.ndjson
     - ./sec_20*.ndjson
+
+    - ./bad_lineups_*_20*.ndjson
 
   json.keys_under_root: true
 
@@ -58,6 +60,14 @@ output.elasticsearch:
     - index: "sec_%{[team.year]}"
       when.regexp:
         log.file.path: ".*/sec_[0-9]+(_.*)?.ndjson"
+
+    # (order of these 2 matter:)
+    - index: "bad_lineups_women_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/bad_lineups_women_.*?_[0-9]+(_.*)?.ndjson"
+    - index: "bad_lineups_men_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/bad_lineups_.*?_[0-9]+(_.*)?.ndjson"
 
 setup.template.enabled: false
 

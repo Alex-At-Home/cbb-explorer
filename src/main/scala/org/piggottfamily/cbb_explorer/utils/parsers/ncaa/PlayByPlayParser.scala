@@ -104,7 +104,9 @@ trait PlayByPlayParser {
             fixed_or_not.flatMap(_._1)
       val final_bad_lineups = fixed_or_not.flatMap(_._2.evs)
 
-      (final_good_lineups, final_bad_lineups)
+      (final_good_lineups, final_bad_lineups.map(ev => ev.copy( // at the last moment, add the player_count_error
+        player_count_error = Some(ev.players.size)
+      )))
     }
   }
 

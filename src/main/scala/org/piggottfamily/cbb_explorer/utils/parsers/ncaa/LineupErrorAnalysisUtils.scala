@@ -7,7 +7,7 @@ import org.piggottfamily.cbb_explorer.utils.parsers._
 /** Wraps several functions for finding and fixing errors in the PbP/box score */
 object LineupErrorAnalysisUtils {
   /** For debugging unknown cases */
-  private val debug = false
+  private val debug = true
 
   /** Possible ways in which a lineup can be declared invalid */
   object ValidationError extends Enumeration {

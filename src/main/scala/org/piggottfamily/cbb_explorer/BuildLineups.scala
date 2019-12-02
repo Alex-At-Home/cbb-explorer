@@ -7,7 +7,7 @@ import org.piggottfamily.cbb_explorer.models.ncaa._
 import org.piggottfamily.cbb_explorer.controllers.ncaa.LineupController
 import org.piggottfamily.cbb_explorer.controllers.StorageController
 import org.piggottfamily.cbb_explorer.controllers.StorageController.JsonParserImplicits._
-import org.piggottfamily.cbb_explorer.utils.parsers.ncaa.ExtractorUtils
+import org.piggottfamily.cbb_explorer.utils.parsers.ncaa.LineupErrorAnalysisUtils
 import scala.util.Try
 import java.net.URLDecoder
 
@@ -106,11 +106,11 @@ object BuildLineups {
       file_name = s"${conference}_$year${time_filter_suffix}.ndjson"
     )
     // Add some information about bad lineups:
-    println(s"Total lineup errors: [${lineup_errors.size}] (good: [${good_games.size}])")
+    println(s"[LineupErrorAnalysis] Total lineup errors (conf=[$conference]) [${lineup_errors.size}] (good: [${good_games.size}])")
     val num_good_possessions = good_games.foldLeft(0) { (acc, lineup) => acc + lineup.team_stats.num_possessions }
     val num_bad_possessions = lineup_errors.foldLeft(0) { (acc, lineup) => acc + lineup.team_stats.num_possessions }
-    println(s"Total possession errors: [$num_bad_possessions] (good: [$num_good_possessions])")
-    val bad_lineup_analysis = ExtractorUtils.LineupAnalyzer.categorize_bad_lineups(lineup_errors);
-    println(s"Bad lineup analysis: [$bad_lineup_analysis]")
+    println(s"[LineupErrorAnalysis] Total possession errors: [$num_bad_possessions] (good: [$num_good_possessions])")
+    val bad_lineup_analysis = LineupErrorAnalysisUtils.categorize_bad_lineups(lineup_errors);
+    println(s"[LineupErrorAnalysis] Bad lineup analysis: [$bad_lineup_analysis]")
   }
 }

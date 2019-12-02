@@ -59,64 +59,6 @@ object ExtractorUtilsTests extends TestSuite {
         }
       }
 
-      "validate_lineup" - {
-        val now = new DateTime()
-        val all_players @ (player1 :: player2 :: player3 :: player4 :: player5 ::
-          player6 :: player7 :: Nil) = List(
-            "Player One", "Player Two", "Player Three",
-            "Player Four", "Player Five", "Player Six", "Player Seven"
-          ).map(build_player_code)
-        val all_player_set = all_players.map(_.code).toSet
-        val player8 = build_player_code("Player Eight")
-
-        val valid_players = player1 :: player2 :: player3 :: player4 :: player5 :: Nil
-        val too_few_players = player1 :: player2 :: player3 :: player4 :: Nil
-        val unknown_player = player1 :: player2 :: player3 :: player4 :: player8 :: Nil
-        val multi_bad = player8 :: valid_players
-
-        val my_team = TeamSeasonId(TeamId("TestTeam1"), Year(2017))
-        val other_team = TeamSeasonId(TeamId("TestTeam2"), Year(2017))
-        val base_lineup = LineupEvent(
-          date = now,
-          location_type = Game.LocationType.Home,
-          start_min = 0.0,
-          end_min = -100.0,
-          duration_mins = 0.0,
-          score_info = LineupEvent.ScoreInfo.empty,
-          team = my_team,
-          opponent = other_team,
-          lineup_id = LineupEvent.LineupId.unknown,
-          players = Nil,
-          players_in = Nil,
-          players_out = Nil,
-          raw_game_events = Nil,
-          team_stats = LineupEventStats.empty,
-          opponent_stats = LineupEventStats.empty
-        )
-
-        val good_lineup = base_lineup.copy(players = valid_players)
-        val lineup_too_many = base_lineup.copy(players = all_players)
-        val lineup_too_few = base_lineup.copy(players = too_few_players)
-        val lineup_unknown_player = base_lineup.copy(players = unknown_player)
-        val lineup_multi_bad = base_lineup.copy(players = multi_bad)
-
-        TestUtils.inside(LineupAnalyzer.validate_lineup(good_lineup, all_player_set).toList) {
-          case List() =>
-        }
-        TestUtils.inside(LineupAnalyzer.validate_lineup(lineup_too_many, all_player_set).toList) {
-          case List(LineupAnalyzer.ValidationError.WrongNumberOfPlayers) =>
-        }
-        TestUtils.inside(LineupAnalyzer.validate_lineup(lineup_too_few, all_player_set).toList) {
-          case List(LineupAnalyzer.ValidationError.WrongNumberOfPlayers) =>
-        }
-        TestUtils.inside(LineupAnalyzer.validate_lineup(lineup_unknown_player, all_player_set).toList) {
-          case List(LineupAnalyzer.ValidationError.UnknownPlayers) =>
-        }
-        TestUtils.inside(LineupAnalyzer.validate_lineup(lineup_multi_bad, all_player_set).toList) {
-          case List(LineupAnalyzer.ValidationError.WrongNumberOfPlayers, LineupAnalyzer.ValidationError.UnknownPlayers) =>
-        }
-      }
-
       "reorder_and_reverse" - {
         // (this is also partially tested by "build_partial_lineup_list" below
         //  but want to demonstrate all the branches of this somewhat complex sub function)

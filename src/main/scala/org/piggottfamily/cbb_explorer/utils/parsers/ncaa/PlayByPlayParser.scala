@@ -92,13 +92,13 @@ trait PlayByPlayParser {
       val zip_lineups = tmp_lineups zip (tmp_lineups.drop(1) ++ List(None))
 
       val (good_lineups, bad_lineups) = zip_lineups.partition {
-        case (Some(e), e_next) => LineupAnalyzer.validate_lineup(e, player_codes).isEmpty
+        case (Some(e), e_next) => LineupErrorAnalysisUtils.validate_lineup(e, player_codes).isEmpty
       }
-      val bad_lineup_clumps = LineupAnalyzer.clump_bad_lineups(
+      val bad_lineup_clumps = LineupErrorAnalysisUtils.clump_bad_lineups(
         bad_lineups.flatMap { case (opt_e, maybe_e) => opt_e.map((_, maybe_e)).toList }
       )
       val fixed_or_not = bad_lineup_clumps.map(clump =>
-        LineupAnalyzer.analyze_and_fix_clumps(clump, box_lineup, player_codes)
+        LineupErrorAnalysisUtils.analyze_and_fix_clumps(clump, box_lineup, player_codes)
       )
       val final_good_lineups = good_lineups.flatMap(_._1.toList) ++
             fixed_or_not.flatMap(_._1)

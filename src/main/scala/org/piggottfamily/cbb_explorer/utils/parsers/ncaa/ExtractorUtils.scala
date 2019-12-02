@@ -158,7 +158,7 @@ object ExtractorUtils {
       }
     }
     def transform_first_name(fragment: String): String = {
-      if (DataQualityIssues.playersWithDuplicateNames(name.toLowerCase)) {
+      if (DataQualityIssues.players_with_duplicate_names(name.toLowerCase)) {
         first_last(fragment)
       } else {
         transform(fragment, 2)

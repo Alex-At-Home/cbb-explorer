@@ -3,7 +3,7 @@ package org.piggottfamily.cbb_explorer.utils.parsers.ncaa
 object DataQualityIssues {
 
   /** Use first and last letters from first name for these players */
-  val playersWithDuplicateNames = Set(
+  val players_with_duplicate_names = Set(
     "mitchell, makhi", "makhi mitchell",
     "mitchell, makhel", "makhel mitchell"
   )

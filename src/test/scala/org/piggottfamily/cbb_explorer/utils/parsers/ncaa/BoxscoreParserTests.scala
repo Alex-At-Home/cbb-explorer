@@ -36,7 +36,7 @@ object BoxscoreParserTests extends TestSuite with BoxscoreParser {
               date, Game.LocationType.Away, `mins`, `mins`, 0.0, score,
               TeamSeasonId(TeamId("TeamA"), Year(2018)),
               TeamSeasonId(TeamId("TeamB"), Year(2018)),
-              _, lineup, Nil, Nil, Nil, _, _
+              _, lineup, Nil, Nil, Nil, _, _, _
             )) =>
               date.toString ==> "2018-12-10T17:00:00.000-05:00"
               lineup ==> {
@@ -62,7 +62,7 @@ object BoxscoreParserTests extends TestSuite with BoxscoreParser {
               date, Game.LocationType.Home, `mins`, `mins`, 0.0, score,
               TeamSeasonId(TeamId("TeamB"), Year(2018)),
               TeamSeasonId(TeamId("TeamA"), Year(2018)),
-              _, lineup, Nil, Nil, Nil, _, _
+              _, lineup, Nil, Nil, Nil, _, _, _
             )) =>
               date.toString ==> "2018-12-10T17:00:00.000-05:00"
               lineup ==> {
@@ -91,7 +91,7 @@ object BoxscoreParserTests extends TestSuite with BoxscoreParser {
                 _, Game.LocationType.Neutral, _, _, _, _,
                 _,
                 _,
-                _, _, _, _, _, _, _
+                _, _, _, _, _, _, _, _
               )) =>
             }
           }

@@ -210,7 +210,7 @@ object ExtractorUtilsTests extends TestSuite {
                   LineupEvent.LineupId(lineup_id), players,
                   List(), List(),
                   List(),
-                  _, _
+                  _, _, _
                 ) =>
                   "%.1f".format(delta) ==> "0.1"
                   score ==> LineupEvent.ScoreInfo(
@@ -229,7 +229,7 @@ object ExtractorUtilsTests extends TestSuite {
                     LineupEvent.RawGameEvent.Team("event1a"),
                     LineupEvent.RawGameEvent.Team("event2a")
                   ),
-                  _, _
+                  _, _, _
                 ) =>
                   new_time ==> now.plusMillis(6000)
                   "%.1f".format(delta) ==> "0.3"
@@ -252,7 +252,7 @@ object ExtractorUtilsTests extends TestSuite {
                     LineupEvent.RawGameEvent.Team("event3a"),
                     LineupEvent.RawGameEvent.Team("event4a")
                   ),
-                  _, _
+                  _, _, _
                 ) =>
                   "%.1f".format(delta) ==> "19.6"
                   score ==> LineupEvent.ScoreInfo(
@@ -273,7 +273,7 @@ object ExtractorUtilsTests extends TestSuite {
                     LineupEvent.RawGameEvent.Opponent("PlayerA Leaves Game"),
                     LineupEvent.RawGameEvent.Opponent("PlayerB, substitution in")
                   ),
-                  _, _
+                  _, _, _
                 ) =>
                   "%.1f".format(delta) ==> "0.4"
                   score ==> LineupEvent.ScoreInfo(
@@ -290,7 +290,7 @@ object ExtractorUtilsTests extends TestSuite {
                   LineupEvent.LineupId(lineup_id), players,
                   List(`player1`, `player7`), List(`player2`, `player4`),
                   List(),
-                  _, _
+                  _, _, _
                 ) =>
                   "%.1f".format(delta) ==> "19.6"
                   score ==> LineupEvent.ScoreInfo(
@@ -310,7 +310,7 @@ object ExtractorUtilsTests extends TestSuite {
                     LineupEvent.RawGameEvent.Opponent("event3b"),
                     LineupEvent.RawGameEvent.Team("event5a")
                   ),
-                  _, _
+                  _, _, _
                 ) =>
                   "%.1f".format(delta) ==> "0.5"
                   score ==> LineupEvent.ScoreInfo(
@@ -328,7 +328,7 @@ object ExtractorUtilsTests extends TestSuite {
                     LineupEvent.RawGameEvent.Team("event6a"),
                     LineupEvent.RawGameEvent.Opponent("event4b")
                   ),
-                  _, _
+                  _, _, _
                 ) =>
                   "%.1f".format(delta) ==> "4.5"
                   score ==> LineupEvent.ScoreInfo(
@@ -356,7 +356,7 @@ object ExtractorUtilsTests extends TestSuite {
                 LineupEvent.LineupId(lineup_id), players,
                 List(`player6`), List(`player1`),
                 _,
-                _, _
+                _, _, _
               ) =>
                 score ==> LineupEvent.ScoreInfo(
                   Game.Score(4, 2), Game.Score(4, 2), 2, 2

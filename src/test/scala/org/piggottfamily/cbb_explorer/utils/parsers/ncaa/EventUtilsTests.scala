@@ -34,6 +34,7 @@ object EventUtilsTests extends TestSuite {
         "08:44:00,20-23,STEVENS,LAMAR2 made Two Point Jumper" ::
         "08:44:00,20-23,Eric Ayala, 3pt jumpshot made" ::
         "08:44:00,20-23,SMITH,JALEN made Three Point Jumper" ::
+        "15:27,13-8,TRIMBLE JR,BRYAN made Three Point Jumper" ::
         Nil
 
       val shot_missed_test_cases =
@@ -126,6 +127,34 @@ object EventUtilsTests extends TestSuite {
         foul_test_cases
       )
 
+      // All plays - check the players are pulled out
+      "ParseAnyPlay" - {
+
+        val some_names = Set(
+          "DREAD,MYLES",
+          "HARRAR,JOHN",
+          "Kavell Bigby-Williams",
+          "WATKINS,MIKE",
+          "Bruno Fernando",
+          "Emmitt Williams",
+          "Team",
+          "Jalen Smith",
+          "Darryl Morsell",
+          "Joshua Tomaic",
+          "SMITH,JALEN",
+          "TEAM",
+          "BOLTON,RASIR",
+          "MASON III,FRANK",
+          "TRIMBLE JR,BRYAN"
+        )
+
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseAnyPlay(name) => name
+        }.filter(some_names).toSet) {
+          case `some_names` =>
+        }
+      }
+
       // jumpball
       "ParseJumpballWonOrLost" - {
         TestUtils.inside(all_test_cases.collect {
@@ -153,7 +182,7 @@ object EventUtilsTests extends TestSuite {
       val shots_made = List(
         "Bruno Fernando1", "Bruno Fernando2", "WATKINS,MIKE", "Jalen Smith",
         "BOLTON,RASIR", "STEVENS,LAMAR", "Anthony Cowan", "STEVENS,LAMAR2",
-        "Eric Ayala", "SMITH,JALEN"
+        "Eric Ayala", "SMITH,JALEN", "TRIMBLE JR,BRYAN"
       )
       "ParseShotMade" - {
         TestUtils.inside(all_test_cases.collect {
@@ -189,7 +218,7 @@ object EventUtilsTests extends TestSuite {
           case EventUtils.ParseThreePointerMade(name) => name
         }) {
           case List(
-            "Eric Ayala", "SMITH,JALEN"
+            "Eric Ayala", "SMITH,JALEN", "TRIMBLE JR,BRYAN"
           ) =>
         }
       }

@@ -128,7 +128,7 @@ object LineupErrorAnalysisUtils {
    * "IN: X, Y, Z; OUT: A, B" ... "OUT: C" and similarly
    * "IN: X, Y, Z; OUT: A" ... "OUT: C, Z"
   */
-  protected def handle_common_sub_bug(
+  def handle_common_sub_bug(
     clump: BadLineupClump, valid_player_codes: Set[String]
   ): (List[LineupEvent], BadLineupClump) = {
     clump match {
@@ -162,6 +162,65 @@ object LineupErrorAnalysisUtils {
     println(s"$prefix -----------")
   }
 
+  /** If there are fewer than 5 players, find some to add */
+  protected def add_missing_players(
+    clump: BadLineupClump, box_lineup: LineupEvent, valid_player_codes: Set[String]
+  ): (List[LineupEvent], BadLineupClump) = {
+    // For trace level debugging
+    val extra_debug = false
+    val debug_prefix = "__amp__"
+
+    val players_in = clump.evs.headOption.map(_.players).getOrElse(Nil).toSet
+    if (players_in.size > 4) { // Nothing to do
+      (Nil, clump)
+    } else {
+      val candidates = box_lineup.players.toSet.filterNot(players_in)
+
+      // The set of candidate players:
+      val expected_size_diff = 5 - players_in.size
+      val tidy_ctx = build_tidy_player_context(box_lineup)
+
+      if (extra_debug && debug) {
+        println(s"$debug_prefix --------------------------------------------------")
+        println(s"$debug_prefix CLUMP [-$expected_size_diff] size=[${clump.evs.size}] [?${clump.next_good.nonEmpty}]")
+      }
+      val related_evs = clump.evs //(ie don't include next good)
+      case class State(
+        curr_candidates: Set[LineupEvent.PlayerCodeId],
+        found_players: Set[LineupEvent.PlayerCodeId],
+        last_event: Option[LineupEvent]
+      )
+      val State(_, players_to_add, _) = related_evs.foldLeft(State(candidates, Set(), None)) {
+        case (State(curr_candidates, curr_to_add, _), ev) =>
+          // If you get subbed in, you cease to become a candidate
+          val new_candidates = curr_candidates -- ev.players_in.filter(curr_candidates)
+          // Any candidates who are mentioned get added to the list:
+          val candidates_who_are_in_plays = ev.raw_game_events.flatMap(_.team.toList).collect {
+            case EventUtils.ParseAnyPlay(player) =>
+              ExtractorUtils.build_player_code(tidy_player(player, tidy_ctx))
+          }.filter(new_candidates)
+
+          if (extra_debug && debug) {
+            display_lineup(ev, debug_prefix)
+            println(s"$debug_prefix candidates=[${curr_candidates.map(_.code)}] > [${new_candidates.map(_.code)}]: found [${candidates_who_are_in_plays.map(_.code)}]")
+          }
+
+          State(new_candidates, curr_to_add ++ candidates_who_are_in_plays, Some(ev))
+      }
+      if (players_to_add.nonEmpty) {
+        val (good_lineups, bad_lineups) = clump.evs.map { ev =>
+          ev.copy(
+            players = ev.players ++ players_to_add
+          )
+        }.partition(validate_lineup(_, valid_player_codes).isEmpty)
+
+        (good_lineups, BadLineupClump(bad_lineups, clump.next_good))
+      } else {
+        (Nil, clump)
+      }
+    }
+  }
+
   /** Goes over the events in a clump removing players who could not
    *  be the missing sub
    */
@@ -176,8 +235,7 @@ object LineupErrorAnalysisUtils {
     if (candidates.size < 6) { // Nothing to do
       (Nil, clump)
     } else {
-      // The set of candidate players:
-      val expected_size_diff = candidates.size - 5;
+      val expected_size_diff = candidates.size - 5
       val tidy_ctx = build_tidy_player_context(box_lineup)
 
       if (extra_debug && debug) {
@@ -185,10 +243,10 @@ object LineupErrorAnalysisUtils {
         println(s"$debug_prefix CLUMP [+$expected_size_diff] size=[${clump.evs.size}] [?${clump.next_good.nonEmpty}]")
       }
 
-      val related_evs = clump.evs
+      val related_evs = clump.evs //(ie don't include next good)
       case class State(curr_candidates: Set[LineupEvent.PlayerCodeId], last_event: Option[LineupEvent])
       val State(filtered_candidates, _) = related_evs.foldLeft(State(candidates, None)) {
-        case (State(curr_candidates, maybe_last), ev) =>
+        case (State(curr_candidates, _), ev) =>
           val candidates_who_sub_out =
             if (clump.evs.headOption.contains(ev)) Set() else ev.players_out.filter(curr_candidates)
             //(for the first element, only look at which players are involved in PbP)
@@ -229,7 +287,7 @@ object LineupErrorAnalysisUtils {
 
     // The set of candidate players:
     val candidates = clump.evs.headOption.map(_.players).getOrElse(Nil).toSet
-    val expected_size_diff = candidates.size - 5;
+    val expected_size_diff = candidates.size - 5
 
     println(s"$debug_prefix --------------------------------------------------")
     println(s"$debug_prefix CLUMP [+$expected_size_diff] size=[${clump.evs.size}] [?${clump.next_good.nonEmpty}] [!${clump.evs.headOption.map(ev => validate_lineup(ev, valid_player_codes))}]")
@@ -246,7 +304,6 @@ object LineupErrorAnalysisUtils {
 
     //TODO: other ideas
     // 1) If a player who is supposed to be out and is subbed out (or vice versa)
-    // 2) version of find_missing_subs that for <5 players
     // 3) Look for lineups where all 5 players are mentioned:
     // (see https://github.com/Alex-At-Home/cbb-explorer/issues/6#issuecomment-560131070)
     // 4) Use minutes distributions
@@ -257,6 +314,9 @@ object LineupErrorAnalysisUtils {
       handle_common_sub_bug(to_fix, valid_player_codes)
     }.map { case (fixed, to_fix) =>
       val (newly_fixed, still_to_fix) = find_missing_subs(to_fix, box_lineup, valid_player_codes)
+      (fixed ++ newly_fixed, still_to_fix)
+    }.map { case (fixed, to_fix) =>
+      val (newly_fixed, still_to_fix) = add_missing_players(to_fix, box_lineup, valid_player_codes)
       (fixed ++ newly_fixed, still_to_fix)
     }.map { case (fixed, to_fix) =>
       if (debug && to_fix.evs.nonEmpty) { //(if debug flag enabled, display some info about unfixed clumps)

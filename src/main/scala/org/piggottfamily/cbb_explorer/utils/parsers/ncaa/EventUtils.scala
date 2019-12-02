@@ -63,13 +63,11 @@ object EventUtils {
 
   /** Pulls the player out */
   object ParseAnyPlay {
-    //TODO: test
-    // WATKINS,MIKE made Dunk
-    // Jalen Smith, 2pt l
-
-    private val any_play_regex_old = "[^,]+,[^,]+,([A-Z0-9.,-]+) .*".r //(can't match on new because of +ve regex)
+    // (see other parsers for examples)
     private val any_play_regex_new = "[^,]+,[^,]+,([^,]+), .*".r //(can't match on old because of ", ")
+    private val any_play_regex_old = "[^,]+,[^,]+,([ A-Z0-9.,-]+) .*".r //(can't match on new test for new first)
     def unapply(x: String): Option[String] = Option(x) match {
+      // (order matters here:)
       case Some(any_play_regex_new(player)) => Some(player)
       case Some(any_play_regex_old(player)) => Some(player)
       case _ => None

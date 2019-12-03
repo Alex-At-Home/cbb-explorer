@@ -31,6 +31,11 @@ object ExtractorUtilsTests extends TestSuite {
         TestUtils.inside(build_player_code(jr_name_wrong, None)) {
           case LineupEvent.PlayerCodeId("BaBrown", PlayerId(`jr_name_wrong`)) =>
         }
+        val has_accent = "Dorka Juhász"
+        val has_no_accent = "Dorka Juhasz"
+        TestUtils.inside(build_player_code(has_accent, None)) {
+          case LineupEvent.PlayerCodeId("DoJuhasz", PlayerId(`has_no_accent`)) =>
+        }
         // Check misspelling fixer
         List(None, Some(TeamId("TCU"))).foreach { team =>
           val name_wrong = "Dylan Ostekowski"

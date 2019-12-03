@@ -62,13 +62,8 @@ object DataQualityIssues {
     Option(TeamId("Arkansas")) -> Map(
       "Jordan Philips" -> "Jordan Phillips",
       "PHILIPS,JORDAN" -> "PHILLIPS,JORDAN"
-    ),
-
-    // Translit the version in the box score and PbP:
-    Option(TeamId("Georgia")) -> Map(
-      "Sargiūnas, Ignas" -> "Sargiunas, Ignas",
-      "sargiūnas" -> "sargiunas"
     )
+
   ).mapValues(
     _ ++ generic_misspellings
   ).withDefault(_ => generic_misspellings)

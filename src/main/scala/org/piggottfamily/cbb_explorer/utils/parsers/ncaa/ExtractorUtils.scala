@@ -142,7 +142,11 @@ object ExtractorUtils {
   /** Builds a player code out of the name, with various formats supported */
   def build_player_code(in_name: String, team: Option[TeamId]): LineupEvent.PlayerCodeId = {
     // Check full name vs map of misspellings
-    val name = DataQualityIssues.misspellings(team).get(in_name).getOrElse(in_name)
+    def remove_accents(fragment: String): String = {
+      import java.text.Normalizer
+      Normalizer.normalize(fragment, Normalizer.Form.NFD).replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+    }
+    val name = remove_accents(DataQualityIssues.misspellings(team).get(in_name).getOrElse(in_name))
     def first_last(fragment: String): String = {
       if (fragment.isEmpty) {
         ""

@@ -7,7 +7,7 @@ import org.piggottfamily.cbb_explorer.utils.parsers._
 /** Wraps several functions for finding and fixing errors in the PbP/box score */
 object LineupErrorAnalysisUtils {
   /** For debugging unknown cases */
-  private val debug = true
+  private val debug = false
 
   /** Possible ways in which a lineup can be declared invalid */
   object ValidationError extends Enumeration {
@@ -15,6 +15,7 @@ object LineupErrorAnalysisUtils {
   }
 
   case class TidyPlayerContext(
+    box_lineup: LineupEvent,
     all_players_map: Map[String, String],
     alt_all_players_map: Map[String, List[String]]
   )
@@ -35,11 +36,11 @@ object LineupErrorAnalysisUtils {
     val alt_all_players_map = all_players_map.toList.groupBy { case (code, name) =>
       truncate_code(code)
     }.mapValues(_.map(pp => pp._2)) //ie code -> list(names)
-    TidyPlayerContext(all_players_map, alt_all_players_map)
+    TidyPlayerContext(box_lineup, all_players_map, alt_all_players_map)
   }
   /** Grabs the tidy version of a player's name from the box score */
   def tidy_player(p: String, ctx: TidyPlayerContext): String = {
-    val player_id = ExtractorUtils.build_player_code(p)
+    val player_id = ExtractorUtils.build_player_code(p, Some(ctx.box_lineup.team.team))
     ctx.all_players_map
       .get(player_id.code)
       .orElse { // See if it's the alternative
@@ -197,7 +198,7 @@ object LineupErrorAnalysisUtils {
           // Any candidates who are mentioned get added to the list:
           val candidates_who_are_in_plays = ev.raw_game_events.flatMap(_.team.toList).collect {
             case EventUtils.ParseAnyPlay(player) =>
-              ExtractorUtils.build_player_code(tidy_player(player, tidy_ctx))
+              ExtractorUtils.build_player_code(tidy_player(player, tidy_ctx), Some(ev.team.team))
           }.filter(new_candidates)
 
           if (extra_debug && debug) {
@@ -252,7 +253,7 @@ object LineupErrorAnalysisUtils {
             //(for the first element, only look at which players are involved in PbP)
           val candidates_who_are_in_plays = ev.raw_game_events.flatMap(_.team.toList).collect {
             case EventUtils.ParseAnyPlay(player) =>
-              ExtractorUtils.build_player_code(tidy_player(player, tidy_ctx))
+              ExtractorUtils.build_player_code(tidy_player(player, tidy_ctx), Some(ev.team.team))
           }.filter(curr_candidates)
 
           if (extra_debug && debug) {
@@ -281,7 +282,7 @@ object LineupErrorAnalysisUtils {
 
   /** Prints out the info for unfixed clumps */
   def analyze_unfixed_clumps(
-    clump: BadLineupClump, valid_player_codes: Set[String]
+    clump: BadLineupClump, box_lineup: LineupEvent, valid_player_codes: Set[String]
   ) = {
     val debug_prefix = "__auc__"
 
@@ -289,9 +290,17 @@ object LineupErrorAnalysisUtils {
     val candidates = clump.evs.headOption.map(_.players).getOrElse(Nil).toSet
     val expected_size_diff = candidates.size - 5
 
+    val validation = clump.evs.headOption.map(ev => validate_lineup(ev, valid_player_codes))
+
     println(s"$debug_prefix --------------------------------------------------")
-    println(s"$debug_prefix CLUMP [+$expected_size_diff] size=[${clump.evs.size}] [?${clump.next_good.nonEmpty}] [!${clump.evs.headOption.map(ev => validate_lineup(ev, valid_player_codes))}]")
+    println(s"$debug_prefix CLUMP [+$expected_size_diff] size=[${clump.evs.size}] [?${clump.next_good.nonEmpty}] [!${validation}]")
     println(s"$debug_prefix valid player codes: [$valid_player_codes]")
+
+    if (validation.exists(_(ValidationError.UnknownPlayers))) {
+      val all_unknown = clump.evs.flatMap(_.players).filterNot(id_code => valid_player_codes(id_code.code)).distinct
+      println(s"$debug_prefix UNKNOWN_PBP [$all_unknown]")
+      println(s"$debug_prefix UNKNOWN_BOX [${box_lineup.players}]")
+    }
 
     println(s"$debug_prefix Unfixed\n${clump.evs.foreach(ev => display_lineup(ev, debug_prefix))}")
     clump.next_good.foreach(ev => println(s"$debug_prefix (next good)\n${display_lineup(ev, debug_prefix)}"))
@@ -320,7 +329,7 @@ object LineupErrorAnalysisUtils {
       (fixed ++ newly_fixed, still_to_fix)
     }.map { case (fixed, to_fix) =>
       if (debug && to_fix.evs.nonEmpty) { //(if debug flag enabled, display some info about unfixed clumps)
-        analyze_unfixed_clumps(to_fix, valid_player_codes)
+        analyze_unfixed_clumps(to_fix, box_lineup, valid_player_codes)
       }
       (fixed, to_fix)
     }.getOrElse {

@@ -1,20 +1,20 @@
-[LineupErrorAnalysis] Total lineup errors (conf=[acc]) [28] (good: [2323])
-[LineupErrorAnalysis] Total possession errors: [69] (good: [7418])
+[LineupErrorAnalysis] Total lineup errors (conf=[acc]) [28] (good: [2368])
+[LineupErrorAnalysis] Total possession errors: [69] (good: [7546])
 [LineupErrorAnalysis] Bad lineup analysis: [Map(4 -> (1,1), 7 -> (1,7), 3 -> (1,1), 6 -> (10,60))]
-[LineupErrorAnalysis] Total lineup errors (conf=[american]) [5] (good: [1882])
-[LineupErrorAnalysis] Total possession errors: [16] (good: [5456])
-[LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (1,0), 6 -> (3,16))]
-[LineupErrorAnalysis] Total lineup errors (conf=[atlanticten]) [52] (good: [2391])
-[LineupErrorAnalysis] Total possession errors: [101] (good: [7133])
+[LineupErrorAnalysis] Total lineup errors (conf=[american]) [6] (good: [1899])
+[LineupErrorAnalysis] Total possession errors: [18] (good: [5519])
+[LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (2,2), 6 -> (3,16))]
+[LineupErrorAnalysis] Total lineup errors (conf=[atlanticten]) [52] (good: [2401])
+[LineupErrorAnalysis] Total possession errors: [101] (good: [7201])
 [LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (3,14), 4 -> (4,15), 7 -> (6,22), 6 -> (16,50))]
 [LineupErrorAnalysis] Total lineup errors (conf=[bigeast]) [3] (good: [1841])
 [LineupErrorAnalysis] Total possession errors: [4] (good: [5413])
 [LineupErrorAnalysis] Bad lineup analysis: [Map(4 -> (1,1), 6 -> (2,3))]
-[LineupErrorAnalysis] Total lineup errors (conf=[bigten]) [13] (good: [2325])
-[LineupErrorAnalysis] Total possession errors: [43] (good: [6860])
+[LineupErrorAnalysis] Total lineup errors (conf=[bigten]) [13] (good: [2376])
+[LineupErrorAnalysis] Total possession errors: [43] (good: [6988])
 [LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (2,29), 7 -> (1,3), 6 -> (1,11))]
-[LineupErrorAnalysis] Total lineup errors (conf=[bigtwelve]) [4] (good: [1539])
-[LineupErrorAnalysis] Total possession errors: [10] (good: [4590])
+[LineupErrorAnalysis] Total lineup errors (conf=[bigtwelve]) [4] (good: [1560])
+[LineupErrorAnalysis] Total possession errors: [10] (good: [4657])
 [LineupErrorAnalysis] Bad lineup analysis: [Map(4 -> (1,10))]
 [LineupErrorAnalysis] Total lineup errors (conf=[pactwelve]) [2] (good: [515])
 [LineupErrorAnalysis] Total possession errors: [2] (good: [1589])

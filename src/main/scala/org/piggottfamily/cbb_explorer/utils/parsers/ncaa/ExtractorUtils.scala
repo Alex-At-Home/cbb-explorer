@@ -140,9 +140,9 @@ object ExtractorUtils {
   def duration_from_period(period: Int): Double = start_time_from_period(period + 1)
 
   /** Builds a player code out of the name, with various formats supported */
-  def build_player_code(in_name: String): LineupEvent.PlayerCodeId = {
+  def build_player_code(in_name: String, team: Option[TeamId]): LineupEvent.PlayerCodeId = {
     // Check full name vs map of misspellings
-    val name = DataQualityIssues.misspellings.get(in_name).getOrElse(in_name)
+    val name = DataQualityIssues.misspellings(team).get(in_name).getOrElse(in_name)
     def first_last(fragment: String): String = {
       if (fragment.isEmpty) {
         ""
@@ -175,7 +175,7 @@ object ExtractorUtils {
     }).map { name_part =>
       val lower_case_name_part = name_part.toLowerCase.replace(".", "")
       // Misspelled fragments:
-      DataQualityIssues.misspellings.get(lower_case_name_part).getOrElse(lower_case_name_part)
+      DataQualityIssues.misspellings(team).get(lower_case_name_part).getOrElse(lower_case_name_part)
     } match {
       case head :: tail => // don't ever filter the head
         def name_filter(candidate: String): Boolean =
@@ -211,8 +211,6 @@ object ExtractorUtils {
         transform_first_name(head) + middle + transform(tail.last, player_code_max_length)
     }
     LineupEvent.PlayerCodeId(code, PlayerId(name))
-
-    //TODO: need to handle misspellings including fixing name
   }
 
   // Internal Utils
@@ -415,8 +413,8 @@ object ExtractorUtils {
       opponent = prev.opponent,
       lineup_id = LineupEvent.LineupId.unknown, //(will calc once we have all the subs)
       players = prev.players, //(will re-calc once we have all the subs)
-      players_in = in.map(build_player_code).toList,
-      players_out = out.map(build_player_code).toList,
+      players_in = in.map(build_player_code(_, Some(prev.team.team))).toList,
+      players_out = out.map(build_player_code(_, Some(prev.team.team))).toList,
       raw_game_events = Nil,
       team_stats = LineupEventStats.empty, //(calculate these 2 later)
       opponent_stats = LineupEventStats.empty
@@ -504,13 +502,13 @@ object ExtractorUtils {
       def with_player_in(player_name: String): LineupBuildingState =
         copy(
           curr = curr.copy(
-            players_in = build_player_code(player_name) :: curr.players_in
+            players_in = build_player_code(player_name, Some(curr.team.team)) :: curr.players_in
           )
         )
       def with_player_out(player_name: String): LineupBuildingState =
         copy(
           curr = curr.copy(
-            players_out = build_player_code(player_name) :: curr.players_out
+            players_out = build_player_code(player_name, Some(curr.team.team)) :: curr.players_out
           )
         )
       def with_latest_score(score: Game.Score): LineupBuildingState = {

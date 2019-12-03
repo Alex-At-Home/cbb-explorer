@@ -99,7 +99,7 @@ trait BoxscoreParser {
       ).left.map(single_error_completer)
 
       validated_lineup <- validate_box_score(
-        starting_lineup
+        TeamId(team), starting_lineup
       ).left.map(single_error_completer)
 
     } yield LineupEvent(
@@ -207,13 +207,13 @@ trait BoxscoreParser {
   }
 
   /** Checks there are no duplicates in the lineup */
-  protected def validate_box_score(lineup: List[String]):
+  protected def validate_box_score(team: TeamId, lineup: List[String]):
     Either[ParseError, List[LineupEvent.PlayerCodeId]] =
   {
     def has_dups(l: List[LineupEvent.PlayerCodeId]): Boolean = {
       l.size != l.map(_.code).toSet.size
     }
-    lineup.map(build_player_code) match {
+    lineup.map(build_player_code(_, Some(team))) match {
       case l if has_dups(l) =>
         Left(ParseUtils.build_sub_error(`parent_fills_in`)(
           s"Duplicate players: [$l]"

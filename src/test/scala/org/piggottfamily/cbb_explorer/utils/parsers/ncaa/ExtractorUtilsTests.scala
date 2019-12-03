@@ -15,32 +15,42 @@ object ExtractorUtilsTests extends TestSuite {
       "build_player_code" - {
         val test_name =
           "Surname, F.irstname A B Iiii Iiiiaiii Jr Jr. Sr Sr. 4test the First second rAbbit Third"
-        TestUtils.inside(build_player_code(test_name)) {
+        TestUtils.inside(build_player_code(test_name, None)) {
           case LineupEvent.PlayerCodeId("FiRaSurname", PlayerId(`test_name`)) =>
         }
         val twin_name = "Mitchell, Makhi"
-        TestUtils.inside(build_player_code(twin_name)) {
+        TestUtils.inside(build_player_code(twin_name, None)) {
           case LineupEvent.PlayerCodeId("MiMitchell", PlayerId(`twin_name`)) =>
         }
         // Check that first names are never filtered
         val alt_name_format = "MAYER,M"
-        TestUtils.inside(build_player_code(alt_name_format)) {
+        TestUtils.inside(build_player_code(alt_name_format, None)) {
           case LineupEvent.PlayerCodeId("MMayer", PlayerId(`alt_name_format`)) =>
         }
         val jr_name_wrong = "Brown, Jr., Barry"
-        TestUtils.inside(build_player_code(jr_name_wrong)) {
+        TestUtils.inside(build_player_code(jr_name_wrong, None)) {
           case LineupEvent.PlayerCodeId("BaBrown", PlayerId(`jr_name_wrong`)) =>
         }
         // Check misspelling fixer
-        val name_wrong = "Dylan Ostekowski"
-        TestUtils.inside(build_player_code(name_wrong)) {
-          // (name remains wrong, but code is correct, so will get replaced by box score, see below)
-          case LineupEvent.PlayerCodeId("DyOsetkowski", PlayerId(`name_wrong`)) =>
+        List(None, Some(TeamId("TCU"))).foreach { team =>
+          val name_wrong = "Dylan Ostekowski"
+          TestUtils.inside(build_player_code(name_wrong, None)) {
+            // (name remains wrong, but code is correct, so will get replaced by box score, see below)
+            case LineupEvent.PlayerCodeId("DyOsetkowski", PlayerId(`name_wrong`)) if team.nonEmpty =>
+            case LineupEvent.PlayerCodeId("DyOstekowski", PlayerId(`name_wrong`)) =>
+          }
+          val name_wrong_box_format = "Ostekowski, Dylan"
+          val name_right_box_format = "Osetkowski, Dylan"
+          TestUtils.inside(build_player_code(name_wrong_box_format, None)) {
+            case LineupEvent.PlayerCodeId("DyOsetkowski", PlayerId(`name_right_box_format`)) if team.nonEmpty =>
+            case LineupEvent.PlayerCodeId("DyOstekowski", PlayerId(`name_wrong_box_format`)) =>
+          }
         }
-        val name_wrong_box_format = "Ostekowski, Dylan"
-        val name_right_box_format = "Osetkowski, Dylan"
-        TestUtils.inside(build_player_code(name_wrong_box_format)) {
-          case LineupEvent.PlayerCodeId("DyOsetkowski", PlayerId(`name_right_box_format`)) =>
+        List(None, Some(TeamId("TCU")), Some(TeamId("NotExist"))).foreach { team =>
+          val misspelling = "Willliams,John"
+          TestUtils.inside(build_player_code(misspelling, None)) {
+            case LineupEvent.PlayerCodeId("JoWilliams", PlayerId(`misspelling`)) =>
+          }
         }
         //TODO add some other cases (single name, no space for intermediate)
       }
@@ -130,7 +140,7 @@ object ExtractorUtilsTests extends TestSuite {
           player6 :: player7 :: Nil) = List(
             "Player One", "Player Two", "Player Three",
             "Player Four", "Player Five", "Player Six", "Player Seven"
-          ).map(build_player_code)
+          ).map(build_player_code(_, None))
 
         val my_team = TeamSeasonId(TeamId("TestTeam1"), Year(2017))
         val my_team_2018 = my_team.copy(year = Year(2018))
@@ -373,7 +383,7 @@ object ExtractorUtilsTests extends TestSuite {
         val alt_format_box = box_lineup.copy(players =
           List(
             "Mitchell, Makhel", "Mitchell, Makhi", "Kevin McClure", "Williams, Shaun", "Horne, P.J."
-          ).map(build_player_code)
+          ).map(build_player_code(_, None))
         )
 
         val alt_format_test_events =

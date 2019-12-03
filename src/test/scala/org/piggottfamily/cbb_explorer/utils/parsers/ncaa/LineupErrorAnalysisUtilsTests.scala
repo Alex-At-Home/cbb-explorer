@@ -24,9 +24,9 @@ object LineupErrorAnalysisUtilsTests extends TestSuite {
           player6 :: player7 :: Nil) = List(
             "Player One", "Player Two", "Player Three",
             "Player Four", "Player Five", "Player Six", "Player Seven"
-          ).map(ExtractorUtils.build_player_code)
+          ).map(ExtractorUtils.build_player_code(_, None))
         val all_player_set = all_players.map(_.code).toSet
-        val player8 = ExtractorUtils.build_player_code("Player Eight")
+        val player8 = ExtractorUtils.build_player_code("Player Eight", None)
 
         val valid_players = player1 :: player2 :: player3 :: player4 :: player5 :: Nil
         val too_few_players = player1 :: player2 :: player3 :: player4 :: Nil

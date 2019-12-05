@@ -58,21 +58,30 @@ object LineupErrorAnalysisUtilsTests extends TestSuite {
         val lineup_too_few = base_lineup.copy(players = too_few_players)
         val lineup_unknown_player = base_lineup.copy(players = unknown_player)
         val lineup_multi_bad = base_lineup.copy(players = multi_bad)
+        val lineup_inactive = base_lineup.copy(
+          players = valid_players,
+          raw_game_events = List(
+            LineupEvent.RawGameEvent.team("0:00,0-0,PLAYER,BAD Does Stuff", 0.0)
+          )
+        )
 
-        TestUtils.inside(validate_lineup(good_lineup, all_player_set).toList) {
+        TestUtils.inside(validate_lineup(good_lineup, base_lineup, all_player_set).toList) {
           case List() =>
         }
-        TestUtils.inside(validate_lineup(lineup_too_many, all_player_set).toList) {
+        TestUtils.inside(validate_lineup(lineup_too_many, base_lineup, all_player_set).toList) {
           case List(ValidationError.WrongNumberOfPlayers) =>
         }
-        TestUtils.inside(validate_lineup(lineup_too_few, all_player_set).toList) {
+        TestUtils.inside(validate_lineup(lineup_too_few, base_lineup, all_player_set).toList) {
           case List(ValidationError.WrongNumberOfPlayers) =>
         }
-        TestUtils.inside(validate_lineup(lineup_unknown_player, all_player_set).toList) {
+        TestUtils.inside(validate_lineup(lineup_unknown_player, base_lineup, all_player_set).toList) {
           case List(ValidationError.UnknownPlayers) =>
         }
-        TestUtils.inside(validate_lineup(lineup_multi_bad, all_player_set).toList) {
+        TestUtils.inside(validate_lineup(lineup_multi_bad, base_lineup, all_player_set).toList) {
           case List(ValidationError.WrongNumberOfPlayers, ValidationError.UnknownPlayers) =>
+        }
+        TestUtils.inside(validate_lineup(lineup_inactive, base_lineup, all_player_set).toList) {
+          case List(ValidationError.InactivePlayers) =>
         }
       }
     }

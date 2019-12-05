@@ -65,7 +65,7 @@ object EventUtils {
   object ParseAnyPlay {
     // (see other parsers for examples)
     private val any_play_regex_new = "[^,]+,[^,]+,([^,]+), .*".r //(can't match on old because of ", ")
-    private val any_play_regex_old = "[^,]+,[^,]+,([ A-Z0-9.,-]+) .*".r //(can't match on new test for new first)
+    private val any_play_regex_old = "[^,]+,[^,]+,([ A-Z.,-]+) .*".r //(can't match on new test for new first)
     def unapply(x: String): Option[String] = Option(x) match {
       // (order matters here:)
       case Some(any_play_regex_new(player)) => Some(player)

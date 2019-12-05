@@ -36,6 +36,19 @@ object ExtractorUtilsTests extends TestSuite {
         TestUtils.inside(build_player_code(has_accent, None)) {
           case LineupEvent.PlayerCodeId("DoJuhasz", PlayerId(`has_no_accent`)) =>
         }
+        // Check max fragment length:
+        val long_name = "MAMUKELASHVIL,SANDRO" //(already truncated by 1!)
+        TestUtils.inside(build_player_code(long_name, None)) {
+          case LineupEvent.PlayerCodeId("SaMamukelash", PlayerId(`long_name`)) =>
+        }
+        val long_name2 = "BIGBY-WILLIAM,KAVELL" //(already truncated by several!)
+        TestUtils.inside(build_player_code(long_name2, None)) {
+          case LineupEvent.PlayerCodeId("KaBigby-will", PlayerId(`long_name2`)) =>
+        }
+        val long_name_alt2 = "Kavell Bigby-Williams"
+        TestUtils.inside(build_player_code(long_name_alt2, None)) {
+          case LineupEvent.PlayerCodeId("KaBigby-will", PlayerId(`long_name_alt2`)) =>
+        }
         // Check misspelling fixer
         List(None, Some(TeamId("TCU"))).foreach { team =>
           val name_wrong = "Dylan Ostekowski"
@@ -387,21 +400,24 @@ object ExtractorUtilsTests extends TestSuite {
         // (include ugly case where there are multiple names in the alt format with the same first name:)
         val alt_format_box = box_lineup.copy(players =
           List(
-            "Mitchell, Makhel", "Mitchell, Makhi", "Kevin McClure", "Williams, Shaun", "Horne, P.J."
+            "Mitchell, Makhel", "Mitchell, Makhi", "Kevin McClure", "Williams, Shaun", "Horne, P.J.",
+            "Doumbia, Ibrahim Famouke", "Gudmundsson, Jon Axel"
           ).map(build_player_code(_, None))
         )
 
         val alt_format_test_events =
           Model.SubInEvent(0.1, Game.Score(0, 0), "Mitchell,M") ::
           Model.SubInEvent(0.1, Game.Score(0, 0), "NEAL-WILLIAMS,SHAUN") ::
+          Model.SubInEvent(0.1, Game.Score(0, 0), "DOUMBIA,IBRAHIM") ::
           Model.SubOutEvent(0.1, Game.Score(0, 0), "MCCLURE,K") ::
           Model.SubOutEvent(0.1, Game.Score(0, 0), "Preston Horne") ::
+          Model.SubOutEvent(0.1, Game.Score(0, 0), "GUDMUNDSSON,J") ::
           Nil
 
         TestUtils.inside(build_partial_lineup_list(alt_format_test_events.toIterator, alt_format_box)) {
           case start :: event :: Nil =>
-            event.players_in.map(_.code) ==> List("MMitchell", "ShWilliams")
-            event.players_out.map(_.code) ==> List("KeMcclure", "PjHorne")
+            event.players_in.map(_.code) ==> List("MMitchell", "ShWilliams", "IbFaDoumbia")
+            event.players_out.map(_.code) ==> List("KeMcclure", "PjHorne", "JoAxGudmundsso")
         }
       }
     }

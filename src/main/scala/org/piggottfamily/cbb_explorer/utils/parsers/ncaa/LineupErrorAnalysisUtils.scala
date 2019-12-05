@@ -7,12 +7,19 @@ import org.piggottfamily.cbb_explorer.utils.parsers._
 /** Wraps several functions for finding and fixing errors in the PbP/box score */
 object LineupErrorAnalysisUtils {
   /** For debugging unknown cases */
-  private val debug = false
+  private val debug = true
 
   /** Possible ways in which a lineup can be declared invalid */
   object ValidationError extends Enumeration {
-    val WrongNumberOfPlayers, UnknownPlayers = Value
+    val WrongNumberOfPlayers, UnknownPlayers, InactivePlayers = Value
   }
+  val allowedErrors: Set[ValidationError.Value] = (
+    ValidationError.WrongNumberOfPlayers :: // <>5 players in lineup
+    ValidationError.UnknownPlayers :: // players not in the box score
+    ValidationError.InactivePlayers :: // players mentioned in game events who aren't in the lineup
+    Nil
+  ).toSet
+
 
   case class TidyPlayerContext(
     box_lineup: LineupEvent,
@@ -21,23 +28,35 @@ object LineupErrorAnalysisUtils {
   )
 
   /** AaBbb... -> ABbbbbb, see below for explanation */
-  private def truncate_code(code: String): String = {
-    if ((code.length >= 3) && code(2).isUpper) { // AaBbb... -> ABbbbbb
-      code(0) + code.drop(2)
-    } else {
-      code
+  private def truncate_code_1(code: String): String = {
+    val truncation_regex = "^([A-Z]).*?([A-Z][a-z.-]*)$".r //(initial then last name)
+    code match {
+      case truncation_regex(initial, surname) => initial + surname
+      case _ => code
+    }
+  }
+  /** AaBbCccc... -> AaCccc, see below for explanation */
+  private def truncate_code_2(code: String): String = {
+    val truncation_regex = "^([A-Z][a-z]).*?([A-Z][a-z.-]*)$".r //(initial then last name)
+    code match {
+      case truncation_regex(first_name, surname) => first_name + surname
+      case _ => code
     }
   }
 
   /** Builds some alternative maps of player codes vs player names */
   def build_tidy_player_context(box_lineup: LineupEvent): TidyPlayerContext = {
     val all_players_map = box_lineup.players.map(p => p.code -> p.id.name).toMap
-    // Sometimes the game has SURNAME,INITIAL instead of SURNAME,NAME
+    // Sometimes the game event has SURNAME,INITIAL instead of SURNAME,NAME
+    // And sometimes SURNAME,NAME1 instead of SURNAME,NAME1 NAME2
     val alt_all_players_map = all_players_map.toList.groupBy { case (code, name) =>
-      truncate_code(code)
+      truncate_code_1(code)
+    }.mapValues(_.map(pp => pp._2)) ++ all_players_map.toList.groupBy { case (code, name) =>
+      truncate_code_2(code)
     }.mapValues(_.map(pp => pp._2)) //ie code -> list(names)
     TidyPlayerContext(box_lineup, all_players_map, alt_all_players_map)
   }
+
   /** Grabs the tidy version of a player's name from the box score */
   def tidy_player(p: String, ctx: TidyPlayerContext): String = {
     val player_id = ExtractorUtils.build_player_code(p, Some(ctx.box_lineup.team.team))
@@ -54,7 +73,7 @@ object LineupErrorAnalysisUtils {
         } else None
       }.orElse {
         // Often we see "D.J."" in the box lineup, and then (say) "Dan" in the PBP
-        val truncated_code = truncate_code(player_id.code)
+        val truncated_code = truncate_code_1(player_id.code)
         ctx.alt_all_players_map.get(truncated_code).flatMap {
           case unique :: Nil =>
             // Insert a "j" for junior into the name and see if that fixes it:
@@ -73,7 +92,7 @@ object LineupErrorAnalysisUtils {
     * ... A makes shot...player A enters game)
    */
   def validate_lineup(
-    lineup_event: LineupEvent, valid_player_codes: Set[String]
+    lineup_event: LineupEvent, box_lineup: LineupEvent, valid_player_codes: Set[String]
   ): Set[ValidationError.Value] = {
     // Check the right number of players:
     val right_number_of_players = lineup_event.players.size == 5
@@ -83,11 +102,18 @@ object LineupErrorAnalysisUtils {
     val all_players_known = lineup_event.players.forall {
       case LineupEvent.PlayerCodeId(code, _) => valid_player_codes(code)
     }
-    //TODO: what about if a player not in the game is mentioned in a game event?
+    // Players not mentioned in game
+    val tidy_ctx = build_tidy_player_context(box_lineup)
+    //TODO: move this to a private fn since it's used in a few places
+    val inactive_players_mentioned = lineup_event.raw_game_events.flatMap(_.team.toList).collect {
+      case EventUtils.ParseAnyPlay(player) if player.toLowerCase != "team" =>
+        ExtractorUtils.build_player_code(tidy_player(player, tidy_ctx), Some(lineup_event.team.team)).code
+    }.filterNot(valid_player_codes)
 
-    Set(ValidationError.WrongNumberOfPlayers).filterNot(_ => right_number_of_players) ++
+    (Set(ValidationError.WrongNumberOfPlayers).filterNot(_ => right_number_of_players) ++
     Set(ValidationError.UnknownPlayers).filterNot(_ => all_players_known) ++
-    Set() // (terminator)
+    Set(ValidationError.InactivePlayers).filter(_ => inactive_players_mentioned.nonEmpty) ++
+    Set()).filter(allowedErrors) // (terminator)
   }
 
   /** Wraps a related clump of bad lineup events, plus the first following good event */
@@ -130,7 +156,7 @@ object LineupErrorAnalysisUtils {
    * "IN: X, Y, Z; OUT: A" ... "OUT: C, Z"
   */
   def handle_common_sub_bug(
-    clump: BadLineupClump, valid_player_codes: Set[String]
+    clump: BadLineupClump, box_lineup: LineupEvent, valid_player_codes: Set[String]
   ): (List[LineupEvent], BadLineupClump) = {
     clump match {
       case BadLineupClump(bad :: Nil, Some(good))
@@ -143,7 +169,7 @@ object LineupErrorAnalysisUtils {
           players_out = (bad.players_out ++ good.players_out).distinct,
           players = all_players
         )
-        if (validate_lineup(fixed_lineup_ev, valid_player_codes).isEmpty) {
+        if (validate_lineup(fixed_lineup_ev, box_lineup, valid_player_codes).isEmpty) {
           (fixed_lineup_ev :: Nil, BadLineupClump(Nil, None))
         } else {
           (Nil, BadLineupClump(fixed_lineup_ev :: Nil, Some(good)))
@@ -213,7 +239,7 @@ object LineupErrorAnalysisUtils {
           ev.copy(
             players = ev.players ++ players_to_add
           )
-        }.partition(validate_lineup(_, valid_player_codes).isEmpty)
+        }.partition(validate_lineup(_, box_lineup, valid_player_codes).isEmpty)
 
         (good_lineups, BadLineupClump(bad_lineups, clump.next_good))
       } else {
@@ -271,7 +297,7 @@ object LineupErrorAnalysisUtils {
           ev.copy(
             players = ev.players.filterNot(filtered_candidates)
           )
-        }.partition(validate_lineup(_, valid_player_codes).isEmpty)
+        }.partition(validate_lineup(_, box_lineup, valid_player_codes).isEmpty)
 
         (good_lineups, BadLineupClump(bad_lineups, clump.next_good))
       } else {
@@ -290,7 +316,7 @@ object LineupErrorAnalysisUtils {
     val candidates = clump.evs.headOption.map(_.players).getOrElse(Nil).toSet
     val expected_size_diff = candidates.size - 5
 
-    val validation = clump.evs.headOption.map(ev => validate_lineup(ev, valid_player_codes))
+    val validation = clump.evs.headOption.map(ev => validate_lineup(ev, box_lineup, valid_player_codes))
 
     println(s"$debug_prefix --------------------------------------------------")
     println(s"$debug_prefix CLUMP [+$expected_size_diff] size=[${clump.evs.size}] [?${clump.next_good.nonEmpty}] [!${validation}]")
@@ -320,7 +346,7 @@ object LineupErrorAnalysisUtils {
     // (see https://github.com/Alex-At-Home/cbb-explorer/issues/6#issuecomment-560132341)
 
     Some(clump).map { to_fix =>
-      handle_common_sub_bug(to_fix, valid_player_codes)
+      handle_common_sub_bug(to_fix, box_lineup, valid_player_codes)
     }.map { case (fixed, to_fix) =>
       val (newly_fixed, still_to_fix) = find_missing_subs(to_fix, box_lineup, valid_player_codes)
       (fixed ++ newly_fixed, still_to_fix)

@@ -10,6 +10,8 @@ object ExtractorUtils {
 
   /** The length of the player code, eg AlPi==4, AlPiggoty==8 etc */
   val player_code_max_length = 16
+  /** The max length of any one fragment, eg "MAMUKELASHVILI" is truncated to "MAMUKELASH" */
+  val player_code_max_fragment_length = 10
 
   /** Error enrichment placeholder */
   val `parent_fills_in` = ""
@@ -179,7 +181,9 @@ object ExtractorUtils {
     }).map { name_part =>
       val lower_case_name_part = name_part.toLowerCase.replace(".", "")
       // Misspelled fragments:
-      DataQualityIssues.misspellings(team).get(lower_case_name_part).getOrElse(lower_case_name_part)
+      DataQualityIssues.misspellings(team)
+        .get(lower_case_name_part).getOrElse(lower_case_name_part)
+        .take(player_code_max_fragment_length)
     } match {
       case head :: tail => // don't ever filter the head
         def name_filter(candidate: String): Boolean =

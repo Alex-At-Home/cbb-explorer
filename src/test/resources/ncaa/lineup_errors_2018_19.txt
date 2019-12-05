@@ -7,9 +7,9 @@
 [LineupErrorAnalysis] Total lineup errors (conf=[atlanticten]) [121] (good: [9922])
 [LineupErrorAnalysis] Total possession errors: [254] (good: [30137])
 [LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (6,53), 6 -> (27,140), 9 -> (1,4), 2 -> (2,2), 7 -> (4,10), 8 -> (1,6), 4 -> (7,39))]
-[LineupErrorAnalysis] Total lineup errors (conf=[bigeast]) [65] (good: [7876])
-[LineupErrorAnalysis] Total possession errors: [156] (good: [23528])
-[LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (7,26), 6 -> (16,76), 9 -> (1,1), 2 -> (1,0), 7 -> (6,27), 3 -> (2,4), 8 -> (2,18), 4 -> (7,4))]
+[LineupErrorAnalysis] Total lineup errors (conf=[bigeast]) [50] (good: [7891])
+[LineupErrorAnalysis] Total possession errors: [130] (good: [23554])
+[LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (1,0), 6 -> (16,76), 9 -> (1,1), 2 -> (1,0), 7 -> (6,27), 3 -> (2,4), 8 -> (2,18), 4 -> (7,4))]
 [LineupErrorAnalysis] Total lineup errors (conf=[bigten]) [12] (good: [11092])
 [LineupErrorAnalysis] Total possession errors: [18] (good: [32362])
 [LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (1,2), 4 -> (2,0), 3 -> (1,0), 6 -> (4,16))]
@@ -19,9 +19,9 @@
 [LineupErrorAnalysis] Total lineup errors (conf=[pactwelve]) [82] (good: [8919])
 [LineupErrorAnalysis] Total possession errors: [133] (good: [27409])
 [LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (14,43), 6 -> (19,52), 2 -> (1,0), 7 -> (3,13), 8 -> (1,4), 4 -> (8,21))]
-[LineupErrorAnalysis] Total lineup errors (conf=[sec]) [126] (good: [11781])
-[LineupErrorAnalysis] Total possession errors: [228] (good: [32776])
-[LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (16,52), 6 -> (52,146), 7 -> (8,15), 3 -> (1,0), 8 -> (3,7), 4 -> (4,8))]
+[LineupErrorAnalysis] Total lineup errors (conf=[sec]) [119] (good: [11788])
+[LineupErrorAnalysis] Total possession errors: [212] (good: [32792])
+[LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (12,36), 6 -> (53,147), 7 -> (7,14), 3 -> (1,0), 8 -> (3,7), 4 -> (4,8))]
 [LineupErrorAnalysis] Total lineup errors (conf=[misc_conf]) [143] (good: [6580])
 [LineupErrorAnalysis] Total possession errors: [322] (good: [18840])
 [LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (2,4), 6 -> (53,262), 7 -> (12,38), 3 -> (1,0), 8 -> (2,3), 4 -> (7,15))]

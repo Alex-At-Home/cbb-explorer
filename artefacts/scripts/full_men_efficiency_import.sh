@@ -16,15 +16,15 @@ mv $PBP_OUT_DIR/*.ndjson $PBP_OUT_DIR/archive
 rm -f $PBP_OUT_DIR/efficiency_logs_${CURR_TIME}.log
 
 export COOKIE_FRAGMENT=$(echo "$COOKIE" | grep -E -o "[a-z0-9]{26}" )
-echo "$EFF_ROOT_URL TRUE / FALSE 1999999999 PHPSESSID $COOKIE_FRAGMENT" | tr " " \\t > $PWD/cookies.txt
+sed s/COOKIE_FRAGMENT/"$COOKIE_FRAGMENT"/ $PWD/cookies_template.txt > $PWD/cookies.txt
 echo "Using [$COOKIE_FRAGMENT] for authentication"
 
-$PBP_SRC_ROOT/artefacts/httrack-scripts/efficiency-cli-curryear.sh
+#$PBP_SRC_ROOT/artefacts/httrack-scripts/efficiency-cli-curryear.sh || exit -1
 
 # Can't easily detect failures so just always retry
 echo "Retrying x1 to catch any stragglers (after 1min pause)"
 sleep 60
-$PBP_SRC_ROOT/artefacts/httrack-scripts/efficiency-cli-curryear.sh --retry
+$PBP_SRC_ROOT/artefacts/httrack-scripts/efficiency-cli-curryear.sh --retry || exit -1
 
 java -cp "$PBP_SRC_ROOT/target/scala-2.12/cbb-explorer-assembly-0.1-deps.jar:$PBP_SRC_ROOT/target/scala-2.12/cbb-explorer_2.12-0.1.jar" \
     org.piggottfamily.cbb_explorer.BuildEfficiency \

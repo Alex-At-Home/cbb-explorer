@@ -4,7 +4,7 @@ filebeat.inputs:
 - type: log
   enabled: true
   paths:
-    - ADD_PATH
+    - ./efficiency_men_*.ndjson
   json.keys_under_root: true
 
 #================================ Output =====================================
@@ -16,6 +16,7 @@ cloud.auth: "ADD_USER:ADD_PASSWORD"
 
 output.elasticsearch:
   index: "ADD_INDEX"
+  pipeline: "men_efficiency_id_pipeline"
 
 setup.template.enabled: false
 

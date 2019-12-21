@@ -28,3 +28,7 @@ done
 
 # Output a summary of the bulk import:
 grep "LineupErrorAnalysis" $PBP_OUT_DIR/bulk_import_logs_${CURR_TIME}.log
+
+# Import:
+echo "Importing new game data..."
+$ELASTIC_FILEBEAT_BIN -c $ELASTIC_FILEBEAT_CONFIG_ROOT/filebeat_lineups.yaml --once

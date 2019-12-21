@@ -61,6 +61,19 @@ object EventUtils {
 
   // In-game events (NOTE: based on the combined time,score,event)
 
+  /** Pulls the player out */
+  object ParseAnyPlay {
+    // (see other parsers for examples)
+    private val any_play_regex_new = "[^,]+,[^,]+,([^,]+), .*".r //(can't match on old because of ", ")
+    private val any_play_regex_old = "[^,]+,[^,]+,([ A-Z.,-]+) .*".r //(can't match on new test for new first)
+    def unapply(x: String): Option[String] = Option(x) match {
+      // (order matters here:)
+      case Some(any_play_regex_new(player)) => Some(player)
+      case Some(any_play_regex_old(player)) => Some(player)
+      case _ => None
+    }
+  }
+
   // Jump ball
 
   /** We don't care if it was won or lost actually */

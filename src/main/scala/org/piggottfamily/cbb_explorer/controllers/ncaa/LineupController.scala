@@ -15,12 +15,12 @@ import scala.util.{Try, Success, Failure}
 /** Top level business logic for parsing the different datasets */
 class LineupController(d: Dependencies = Dependencies())
 {
-  /** Builds up a list of a team's good lineups (logging but otherwise ignoring errors) */
+  /** Builds up a list of a team's good lineups (logging and returning errored lineups) */
   def build_team_lineups(
     root_dir: Path, team: TeamId,
     game_id_filter: Option[Regex] = None, min_time_filter: Option[Long] = None
   )
-    : List[LineupEvent] =
+    : (List[LineupEvent], List[LineupEvent]) =
   {
     sealed trait LineupError
     case class FileError(f: Path, ex: Throwable) extends LineupError
@@ -68,14 +68,14 @@ class LineupController(d: Dependencies = Dependencies())
       }
     } yield lineup
 
-    case class State(good_lineups: List[LineupEvent], num_bad_lineups: Int)
-    val end_state = lineups.foldLeft(State(Nil, 0)) { (state, lineup_info) =>
+    case class State(good_lineups: List[LineupEvent], bad_lineups: List[LineupEvent])
+    val end_state = lineups.foldLeft(State(Nil, Nil)) { (state, lineup_info) =>
       lineup_info match {
         case Right((good, bad)) =>
           d.logger.info(s"Successful parse: good=[${good.size}] bad=[${bad.size}]")
           state.copy(
             good_lineups = state.good_lineups ++ good,
-            num_bad_lineups = state.num_bad_lineups + bad.size
+            bad_lineups = state.bad_lineups ++ bad
           )
         case Left(FileError(game, ex)) =>
           d.logger.info(s"File error with [$game]: [$ex]")
@@ -85,7 +85,7 @@ class LineupController(d: Dependencies = Dependencies())
           state
       }
     }
-    end_state.good_lineups
+    (end_state.good_lineups, end_state.bad_lineups)
   }
 
   /** Given a game/team id, returns good and bad paths for that game */

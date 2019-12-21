@@ -21,6 +21,9 @@ object EventUtilsTests extends TestSuite {
       val timeout_test_cases =
         "04:04:00,26-33,Ignored, timeout short" ::
         "00:21,59-62,IGNORED 30 Second Timeout" ::
+        "10:00,51-60,TEAM 30 Second Timeout" ::
+        "10:00,51-60,TEAM Team Timeout" ::
+        "10:00,51-60,TEAM Media Timeout" ::
         Nil
 
       val shot_made_test_cases =
@@ -34,6 +37,7 @@ object EventUtilsTests extends TestSuite {
         "08:44:00,20-23,STEVENS,LAMAR2 made Two Point Jumper" ::
         "08:44:00,20-23,Eric Ayala, 3pt jumpshot made" ::
         "08:44:00,20-23,SMITH,JALEN made Three Point Jumper" ::
+        "15:27,13-8,TRIMBLE JR,BRYAN made Three Point Jumper" ::
         Nil
 
       val shot_missed_test_cases =
@@ -126,6 +130,37 @@ object EventUtilsTests extends TestSuite {
         foul_test_cases
       )
 
+      // All plays - check the players are pulled out
+      "ParseAnyPlay" - {
+        //TODO: this isn't a great test because it doesn't tell me if I pull out eg "TEAM 30"...
+        // ...instead of "TEAM"
+
+        val some_names = Map(
+          "DREAD,MYLES" -> 1,
+          "HARRAR,JOHN" -> 1,
+          "Kavell Bigby-Williams" -> 1,
+          "WATKINS,MIKE" -> 1,
+          "Bruno Fernando" -> 1,
+          "Emmitt Williams" -> 1,
+          "Team" -> 3, //(3 orb)
+          "Jalen Smith" -> 1,
+          "Darryl Morsell" -> 1,
+          "Joshua Tomaic" -> 2, //(missed shot, turnover)
+          "SMITH,JALEN" -> 1,
+          "TEAM" -> 5, //(3 timeouts, 1 orb, 1 foul)
+          "BOLTON,RASIR" -> 1,
+          "MASON III,FRANK" -> 1,
+          "TRIMBLE JR,BRYAN" -> 1
+        )
+
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseAnyPlay(name) => name
+        }.filter(some_names.keySet).groupBy(identity).mapValues(_.size).toList) {
+          case name_counts =>
+            name_counts ==> some_names.toList
+        }
+      }
+
       // jumpball
       "ParseJumpballWonOrLost" - {
         TestUtils.inside(all_test_cases.collect {
@@ -146,14 +181,14 @@ object EventUtilsTests extends TestSuite {
         TestUtils.inside(all_test_cases.collect {
           case EventUtils.ParseTimeout(name) => name
         }) {
-          case List("Team", "TEAM") =>
+          case List("Team", "TEAM", "TEAM", "TEAM", "TEAM") =>
         }
       }
       // Shots
       val shots_made = List(
         "Bruno Fernando1", "Bruno Fernando2", "WATKINS,MIKE", "Jalen Smith",
         "BOLTON,RASIR", "STEVENS,LAMAR", "Anthony Cowan", "STEVENS,LAMAR2",
-        "Eric Ayala", "SMITH,JALEN"
+        "Eric Ayala", "SMITH,JALEN", "TRIMBLE JR,BRYAN"
       )
       "ParseShotMade" - {
         TestUtils.inside(all_test_cases.collect {
@@ -189,7 +224,7 @@ object EventUtilsTests extends TestSuite {
           case EventUtils.ParseThreePointerMade(name) => name
         }) {
           case List(
-            "Eric Ayala", "SMITH,JALEN"
+            "Eric Ayala", "SMITH,JALEN", "TRIMBLE JR,BRYAN"
           ) =>
         }
       }

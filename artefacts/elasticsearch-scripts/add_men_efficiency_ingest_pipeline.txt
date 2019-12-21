@@ -1,0 +1,12 @@
+PUT _ingest/pipeline/men_efficiency_id_pipeline
+{
+  "description" : "Injects an _id into the record",
+  "processors" : [
+    {
+      "set" : {
+        "field": "_id",
+        "value": "{{team_season.team}} {{team_season.year}}"
+      }
+    }
+  ]
+}

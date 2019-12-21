@@ -36,7 +36,7 @@ object BoxscoreParserTests extends TestSuite with BoxscoreParser {
               date, Game.LocationType.Away, `mins`, `mins`, 0.0, score,
               TeamSeasonId(TeamId("TeamA"), Year(2018)),
               TeamSeasonId(TeamId("TeamB"), Year(2018)),
-              _, lineup, Nil, Nil, Nil, _, _
+              _, lineup, Nil, Nil, Nil, _, _, _
             )) =>
               date.toString ==> "2018-12-10T17:00:00.000-05:00"
               lineup ==> {
@@ -50,7 +50,7 @@ object BoxscoreParserTests extends TestSuite with BoxscoreParser {
                 "S8rname, F8rstname TeamA" ::
                 "S9rname, F9rstname TeamA" ::
                 Nil
-              }.map(build_player_code).sortBy(_.code)
+              }.map(build_player_code(_, None)).sortBy(_.code)
 
               score ==> LineupEvent.ScoreInfo(Game.Score(0,0),Game.Score(92,91),0,0)
           }
@@ -62,7 +62,7 @@ object BoxscoreParserTests extends TestSuite with BoxscoreParser {
               date, Game.LocationType.Home, `mins`, `mins`, 0.0, score,
               TeamSeasonId(TeamId("TeamB"), Year(2018)),
               TeamSeasonId(TeamId("TeamA"), Year(2018)),
-              _, lineup, Nil, Nil, Nil, _, _
+              _, lineup, Nil, Nil, Nil, _, _, _
             )) =>
               date.toString ==> "2018-12-10T17:00:00.000-05:00"
               lineup ==> {
@@ -77,7 +77,7 @@ object BoxscoreParserTests extends TestSuite with BoxscoreParser {
                 "S9rname, F9rstname TeamB" ::
                 "SArname, FArstname TeamB" ::
                 Nil
-              }.map(build_player_code).sortBy(_.code)
+              }.map(build_player_code(_, None)).sortBy(_.code)
 
               score ==> LineupEvent.ScoreInfo(Game.Score(0,0),Game.Score(91,92),0,0)
           }
@@ -91,7 +91,7 @@ object BoxscoreParserTests extends TestSuite with BoxscoreParser {
                 _, Game.LocationType.Neutral, _, _, _, _,
                 _,
                 _,
-                _, _, _, _, _, _, _
+                _, _, _, _, _, _, _, _
               )) =>
             }
           }
@@ -124,10 +124,10 @@ object BoxscoreParserTests extends TestSuite with BoxscoreParser {
       "validate_box_score" - {
         val good_lineup = "Player One" :: "Player Two" :: Nil
         val bad_lineup = "Pete One" :: "Peter One" :: Nil
-        TestUtils.inside(validate_box_score(good_lineup)) {
+        TestUtils.inside(validate_box_score(TeamId("Team"), good_lineup)) {
           case Right(l) => l.size == 2
         }
-        TestUtils.inside(validate_box_score(bad_lineup)) {
+        TestUtils.inside(validate_box_score(TeamId("Team"), bad_lineup)) {
           case Left(e) =>
         }
       }

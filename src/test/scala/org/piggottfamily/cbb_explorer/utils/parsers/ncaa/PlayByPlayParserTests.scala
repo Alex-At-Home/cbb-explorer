@@ -49,7 +49,7 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
           "S8rname, F8rstname TeamA" ::
           "S9rname, F9rstname TeamA" ::
           Nil
-        }.map(build_player_code)
+        }.map(build_player_code(_, None))
 
         val box_lineup = LineupEvent(
           date = new DateTime(),

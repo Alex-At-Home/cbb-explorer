@@ -1,0 +1,27 @@
+[LineupErrorAnalysis] Total lineup errors (conf=[acc]) [28] (good: [2642])
+[LineupErrorAnalysis] Total possession errors: [69] (good: [8357])
+[LineupErrorAnalysis] Bad lineup analysis: [Map(4 -> (1,1), 7 -> (1,7), 3 -> (1,1), 6 -> (10,60))]
+[LineupErrorAnalysis] Total lineup errors (conf=[american]) [5] (good: [2064])
+[LineupErrorAnalysis] Total possession errors: [16] (good: [6007])
+[LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (1,0), 6 -> (3,16))]
+[LineupErrorAnalysis] Total lineup errors (conf=[atlanticten]) [41] (good: [2547])
+[LineupErrorAnalysis] Total possession errors: [82] (good: [7700])
+[LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (1,2), 4 -> (4,15), 7 -> (6,22), 6 -> (15,43))]
+[LineupErrorAnalysis] Total lineup errors (conf=[bigeast]) [3] (good: [2021])
+[LineupErrorAnalysis] Total possession errors: [4] (good: [5977])
+[LineupErrorAnalysis] Bad lineup analysis: [Map(4 -> (1,1), 6 -> (2,3))]
+[LineupErrorAnalysis] Total lineup errors (conf=[bigten]) [13] (good: [2625])
+[LineupErrorAnalysis] Total possession errors: [43] (good: [7800])
+[LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (2,29), 7 -> (1,3), 6 -> (1,11))]
+[LineupErrorAnalysis] Total lineup errors (conf=[bigtwelve]) [4] (good: [1706])
+[LineupErrorAnalysis] Total possession errors: [10] (good: [5075])
+[LineupErrorAnalysis] Bad lineup analysis: [Map(4 -> (1,10))]
+[LineupErrorAnalysis] Total lineup errors (conf=[pactwelve]) [2] (good: [515])
+[LineupErrorAnalysis] Total possession errors: [2] (good: [1589])
+[LineupErrorAnalysis] Bad lineup analysis: [Map(4 -> (1,0), 6 -> (1,2))]
+[LineupErrorAnalysis] Total lineup errors (conf=[sec]) [22] (good: [2653])
+[LineupErrorAnalysis] Total possession errors: [64] (good: [7619])
+[LineupErrorAnalysis] Bad lineup analysis: [Map(8 -> (1,4), 5 -> (3,15), 4 -> (4,11), 6 -> (5,34))]
+[LineupErrorAnalysis] Total lineup errors (conf=[misc_conf]) [1] (good: [380])
+[LineupErrorAnalysis] Total possession errors: [0] (good: [1287])
+[LineupErrorAnalysis] Bad lineup analysis: [Map(3 -> (1,0))]

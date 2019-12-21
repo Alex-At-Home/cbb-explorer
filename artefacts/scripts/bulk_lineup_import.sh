@@ -14,6 +14,7 @@ sleep 2
 mkdir -p $PBP_OUT_DIR/archive
 mv $PBP_OUT_DIR/*.ndjson $PBP_OUT_DIR/archive
 
+rm -f $PBP_OUT_DIR/bulk_import_logs_${CURR_TIME}.log
 for i in $CONFS; do
   echo "******* Extracting conference [$i]"
   $PBP_SRC_ROOT/artefacts/httrack-scripts/conf-years/${i}/${CURR_YEAR_STR}/lineups-cli.sh
@@ -22,5 +23,12 @@ for i in $CONFS; do
     org.piggottfamily.cbb_explorer.BuildLineups \
     --in=$PBP_CRAWL_PATH/${i}/${CURR_YEAR}/ \
     --out=$PBP_OUT_DIR \
-    --from=$CURR_TIME
+    --from=$CURR_TIME >> $PBP_OUT_DIR/bulk_import_logs_${CURR_TIME}.log
 done
+
+# Output a summary of the bulk import:
+grep "LineupErrorAnalysis" $PBP_OUT_DIR/bulk_import_logs_${CURR_TIME}.log
+
+# Import:
+echo "Importing new game data..."
+$ELASTIC_FILEBEAT_BIN -c $ELASTIC_FILEBEAT_CONFIG_ROOT/filebeat_lineups.yaml --once

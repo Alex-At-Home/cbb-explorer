@@ -7,3 +7,4 @@ project/project/*
 .ensime_cache
 ensime.sbt
 .scripts.env
+log*.txt

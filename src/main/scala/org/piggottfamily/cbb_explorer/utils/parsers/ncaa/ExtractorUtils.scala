@@ -10,6 +10,8 @@ object ExtractorUtils {
 
   /** The length of the player code, eg AlPi==4, AlPiggoty==8 etc */
   val player_code_max_length = 16
+  /** The max length of any one fragment, eg "MAMUKELASHVILI" is truncated to "MAMUKELASH" */
+  val player_code_max_fragment_length = 10
 
   /** Error enrichment placeholder */
   val `parent_fills_in` = ""
@@ -25,25 +27,22 @@ object ExtractorUtils {
   ): List[LineupEvent] = {
     val starters_only = box_lineup.copy(players = box_lineup.players.take(5))
     // Use this to render player names in their more readable format
-    val all_players_map = box_lineup.players.map(p => p.code -> p.id.name).toMap
+    val tidy_ctx = LineupErrorAnalysisUtils.build_tidy_player_context(box_lineup)
 
     val starting_state = Model.LineupBuildingState(starters_only)
     val partial_events = reorder_and_reverse(reversed_partial_events)
     val end_state = partial_events.foldLeft(starting_state) { (state, event) =>
-      def tidy_player(p: String): String =
-        all_players_map
-          .get(build_player_code(p).code)
-          .getOrElse(p)
 
       /** Detect old format the first time a player name is encountered by looking for all upper case */
       def is_old_format(p: String, s: Model.LineupBuildingState): Option[Boolean] = s.old_format match {
         case None => Some(!p.exists(_.isLower))
         case _ => s.old_format //latched
       }
+      def no_team_keyword(s: String): Boolean = s.toLowerCase != "team"
 
       event match {
-        case Model.SubInEvent(min, _, player_name) if state.is_active(min) =>
-          val tidier_player_name = tidy_player(player_name)
+        case Model.SubInEvent(min, _, player_name) if state.is_active(min) && no_team_keyword(player_name) =>
+          val tidier_player_name = LineupErrorAnalysisUtils.tidy_player(player_name, tidy_ctx)
           val completed_curr = complete_lineup(state.curr, state.prev, min)
           state.copy(
             curr = new_lineup_event(
@@ -53,7 +52,7 @@ object ExtractorUtils {
             old_format = is_old_format(player_name, state)
           )
         case Model.SubOutEvent(min, _, player_name) if state.is_active(min) =>
-          val tidier_player_name = tidy_player(player_name)
+          val tidier_player_name = LineupErrorAnalysisUtils.tidy_player(player_name, tidy_ctx)
           val completed_curr = complete_lineup(state.curr, state.prev, min)
           state.copy(
             curr = new_lineup_event(
@@ -62,16 +61,16 @@ object ExtractorUtils {
             prev = completed_curr :: state.prev,
             old_format = is_old_format(player_name, state)
           )
-        case Model.SubInEvent(min, _, player_name) => // !state.is_active
+        case Model.SubInEvent(min, _, player_name) if no_team_keyword(player_name) => // !state.is_active
           // Keep adding sub events
-          val tidier_player_name = tidy_player(player_name)
+          val tidier_player_name = LineupErrorAnalysisUtils.tidy_player(player_name, tidy_ctx)
           state.with_player_in(tidier_player_name).copy(
             old_format = is_old_format(player_name, state)
           )
 
         case Model.SubOutEvent(min, _, player_name) => // !state.is_active
           // Keep adding sub events
-          val tidier_player_name = tidy_player(player_name)
+          val tidier_player_name = LineupErrorAnalysisUtils.tidy_player(player_name, tidy_ctx)
           state.with_player_out(tidier_player_name).copy(
             old_format = is_old_format(player_name, state)
           )
@@ -132,31 +131,6 @@ object ExtractorUtils {
     }
   }
 
-  /** Possible ways in which a lineup can be declared invalid */
-  object ValidationError extends Enumeration {
-    val WrongNumberOfPlayers, UnknownPlayers = Value
-  }
-
-  /** Pulls out inconsistent lineups (self healing seems harder
-    * based on cases I've seen, eg
-    * player B enters game+player A leaves game ...
-    * ... A makes shot...player A enters game)
-   */
-  def validate_lineup(
-    lineup_event: LineupEvent, valid_player_codes: Set[String]
-  ): Set[ValidationError.Value] = {
-    // Check the right number of players:
-    val right_number_of_players = lineup_event.players.size == 5
-    // We also see cases where players not in a lineup make plays
-    val all_players_known = lineup_event.players.forall {
-      case LineupEvent.PlayerCodeId(code, _) => valid_player_codes(code)
-    }
-
-    Set(ValidationError.WrongNumberOfPlayers).filterNot(_ => right_number_of_players) ++
-    Set(ValidationError.UnknownPlayers).filterNot(_ => all_players_known) ++
-    Set() // (terminator)
-  }
-
   /** Gets the start time from the period - ie 2x 20 minute halves, then 5m overtimes */
   def start_time_from_period(period: Int): Double = (period - 1) match {
     case n if n < 2 => n*20.0
@@ -168,7 +142,13 @@ object ExtractorUtils {
   def duration_from_period(period: Int): Double = start_time_from_period(period + 1)
 
   /** Builds a player code out of the name, with various formats supported */
-  def build_player_code(name: String): LineupEvent.PlayerCodeId = {
+  def build_player_code(in_name: String, team: Option[TeamId]): LineupEvent.PlayerCodeId = {
+    // Check full name vs map of misspellings
+    def remove_accents(fragment: String): String = {
+      import java.text.Normalizer
+      Normalizer.normalize(fragment, Normalizer.Form.NFD).replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+    }
+    val name = remove_accents(DataQualityIssues.misspellings(team).get(in_name).getOrElse(in_name))
     def first_last(fragment: String): String = {
       if (fragment.isEmpty) {
         ""
@@ -184,31 +164,42 @@ object ExtractorUtils {
       }
     }
     def transform_first_name(fragment: String): String = {
-      if (DataQualityIssues.playersWithDuplicateNames(name.toLowerCase)) {
+      if (DataQualityIssues.players_with_duplicate_names(name.toLowerCase)) {
         first_last(fragment)
       } else {
         transform(fragment, 2)
       }
     }
-    val code = (name.split("\\s*,\\s*", 2).toList match {
+    val code = ((name.split("\\s*,\\s*", 3).toList match {
       case all_name_set :: Nil =>
         all_name_set.split("\\s+").toList
       case last_name_set :: first_name_set :: Nil =>
         first_name_set.split("\\s+").toList ++ last_name_set.split("\\s+").toList
+      case last_name_set :: suffix :: first_name_set :: Nil =>
+        first_name_set.split("\\s+").toList ++ last_name_set.split("\\s+").toList ++ List(suffix)
       case _ => Nil //(impossible by construction of split)
-    }).map {
-      _.toLowerCase
-    }.filterNot { candidate => // get rid or jr/sr/ii/etc
-      candidate.size < 2 ||
-      candidate(0).isDigit ||
-      candidate == "the" ||
-      candidate == "first" || candidate == "second" || candidate == "third" ||
-      candidate == "jr" || candidate == "jr." ||
-      candidate == "sr" || candidate == "sr." ||
-        (candidate.startsWith("ii") &&
-          (candidate.endsWith("ii") || candidate.endsWith("i."))
-        )
+    }).map { name_part =>
+      val lower_case_name_part = name_part.toLowerCase.replace(".", "")
+      // Misspelled fragments:
+      DataQualityIssues.misspellings(team)
+        .get(lower_case_name_part).getOrElse(lower_case_name_part)
+        .take(player_code_max_fragment_length)
     } match {
+      case head :: tail => // don't ever filter the head
+        def name_filter(candidate: String): Boolean =
+          candidate(0).isDigit ||
+          candidate == "the" ||
+          candidate == "first" || candidate == "second" || candidate == "third" ||
+          candidate == "jr" ||
+          candidate == "sr" ||
+          candidate == "iv" || candidate == "vi" || //(that's enough surely??!)
+            (candidate.startsWith("ii") && candidate.endsWith("ii"))
+
+        List(head).filterNot(name_filter) ++ tail.filterNot { candidate => // get rid or jr/sr/ii/etc
+          candidate.size < 2 || name_filter(candidate)
+        }
+      case Nil =>  Nil
+    }) match {
       case Nil => ""
       case head :: Nil => transform(head, player_code_max_length)
       case head :: tail => //(tail is non Nil, hence tail.last is well-formed)
@@ -430,8 +421,8 @@ object ExtractorUtils {
       opponent = prev.opponent,
       lineup_id = LineupEvent.LineupId.unknown, //(will calc once we have all the subs)
       players = prev.players, //(will re-calc once we have all the subs)
-      players_in = in.map(build_player_code).toList,
-      players_out = out.map(build_player_code).toList,
+      players_in = in.map(build_player_code(_, Some(prev.team.team))).toList,
+      players_out = out.map(build_player_code(_, Some(prev.team.team))).toList,
       raw_game_events = Nil,
       team_stats = LineupEventStats.empty, //(calculate these 2 later)
       opponent_stats = LineupEventStats.empty
@@ -440,11 +431,27 @@ object ExtractorUtils {
 
   /** Fills in/tidies up a partial lineup event following its completion */
   private def complete_lineup(curr: LineupEvent, prevs: List[LineupEvent], min: Double): LineupEvent = {
-    val curr_players = curr.players.map(p => p.code -> p).toMap
-    val curr_players_out = curr.players_out.map(p => p.code -> p).toMap
-    val curr_players_in = curr.players_in.map(p => p.code -> p).toMap
-    val new_player_list =
-      (curr_players -- curr_players_out.keySet ++ curr_players_in).values.toList
+    val new_player_list = {
+      val curr_players = curr.players.map(p => p.code -> p).toMap //(copied from the prev play)
+      val tmp_players_out = curr.players_out.map(p => p.code -> p).toMap
+      val tmp_players_in = curr.players_in.map(p => p.code -> p).toMap
+      val poss1 = (curr_players -- tmp_players_out.keySet ++ tmp_players_in).values.toList
+      val poss2 = (curr_players ++ tmp_players_in -- tmp_players_out.keySet).values.toList
+      // Check for a common error case: player comes in and out in the same sub
+      // Pick the right one based on what makes sense
+      (poss1.size, poss2.size) match {
+        case (5, _) => poss1
+        case (_, 5) => poss2
+        case _ =>
+          // Try removing all common players:
+          val common_players = tmp_players_in.keySet.filter(tmp_players_out.keySet)
+          val alt_players_in = tmp_players_in -- common_players
+          val alt_players_out = tmp_players_out -- common_players
+          val poss3 = (curr_players -- alt_players_out.keySet ++ alt_players_in).values.toList
+          poss3
+      }
+    }
+    //TODO test the lineup fix logic
 
     curr.copy(
       end_min = min,
@@ -503,13 +510,13 @@ object ExtractorUtils {
       def with_player_in(player_name: String): LineupBuildingState =
         copy(
           curr = curr.copy(
-            players_in = build_player_code(player_name) :: curr.players_in
+            players_in = build_player_code(player_name, Some(curr.team.team)) :: curr.players_in
           )
         )
       def with_player_out(player_name: String): LineupBuildingState =
         copy(
           curr = curr.copy(
-            players_out = build_player_code(player_name) :: curr.players_out
+            players_out = build_player_code(player_name, Some(curr.team.team)) :: curr.players_out
           )
         )
       def with_latest_score(score: Game.Score): LineupBuildingState = {

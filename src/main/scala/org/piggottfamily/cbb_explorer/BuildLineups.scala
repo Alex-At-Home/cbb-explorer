@@ -7,6 +7,7 @@ import org.piggottfamily.cbb_explorer.models.ncaa._
 import org.piggottfamily.cbb_explorer.controllers.ncaa.LineupController
 import org.piggottfamily.cbb_explorer.controllers.StorageController
 import org.piggottfamily.cbb_explorer.controllers.StorageController.JsonParserImplicits._
+import org.piggottfamily.cbb_explorer.utils.parsers.ncaa.LineupErrorAnalysisUtils
 import scala.util.Try
 import java.net.URLDecoder
 
@@ -66,7 +67,7 @@ object BuildLineups {
 
     // Iterate over directories
     val subdirs = ls! Path(in_dir)
-    val all_games = subdirs.flatMap { subdir =>
+    val (good_games, lineup_errors) = subdirs.map { subdir =>
       //TODO: add some error validation
       val get_team_id = "(.*)_([0-9]+)$".r
       subdir.last match {
@@ -82,16 +83,19 @@ object BuildLineups {
 
         case get_team_id(team_name, _) =>
           println(s"Skipping unselected team with dir ${subdir.toString}")
-          List()
+          (List(), List())
 
         case _ =>
           println(s"Skipping unrecognized dir ${subdir.toString}")
-          List()
+          (List(), List())
       }
+    }.foldLeft((List[LineupEvent](), List[LineupEvent]())) { case ((all_good, all_bad), (new_good, new_bad)) =>
+      (all_good ++ new_good, all_bad ++ new_bad)
     }
     val time_filter_suffix = maybe_filter.map("_" + _).getOrElse("")
+    // Write good lineups
     storage_controller.write_lineups(
-      lineups = all_games.map(l => strip_unused_data match {
+      lineups = good_games.map(l => strip_unused_data match {
         case true => l.copy(
           players_in = Nil,
           players_out = Nil,
@@ -102,5 +106,25 @@ object BuildLineups {
       file_root = Path(out_dir),
       file_name = s"${conference}_$year${time_filter_suffix}.ndjson"
     )
+    // Write bad lineups
+    storage_controller.write_lineups(
+      lineups = lineup_errors.map(l => strip_unused_data match {
+        case true => l.copy(
+          players_in = Nil,
+          players_out = Nil,
+          raw_game_events = Nil
+        )
+        case false => l
+      }).toList,
+      file_root = Path(out_dir),
+      file_name = s"bad_lineups_${conference}_$year${time_filter_suffix}.ndjson"
+    )
+    // Add some information about bad lineups:
+    println(s"[LineupErrorAnalysis] Total lineup errors (conf=[$conference]) [${lineup_errors.size}] (good: [${good_games.size}])")
+    val num_good_possessions = good_games.foldLeft(0) { (acc, lineup) => acc + lineup.team_stats.num_possessions }
+    val num_bad_possessions = lineup_errors.foldLeft(0) { (acc, lineup) => acc + lineup.team_stats.num_possessions }
+    println(s"[LineupErrorAnalysis] Total possession errors: [$num_bad_possessions] (good: [$num_good_possessions])")
+    val bad_lineup_analysis = LineupErrorAnalysisUtils.categorize_bad_lineups(lineup_errors);
+    println(s"[LineupErrorAnalysis] Bad lineup analysis: [$bad_lineup_analysis]")
   }
 }

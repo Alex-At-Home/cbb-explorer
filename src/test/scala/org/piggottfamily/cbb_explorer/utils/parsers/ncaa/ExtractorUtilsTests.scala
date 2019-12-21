@@ -14,15 +14,62 @@ object ExtractorUtilsTests extends TestSuite {
 
       "build_player_code" - {
         val test_name =
-          "Surname, Firstname A B Iiii Iiiiaiii Jr Jr. Sr Sr. 4test the First second rAbbit Third"
-        TestUtils.inside(build_player_code(test_name)) {
+          "Surname, F.irstname A B Iiii Iiiiaiii Jr Jr. Sr Sr. 4test the First second rAbbit Third"
+        TestUtils.inside(build_player_code(test_name, None)) {
           case LineupEvent.PlayerCodeId("FiRaSurname", PlayerId(`test_name`)) =>
         }
         val twin_name = "Mitchell, Makhi"
-        TestUtils.inside(build_player_code(twin_name)) {
+        TestUtils.inside(build_player_code(twin_name, None)) {
           case LineupEvent.PlayerCodeId("MiMitchell", PlayerId(`twin_name`)) =>
         }
-
+        // Check that first names are never filtered
+        val alt_name_format = "MAYER,M"
+        TestUtils.inside(build_player_code(alt_name_format, None)) {
+          case LineupEvent.PlayerCodeId("MMayer", PlayerId(`alt_name_format`)) =>
+        }
+        val jr_name_wrong = "Brown, Jr., Barry"
+        TestUtils.inside(build_player_code(jr_name_wrong, None)) {
+          case LineupEvent.PlayerCodeId("BaBrown", PlayerId(`jr_name_wrong`)) =>
+        }
+        val has_accent = "Dorka Juhász"
+        val has_no_accent = "Dorka Juhasz"
+        TestUtils.inside(build_player_code(has_accent, None)) {
+          case LineupEvent.PlayerCodeId("DoJuhasz", PlayerId(`has_no_accent`)) =>
+        }
+        // Check max fragment length:
+        val long_name = "MAMUKELASHVIL,SANDRO" //(already truncated by 1!)
+        TestUtils.inside(build_player_code(long_name, None)) {
+          case LineupEvent.PlayerCodeId("SaMamukelash", PlayerId(`long_name`)) =>
+        }
+        val long_name2 = "BIGBY-WILLIAM,KAVELL" //(already truncated by several!)
+        TestUtils.inside(build_player_code(long_name2, None)) {
+          case LineupEvent.PlayerCodeId("KaBigby-will", PlayerId(`long_name2`)) =>
+        }
+        val long_name_alt2 = "Kavell Bigby-Williams"
+        TestUtils.inside(build_player_code(long_name_alt2, None)) {
+          case LineupEvent.PlayerCodeId("KaBigby-will", PlayerId(`long_name_alt2`)) =>
+        }
+        // Check misspelling fixer
+        List(None, Some(TeamId("TCU"))).foreach { team =>
+          val name_wrong = "Dylan Ostekowski"
+          TestUtils.inside(build_player_code(name_wrong, None)) {
+            // (name remains wrong, but code is correct, so will get replaced by box score, see below)
+            case LineupEvent.PlayerCodeId("DyOsetkowski", PlayerId(`name_wrong`)) if team.nonEmpty =>
+            case LineupEvent.PlayerCodeId("DyOstekowski", PlayerId(`name_wrong`)) =>
+          }
+          val name_wrong_box_format = "Ostekowski, Dylan"
+          val name_right_box_format = "Osetkowski, Dylan"
+          TestUtils.inside(build_player_code(name_wrong_box_format, None)) {
+            case LineupEvent.PlayerCodeId("DyOsetkowski", PlayerId(`name_right_box_format`)) if team.nonEmpty =>
+            case LineupEvent.PlayerCodeId("DyOstekowski", PlayerId(`name_wrong_box_format`)) =>
+          }
+        }
+        List(None, Some(TeamId("TCU")), Some(TeamId("NotExist"))).foreach { team =>
+          val misspelling = "Willliams,John"
+          TestUtils.inside(build_player_code(misspelling, None)) {
+            case LineupEvent.PlayerCodeId("JoWilliams", PlayerId(`misspelling`)) =>
+          }
+        }
         //TODO add some other cases (single name, no space for intermediate)
       }
       "parse_team_name" - {
@@ -37,64 +84,6 @@ object ExtractorUtilsTests extends TestSuite {
         }
         TestUtils.inside(parse_team_name(List("#1 TeamA (1-1)", "TeamB (4-1)"), TeamId("TeamA"))) {
           case Right(("TeamA", "TeamB", true)) =>
-        }
-      }
-
-      "validate_lineup" - {
-        val now = new DateTime()
-        val all_players @ (player1 :: player2 :: player3 :: player4 :: player5 ::
-          player6 :: player7 :: Nil) = List(
-            "Player One", "Player Two", "Player Three",
-            "Player Four", "Player Five", "Player Six", "Player Seven"
-          ).map(build_player_code)
-        val all_player_set = all_players.map(_.code).toSet
-        val player8 = build_player_code("Player Eight")
-
-        val valid_players = player1 :: player2 :: player3 :: player4 :: player5 :: Nil
-        val too_few_players = player1 :: player2 :: player3 :: player4 :: Nil
-        val unknown_player = player1 :: player2 :: player3 :: player4 :: player8 :: Nil
-        val multi_bad = player8 :: valid_players
-
-        val my_team = TeamSeasonId(TeamId("TestTeam1"), Year(2017))
-        val other_team = TeamSeasonId(TeamId("TestTeam2"), Year(2017))
-        val base_lineup = LineupEvent(
-          date = now,
-          location_type = Game.LocationType.Home,
-          start_min = 0.0,
-          end_min = -100.0,
-          duration_mins = 0.0,
-          score_info = LineupEvent.ScoreInfo.empty,
-          team = my_team,
-          opponent = other_team,
-          lineup_id = LineupEvent.LineupId.unknown,
-          players = Nil,
-          players_in = Nil,
-          players_out = Nil,
-          raw_game_events = Nil,
-          team_stats = LineupEventStats.empty,
-          opponent_stats = LineupEventStats.empty
-        )
-
-        val good_lineup = base_lineup.copy(players = valid_players)
-        val lineup_too_many = base_lineup.copy(players = all_players)
-        val lineup_too_few = base_lineup.copy(players = too_few_players)
-        val lineup_unknown_player = base_lineup.copy(players = unknown_player)
-        val lineup_multi_bad = base_lineup.copy(players = multi_bad)
-
-        TestUtils.inside(validate_lineup(good_lineup, all_player_set).toList) {
-          case List() =>
-        }
-        TestUtils.inside(validate_lineup(lineup_too_many, all_player_set).toList) {
-          case List(ValidationError.WrongNumberOfPlayers) =>
-        }
-        TestUtils.inside(validate_lineup(lineup_too_few, all_player_set).toList) {
-          case List(ValidationError.WrongNumberOfPlayers) =>
-        }
-        TestUtils.inside(validate_lineup(lineup_unknown_player, all_player_set).toList) {
-          case List(ValidationError.UnknownPlayers) =>
-        }
-        TestUtils.inside(validate_lineup(lineup_multi_bad, all_player_set).toList) {
-          case List(ValidationError.WrongNumberOfPlayers, ValidationError.UnknownPlayers) =>
         }
       }
 
@@ -169,7 +158,7 @@ object ExtractorUtilsTests extends TestSuite {
           player6 :: player7 :: Nil) = List(
             "Player One", "Player Two", "Player Three",
             "Player Four", "Player Five", "Player Six", "Player Seven"
-          ).map(build_player_code)
+          ).map(build_player_code(_, None))
 
         val my_team = TeamSeasonId(TeamId("TestTeam1"), Year(2017))
         val my_team_2018 = my_team.copy(year = Year(2018))
@@ -249,7 +238,7 @@ object ExtractorUtilsTests extends TestSuite {
                   LineupEvent.LineupId(lineup_id), players,
                   List(), List(),
                   List(),
-                  _, _
+                  _, _, _
                 ) =>
                   "%.1f".format(delta) ==> "0.1"
                   score ==> LineupEvent.ScoreInfo(
@@ -268,7 +257,7 @@ object ExtractorUtilsTests extends TestSuite {
                     LineupEvent.RawGameEvent.Team("event1a"),
                     LineupEvent.RawGameEvent.Team("event2a")
                   ),
-                  _, _
+                  _, _, _
                 ) =>
                   new_time ==> now.plusMillis(6000)
                   "%.1f".format(delta) ==> "0.3"
@@ -291,7 +280,7 @@ object ExtractorUtilsTests extends TestSuite {
                     LineupEvent.RawGameEvent.Team("event3a"),
                     LineupEvent.RawGameEvent.Team("event4a")
                   ),
-                  _, _
+                  _, _, _
                 ) =>
                   "%.1f".format(delta) ==> "19.6"
                   score ==> LineupEvent.ScoreInfo(
@@ -312,7 +301,7 @@ object ExtractorUtilsTests extends TestSuite {
                     LineupEvent.RawGameEvent.Opponent("PlayerA Leaves Game"),
                     LineupEvent.RawGameEvent.Opponent("PlayerB, substitution in")
                   ),
-                  _, _
+                  _, _, _
                 ) =>
                   "%.1f".format(delta) ==> "0.4"
                   score ==> LineupEvent.ScoreInfo(
@@ -329,7 +318,7 @@ object ExtractorUtilsTests extends TestSuite {
                   LineupEvent.LineupId(lineup_id), players,
                   List(`player1`, `player7`), List(`player2`, `player4`),
                   List(),
-                  _, _
+                  _, _, _
                 ) =>
                   "%.1f".format(delta) ==> "19.6"
                   score ==> LineupEvent.ScoreInfo(
@@ -349,7 +338,7 @@ object ExtractorUtilsTests extends TestSuite {
                     LineupEvent.RawGameEvent.Opponent("event3b"),
                     LineupEvent.RawGameEvent.Team("event5a")
                   ),
-                  _, _
+                  _, _, _
                 ) =>
                   "%.1f".format(delta) ==> "0.5"
                   score ==> LineupEvent.ScoreInfo(
@@ -367,7 +356,7 @@ object ExtractorUtilsTests extends TestSuite {
                     LineupEvent.RawGameEvent.Team("event6a"),
                     LineupEvent.RawGameEvent.Opponent("event4b")
                   ),
-                  _, _
+                  _, _, _
                 ) =>
                   "%.1f".format(delta) ==> "4.5"
                   score ==> LineupEvent.ScoreInfo(
@@ -395,7 +384,7 @@ object ExtractorUtilsTests extends TestSuite {
                 LineupEvent.LineupId(lineup_id), players,
                 List(`player6`), List(`player1`),
                 _,
-                _, _
+                _, _, _
               ) =>
                 score ==> LineupEvent.ScoreInfo(
                   Game.Score(4, 2), Game.Score(4, 2), 2, 2
@@ -405,6 +394,30 @@ object ExtractorUtilsTests extends TestSuite {
                   event_3.players.toSet - player1 //(ie lineup only has 4 entries)
                 }.toList.sortBy(_.code)
             }
+        }
+
+        // Test alternative name format SURNAME,INITIAL (and other name issues, see tidy_player)
+        // (include ugly case where there are multiple names in the alt format with the same first name:)
+        val alt_format_box = box_lineup.copy(players =
+          List(
+            "Mitchell, Makhel", "Mitchell, Makhi", "Kevin McClure", "Williams, Shaun", "Horne, P.J.",
+            "Doumbia, Ibrahim Famouke", "Gudmundsson, Jon Axel"
+          ).map(build_player_code(_, None))
+        )
+
+        val alt_format_test_events =
+          Model.SubInEvent(0.1, Game.Score(0, 0), "Mitchell,M") ::
+          Model.SubInEvent(0.1, Game.Score(0, 0), "NEAL-WILLIAMS,SHAUN") ::
+          Model.SubInEvent(0.1, Game.Score(0, 0), "DOUMBIA,IBRAHIM") ::
+          Model.SubOutEvent(0.1, Game.Score(0, 0), "MCCLURE,K") ::
+          Model.SubOutEvent(0.1, Game.Score(0, 0), "Preston Horne") ::
+          Model.SubOutEvent(0.1, Game.Score(0, 0), "GUDMUNDSSON,J") ::
+          Nil
+
+        TestUtils.inside(build_partial_lineup_list(alt_format_test_events.toIterator, alt_format_box)) {
+          case start :: event :: Nil =>
+            event.players_in.map(_.code) ==> List("MMitchell", "ShWilliams", "IbFaDoumbia")
+            event.players_out.map(_.code) ==> List("KeMcclure", "PjHorne", "JoAxGudmundsso")
         }
       }
     }

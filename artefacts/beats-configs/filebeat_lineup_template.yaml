@@ -7,6 +7,7 @@ filebeat.inputs:
     - ./misc_conf_20*.ndjson
 
     - ./women_acc_20*.ndjson
+    - ./women_american_20*.ndjson
     - ./women_bigten_20*.ndjson
     - ./women_bigtwelve_20*.ndjson
     - ./women_pactwelve_20*.ndjson
@@ -41,6 +42,9 @@ output.elasticsearch:
     - index: "women_acc_%{[team.year]}"
       when.regexp:
         log.file.path: ".*/women_acc_[0-9]+(_.*)?.ndjson"
+    - index: "women_american_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/women_american_[0-9]+(_.*)?.ndjson"
     - index: "women_bigten_%{[team.year]}"
       when.regexp:
         log.file.path: ".*/women_bigten_[0-9]+(_.*)?.ndjson"

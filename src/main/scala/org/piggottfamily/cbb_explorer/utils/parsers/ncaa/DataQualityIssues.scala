@@ -43,6 +43,12 @@ object DataQualityIssues {
       "Ibrahim Famouke Doumbia" -> "Ibrahim Doumbia"
     ),
 
+    Option(TeamId("UCF")) -> Map(
+      // PbP error W 2018/19
+      "Korneila Wright" -> "Kay Kay Wright",
+      "WRIGHT,KORNEILA" -> "WRIGHT, KAY KAY",
+    ),
+
     // B12:
 
     Option(TeamId("Oklahoma St.")) -> Map(

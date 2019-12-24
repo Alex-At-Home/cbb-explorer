@@ -29,6 +29,9 @@
 [LineupErrorAnalysis] Total lineup errors (conf=[women_acc]) [206] (good: [11349])
 [LineupErrorAnalysis] Total possession errors: [432] (good: [32956])
 [LineupErrorAnalysis] Bad lineup analysis: [Map(0 -> (1,0), 5 -> (7,49), 1 -> (1,1), 6 -> (36,106), 2 -> (2,1), 7 -> (3,0), 3 -> (4,7), 8 -> (1,2), 4 -> (51,266))]
+[LineupErrorAnalysis] Total lineup errors (conf=[women_american]) [69] (good: [8144])
+[LineupErrorAnalysis] Total possession errors: [139] (good: [26677])
+[LineupErrorAnalysis] Bad lineup analysis: [Map(0 -> (1,0), 5 -> (4,16), 6 -> (25,95), 2 -> (1,0), 7 -> (3,12), 3 -> (1,0), 8 -> (2,8), 4 -> (12,8))]
 [LineupErrorAnalysis] Total lineup errors (conf=[women_bigten]) [37] (good: [10588])
 [LineupErrorAnalysis] Total possession errors: [57] (good: [30812])
 [LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (1,2), 6 -> (12,40), 7 -> (1,2), 3 -> (1,1), 4 -> (9,12))]

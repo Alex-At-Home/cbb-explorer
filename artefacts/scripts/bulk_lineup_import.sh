@@ -5,8 +5,9 @@ export CURR_TIME=${CURR_TIME:=$(date +"%s")}
 export CURR_YEAR=${CURR_YEAR:="2019"}
 export CURR_YEAR_STR=${CURR_YEAR_STR:="2019_20"}
 
-export CONFS=${CONFS:="acc american atlanticten bigeast bigten bigtwelve pactwelve sec misc_conf"}
-#export CONFS="women_bigten"
+export CONFS=${CONFS:="acc american atlanticten bigeast bigten bigtwelve pactwelve sec misc_conf women_acc women_bigten women_bigtwelve women_pactwelve women_sec"}
+#export CONFS=${CONFS:="acc american atlanticten bigeast bigten bigtwelve pactwelve sec misc_conf"}
+#export CONFS=${CONFS:="women_acc women_bigtwelve women_pactwelve women_sec"}
 
 echo ">>>>>>> Extracting from [$CURR_TIME] for [$CURR_YEAR]/[$CURR_YEAR_STR] on [$CONFS]"
 sleep 2

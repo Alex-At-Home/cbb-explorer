@@ -6,20 +6,18 @@
 #(to get the team navigate to https://$PBP_ROOT_URL/reports/attendance?id=17900
 # pick the team, select the year, then the team id is the last bit of the URL)
 YEAR=2019
-CONF=pactwelve
+CONF=women_bigtwelve
 array=(
-'486762::Arizona'
-'486761::Arizona+St.'
-'486965::Oregon'
-'486795::UCLA'
-'486699::Utah'
-'486711::Washington'
-'486810::Colorado'
-'486964::Oregon+St.'
-'486661::Southern+California'
-'486792::California'
-'486710::Washington+St.'
-'486671::Stanford'
+'484018::Iowa+St.'
+'483811::Baylor'
+'484345::Texas+Tech'
+'484350::Texas'
+'484185::Oklahoma'
+'484341::TCU'
+'484392::West+Virginia'
+'484029::Kansas+St.'
+'484183::Oklahoma+St.'
+'484031::Kansas'
 )
 
 #TODO add TEAM filter

@@ -14,6 +14,25 @@ object DataQualityIssues {
   )
   val misspellings: Map[Option[TeamId], Map[String, String]] = Map( // pairs - full name in box score, and also name for PbP
 
+    // ACC:
+    Option(TeamId("Duke")) -> Map(
+      //Box tidy complicated game from W 2018/9
+      "Akinbode-James, O." -> "James, Onome",
+    ),
+
+    Option(TeamId("Georgia Tech")) -> Map(
+      //PBP fix complicated game from W 2019/20
+      "Nerea Hermosa Monreal" -> "Nerea Hermosa",
+      // PBP 2018/9
+      "DIXON,LIZ" -> "DIXON,ELIZABETH"
+    ),
+
+    Option(TeamId("Syracuse")) -> Map(
+      //Box tidy complicated game from W 2019/20
+      "Finklea-Guity, Amaya" -> "Guity, Amaya",
+      "FINKLEA,AMAYA" -> "GUITY,AMAYA"
+    ),
+
     // American
 
     Option(TeamId("East Carolina")) -> Map(
@@ -25,6 +44,13 @@ object DataQualityIssues {
     ),
 
     // B12:
+
+    Option(TeamId("Oklahoma St.")) -> Map(
+      //PBP fix complicated game from W 2019/20
+      "DELAPP,KASSIDY" -> "DE LAPP,KASSIDY",
+      // PBP fix
+      "DESOUSA,CLITAN" -> "DE SOUSA,CLITAN"
+    ),
 
     Option(TeamId("Texas")) -> Map(
       // (wrong in box score only, but easy enough to add a fix for any box score typos)
@@ -56,13 +82,38 @@ object DataQualityIssues {
       "longpr??" -> "longpre"
     ),
 
+    // PAC-12
+
+    Option(TeamId("Washington")) -> Map(
+      // PBP errors (W 2019/20)
+      "BANBERGER,ALI" -> "BAMBERGER,ALI",
+      "WALKINS,TT" -> "WATKINS,TT"
+    ),
+
+    Option(TeamId("California")) -> Map(
+      // PBP errors (W 2019/20)
+      "SCHIPH,EVELIEN LUTJE" -> "SCHIPHOLT,EVELIEN LUTJE"
+    ),
+
+    Option(TeamId("Colorado")) -> Map(
+      // PBP errors (W 2018/19)
+      "TUITELE,SIRENA" -> "TUITELE,PEANUT",
+      "Sirena Tuitele" -> "Peanut Tuitele",
+      "HOLLINSHED,MYA" -> "HOLLINGSHED,MYA"
+    ),
+
     // SEC:
 
     // Wrong in the PBP
     Option(TeamId("Arkansas")) -> Map(
       "Jordan Philips" -> "Jordan Phillips",
       "PHILIPS,JORDAN" -> "PHILLIPS,JORDAN"
-    )
+    ),
+
+    Option(TeamId("South Carolina")) -> Map(
+      "HERBERT HARRIGAN,M" -> "HERBERT HARRIGAN,MIKIAH",
+      "HARRIGAN,M HERBERT" -> "HERBERT HARRIGAN,MIKIAH",
+    ),
 
   ).mapValues(
     _ ++ generic_misspellings
@@ -71,6 +122,7 @@ object DataQualityIssues {
   val generic_misspellings: Map[String, String] = Map(
     // Seen in PbP data for FSU 2019/20
     "osbrone" -> "osborne",
-    "willliams" -> "williams"
+    "willliams" -> "williams",
+    "cahvez" -> "chavez"
   )
 }

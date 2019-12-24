@@ -25,6 +25,19 @@
 [LineupErrorAnalysis] Total lineup errors (conf=[misc_conf]) [143] (good: [6580])
 [LineupErrorAnalysis] Total possession errors: [322] (good: [18840])
 [LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (2,4), 6 -> (53,262), 7 -> (12,38), 3 -> (1,0), 8 -> (2,3), 4 -> (7,15))]
+
+[LineupErrorAnalysis] Total lineup errors (conf=[women_acc]) [206] (good: [11349])
+[LineupErrorAnalysis] Total possession errors: [432] (good: [32956])
+[LineupErrorAnalysis] Bad lineup analysis: [Map(0 -> (1,0), 5 -> (7,49), 1 -> (1,1), 6 -> (36,106), 2 -> (2,1), 7 -> (3,0), 3 -> (4,7), 8 -> (1,2), 4 -> (51,266))]
 [LineupErrorAnalysis] Total lineup errors (conf=[women_bigten]) [37] (good: [10588])
 [LineupErrorAnalysis] Total possession errors: [57] (good: [30812])
 [LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (1,2), 6 -> (12,40), 7 -> (1,2), 3 -> (1,1), 4 -> (9,12))]
+[LineupErrorAnalysis] Total lineup errors (conf=[women_bigtwelve]) [71] (good: [7580])
+[LineupErrorAnalysis] Total possession errors: [118] (good: [23535])
+[LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (1,3), 6 -> (23,55), 2 -> (2,0), 7 -> (3,12), 3 -> (3,2), 4 -> (17,46))]
+[LineupErrorAnalysis] Total lineup errors (conf=[women_pactwelve]) [169] (good: [8076])
+[LineupErrorAnalysis] Total possession errors: [437] (good: [24767])
+[LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (3,17), 1 -> (3,0), 6 -> (32,113), 2 -> (1,1), 7 -> (2,5), 3 -> (3,8), 4 -> (35,293))]
+[LineupErrorAnalysis] Total lineup errors (conf=[women_sec]) [95] (good: [9959])
+[LineupErrorAnalysis] Total possession errors: [190] (good: [31611])
+[LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (5,11), 6 -> (36,123), 2 -> (1,0), 7 -> (4,10), 3 -> (3,4), 4 -> (9,42))]

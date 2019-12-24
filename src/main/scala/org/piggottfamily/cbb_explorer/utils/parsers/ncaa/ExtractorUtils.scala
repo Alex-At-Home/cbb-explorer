@@ -98,6 +98,9 @@ object ExtractorUtils {
           )
         case Model.GameEndEvent(min, _) =>
           state.copy(curr = complete_lineup(state.curr, state.prev, min))
+
+        case _ => //(eg SubInEvent with team keyword)
+          state
       }
     }
     end_state.build()

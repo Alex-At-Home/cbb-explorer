@@ -19,7 +19,7 @@ export COOKIE_FRAGMENT=$(echo "$COOKIE" | grep -E -o "[a-z0-9]{26}" )
 sed s/COOKIE_FRAGMENT/"$COOKIE_FRAGMENT"/ $PWD/cookies_template.txt > $PWD/cookies.txt
 echo "Using [$COOKIE_FRAGMENT] for authentication"
 
-#$PBP_SRC_ROOT/artefacts/httrack-scripts/efficiency-cli-curryear.sh || exit -1
+$PBP_SRC_ROOT/artefacts/httrack-scripts/efficiency-cli-curryear.sh || exit -1
 
 # Can't easily detect failures so just always retry
 echo "Retrying x1 to catch any stragglers (after 1min pause)"

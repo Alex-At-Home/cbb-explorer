@@ -10,6 +10,9 @@ CONF=misc_conf
 array=(
     '486851::Gonzaga'
     '486993::Saint%20Mary%27s%20%28CA%29'
+    '486778::BYU'
+    '486997::San+Diego+St.'
+    '486698::Utah+St.'
 )
 
 #TODO add TEAM filter

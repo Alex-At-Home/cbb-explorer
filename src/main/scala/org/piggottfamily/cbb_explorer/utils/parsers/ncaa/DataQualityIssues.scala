@@ -10,7 +10,11 @@ object DataQualityIssues {
     "mitchell, makhel", "makhel mitchell", "mitchell,makhel",
 
     "hamilton, jared", "jared hamilton", "hamilton,jared",
-    "hamilton, jairus", "jairus hamilton", "hamilton,jairus"
+    "hamilton, jairus", "jairus hamilton", "hamilton,jairus",
+
+// These two have the same name regardless of strategy! Use misspellings to tuncate Jaev's name
+    "cumberland, jaev", "jaev cumberland", "cumberland,jaev",
+    "cumberland, jarron", "jarron cumberland", "cumberland,jarron",
   )
   val misspellings: Map[Option[TeamId], Map[String, String]] = Map( // pairs - full name in box score, and also name for PbP
 
@@ -34,6 +38,15 @@ object DataQualityIssues {
     ),
 
     // American
+
+    Option(TeamId("Cincinnati")) -> Map(
+      // The Cumberlands have caused quite a mess!
+      // Truncate Jaevin's name (sorry Jaevin!)
+      "CUMBERLAND,J" -> "CUMBERLAND,JARRON", //(just in case!)
+      "Cumberland, Jaevin" -> "Cumberland, Jaev",
+      "CUMBERLAND,JAEVIN" -> "CUMBERLAND,JAEV",
+      "Jaevin Cumberland" -> "Jaev Cumberland"
+    ),
 
     Option(TeamId("East Carolina")) -> Map(
       // PbP error

@@ -5,7 +5,13 @@ import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.models.ncaa._
 
 import shapeless.{Generic, Poly1}
-import shapeless.HList.ListCompat._
+import shapeless._
+import shapeless.labelled._
+import ops.hlist._
+import record._
+import ops.record._
+import syntax.singleton._
+import com.github.dwickern.macros.NameOf._
 
 import com.softwaremill.quicklens._
 
@@ -87,7 +93,7 @@ trait LineupUtils {
   protected def enrich_stats(
     evs: List[LineupEvent.RawGameEvent],
     event_parser: LineupEvent.RawGameEvent.PossessionEvent,
-    player_filter: Option[String] = None
+    player_filter: Option[String => Boolean] = None
   ): LineupEventStats => LineupEventStats = { case stats: LineupEventStats =>
       case class StatsBuilder(curr: LineupEventStats)
 
@@ -106,21 +112,21 @@ trait LineupUtils {
         // Free throw stats
 
         case (state, event_parser.AttackingTeam(ev_str @ EventUtils.ParseFreeThrowMade(player)))
-          if player_filter.forall(_ == player)
+          if player_filter.forall(_(player))
         =>
           (increment_misc_stat(modify[StatsBuilder](_.curr.ft.attempts))
             andThen increment_misc_stat(modify[StatsBuilder](_.curr.ft.made))
           )(state)
 
         case (state, event_parser.AttackingTeam(ev_str @ EventUtils.ParseFreeThrowMissed(player)))
-          if player_filter.forall(_ == player)
+          if player_filter.forall(_(player))
         =>
           increment_misc_stat(modify[StatsBuilder](_.curr.ft.attempts))(state)
 
         // Field goal stats (rim first, other 2p shots count as "rim")
 
         case (state, event_parser.AttackingTeam(ev_str @ EventUtils.ParseRimMade(player)))
-          if player_filter.forall(_ == player)
+          if player_filter.forall(_(player))
         =>
           (increment_misc_stat(modify[StatsBuilder](_.curr.fg.attempts))
             andThen increment_misc_stat(modify[StatsBuilder](_.curr.fg.made))
@@ -131,7 +137,7 @@ trait LineupUtils {
             )(state)
 
         case (state, event_parser.AttackingTeam(ev_str @ EventUtils.ParseRimMissed(player)))
-          if player_filter.forall(_ == player)
+          if player_filter.forall(_(player))
         =>
           (increment_misc_stat(modify[StatsBuilder](_.curr.fg.attempts))
             andThen increment_misc_stat(modify[StatsBuilder](_.curr.fg_2p.attempts))
@@ -139,7 +145,7 @@ trait LineupUtils {
           )(state)
 
         case (state, event_parser.AttackingTeam(ev_str @ EventUtils.ParseTwoPointerMade(player)))
-          if player_filter.forall(_ == player)
+          if player_filter.forall(_(player))
         =>
           (increment_misc_stat(modify[StatsBuilder](_.curr.fg.attempts))
             andThen increment_misc_stat(modify[StatsBuilder](_.curr.fg.made))
@@ -150,7 +156,7 @@ trait LineupUtils {
             )(state)
 
         case (state, event_parser.AttackingTeam(ev_str @ EventUtils.ParseTwoPointerMissed(player)))
-          if player_filter.forall(_ == player)
+          if player_filter.forall(_(player))
         =>
           (increment_misc_stat(modify[StatsBuilder](_.curr.fg.attempts))
             andThen increment_misc_stat(modify[StatsBuilder](_.curr.fg_2p.attempts))
@@ -158,7 +164,7 @@ trait LineupUtils {
           )(state)
 
         case (state, event_parser.AttackingTeam(ev_str @ EventUtils.ParseThreePointerMade(player)))
-          if player_filter.forall(_ == player)
+          if player_filter.forall(_(player))
         =>
           (increment_misc_stat(modify[StatsBuilder](_.curr.fg.attempts))
             andThen increment_misc_stat(modify[StatsBuilder](_.curr.fg.made))
@@ -167,7 +173,7 @@ trait LineupUtils {
             )(state)
 
         case (state, event_parser.AttackingTeam(ev_str @ EventUtils.ParseThreePointerMissed(player)))
-          if player_filter.forall(_ == player)
+          if player_filter.forall(_(player))
         =>
           (increment_misc_stat(modify[StatsBuilder](_.curr.fg.attempts))
             andThen increment_misc_stat(modify[StatsBuilder](_.curr.fg_3p.attempts))
@@ -176,7 +182,7 @@ trait LineupUtils {
         // Misc stats
 
         case (state, event_parser.AttackingTeam(ev_str @ EventUtils.ParseOffensiveRebound(player)))
-          if player_filter.forall(_ == player)
+          if player_filter.forall(_(player))
           /** TODO: need to ignore actual deadball rebounds..., for now just discard? */
           /** TODO: what about defensive deadball rebounds in old format? */
             && EventUtils.ParseOffensiveDeadballRebound.unapply(ev_str).isEmpty
@@ -184,47 +190,47 @@ trait LineupUtils {
           increment_misc_stat(modify[StatsBuilder](_.curr.orb))(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParseDefensiveRebound(player)))
-          if player_filter.forall(_ == player)
+          if player_filter.forall(_(player))
         =>
           increment_misc_stat(modify[StatsBuilder](_.curr.drb))(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParseTurnover(player)))
-          if player_filter.forall(_ == player)
+          if player_filter.forall(_(player))
         =>
           increment_misc_stat(modify[StatsBuilder](_.curr.to))(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParseStolen(player)))
-          if player_filter.forall(_ == player)
+          if player_filter.forall(_(player))
         =>
           increment_misc_stat(modify[StatsBuilder](_.curr.stl))(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParseShotBlocked(player)))
-          if player_filter.forall(_ == player)
+          if player_filter.forall(_(player))
         =>
           increment_misc_stat(modify[StatsBuilder](_.curr.blk))(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParseAssist(player)))
-          if player_filter.forall(_ == player)
+          if player_filter.forall(_(player))
         =>
           increment_misc_stat(modify[StatsBuilder](_.curr.assist))(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParsePersonalFoul(player)))
-          if player_filter.forall(_ == player)
+          if player_filter.forall(_(player))
         =>
           increment_misc_stat(modify[StatsBuilder](_.curr.foul))(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParseFlagrantFoul(player)))
-          if player_filter.forall(_ == player)
+          if player_filter.forall(_(player))
         =>
           increment_misc_stat(modify[StatsBuilder](_.curr.foul))(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParseTechnicalFoul(player)))
-          if player_filter.forall(_ == player)
+          if player_filter.forall(_(player))
         =>
           increment_misc_stat(modify[StatsBuilder](_.curr.foul))(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParseOffensiveFoul(player)))
-          if player_filter.forall(_ == player)
+          if player_filter.forall(_(player))
         =>
           increment_misc_stat(modify[StatsBuilder](_.curr.foul))(state)
 
@@ -242,6 +248,51 @@ trait LineupUtils {
       team_stats = enrich_stats(lineup.raw_game_events, team_event_filter)(lineup.team_stats),
       opponent_stats = enrich_stats(lineup.raw_game_events, oppo_event_filter)(lineup.opponent_stats),
     )
+  }
+
+  /** Create a list of player-specific stats from each lineup event */
+  def create_player_events(lineup_event: LineupEvent, box_lineup: LineupEvent): List[PlayerEvent] = {
+    val team_dir = LineupEvent.RawGameEvent.Direction.Team
+    val team_event_filter = LineupEvent.RawGameEvent.PossessionEvent(team_dir)
+    val gen_lineup_event = shapeless.LabelledGeneric[LineupEvent]
+    val gen_player_event = shapeless.LabelledGeneric[PlayerEvent]
+    val temp_lineup_event = gen_lineup_event.to(lineup_event).take(13)
+      //(not ideal in the sense that still need to change if lineup_event changes, but
+      // will error and at least isn't a copy paste - nicer/more complex alt would be hlist.intersect)
+
+    def base_player_event(player_id: LineupEvent.PlayerCodeId) = gen_player_event.from {
+      var f: PlayerEvent = null // (just used to infer type in "nameOf")
+      (Symbol(nameOf(f.player)) ->> player_id ::
+        temp_lineup_event) ++
+      (Symbol(nameOf(f.player_stats)) ->> LineupEventStats.empty.copy( //(inherited fields)
+          num_events = box_lineup.team_stats.num_events,
+          num_possessions = box_lineup.team_stats.num_possessions,
+          pts = box_lineup.team_stats.pts,
+          plus_minus = box_lineup.team_stats.plus_minus
+        ) ::
+        Symbol(nameOf(f.player_count_error)) ->> lineup_event.player_count_error ::
+        HNil)
+    }
+    val tidy_ctx = LineupErrorAnalysisUtils.build_tidy_player_context(box_lineup)
+    val player_filter = (player_id: LineupEvent.PlayerCodeId) => (player_str: String) => {
+      val code = ExtractorUtils.build_player_code(
+        LineupErrorAnalysisUtils.tidy_player(player_str, tidy_ctx), Some(lineup_event.team.team)
+      ).code
+      code == player_id.code
+    }
+    lineup_event.players.map { player =>
+      val this_player_filter = player_filter(player)
+      val player_event = base_player_event(player)
+      player_event.copy( // will fill in these 2 fields as we go along
+        player_stats = enrich_stats(
+          lineup_event.raw_game_events, team_event_filter, Some(this_player_filter)
+        )(player_event.player_stats),
+        raw_game_events = lineup_event.raw_game_events.collect {
+          case ev @ team_event_filter.AttackingTeam(EventUtils.ParseAnyPlay(player_str))
+            if this_player_filter(player_str) => ev
+        }
+      )
+    } //(note: need to keep empty events so we can calculate possessions and hence usage)
   }
 
   // Very low level:

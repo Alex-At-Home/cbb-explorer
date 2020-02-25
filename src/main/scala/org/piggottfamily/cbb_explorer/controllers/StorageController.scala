@@ -19,7 +19,8 @@ object StorageController {
   val default_cache_root: Path = Path.home / ".cbb-explorer"
   val default_teams_cache: String = ".teams" //TODO include year for easy upload?
   val default_lineup_cache: String = s".lineups.ndjson"
-
+  val default_player_cache: String = s".player_events.ndjson"
+  
   /** Dependency injection */
   case class Dependencies(
     logger: LogUtils = LogUtils,
@@ -134,6 +135,17 @@ class StorageController(d: StorageController.Dependencies = StorageController.De
   ): Unit = {
     d.file_manager.write_lines_to_file(
       file_root / file_name, lineups.map(_.asJson.noSpaces)
+    )
+  }
+
+  /** Store player events in a NDJSON format */
+  def write_player_events(
+    player_events: List[PlayerEvent],
+    file_root: Path = default_cache_root,
+    file_name: String = default_player_cache
+  ): Unit = {
+    d.file_manager.write_lines_to_file(
+      file_root / file_name, player_events.map(_.asJson.noSpaces)
     )
   }
 

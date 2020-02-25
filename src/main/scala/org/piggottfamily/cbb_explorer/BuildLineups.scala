@@ -21,6 +21,7 @@ object BuildLineups {
         |--out=<<out-dir-in-which-files-are-placed>>
         |[--team]=<<only include teams matching this string>>
         |[--full] (includes player in/out and raw events)
+        |[--player-events] (includes player events in a separate file)
         |[--from=<<filter-files-before-this-unix-timestamp>>]
         """)
       System.exit(-1)
@@ -39,6 +40,9 @@ object BuildLineups {
       }
     val strip_unused_data =
       !args.toList.map(_.trim).exists(_ == "--full")
+
+    val include_player_events =
+      !args.toList.map(_.trim).exists(_ == "--player-events")
 
     val maybe_filter = args
       .map(_.trim).filter(_.startsWith("--from="))
@@ -67,7 +71,7 @@ object BuildLineups {
 
     // Iterate over directories
     val subdirs = ls! Path(in_dir)
-    val (good_games, lineup_errors) = subdirs.map { subdir =>
+    val (good_games, lineup_errors, player_events) = subdirs.map { subdir =>
       //TODO: add some error validation
       val get_team_id = "(.*)_([0-9]+)$".r
       subdir.last match {
@@ -83,14 +87,15 @@ object BuildLineups {
 
         case get_team_id(team_name, _) =>
           println(s"Skipping unselected team with dir ${subdir.toString}")
-          (List(), List())
+          (List(), List(), List())
 
         case _ =>
           println(s"Skipping unrecognized dir ${subdir.toString}")
-          (List(), List())
+          (List(), List(), List())
       }
-    }.foldLeft((List[LineupEvent](), List[LineupEvent]())) { case ((all_good, all_bad), (new_good, new_bad)) =>
-      (all_good ++ new_good, all_bad ++ new_bad)
+    }.foldLeft((List[LineupEvent](), List[LineupEvent](), List[PlayerEvent]())) {
+      case ((all_good, all_bad, all_player), (new_good, new_bad, new_player)) =>
+        (all_good ++ new_good, all_bad ++ new_bad, all_player ++ new_player)
     }
     val time_filter_suffix = maybe_filter.map("_" + _).getOrElse("")
     // Write good lineups
@@ -119,6 +124,21 @@ object BuildLineups {
       file_root = Path(out_dir),
       file_name = s"bad_lineups_${conference}_$year${time_filter_suffix}.ndjson"
     )
+    if (include_player_events) {
+      storage_controller.write_player_events(
+        player_events = player_events.map(p => strip_unused_data match {
+          case true => p.copy(
+            players_in = Nil,
+            players_out = Nil,
+            raw_game_events = Nil
+          )
+          case false => p
+        }).toList,
+        file_root = Path(out_dir),
+        file_name = s"player_events_${conference}_$year${time_filter_suffix}.ndjson"
+      )
+    }
+
     // Add some information about bad lineups:
     println(s"[LineupErrorAnalysis] Total lineup errors (conf=[$conference]) [${lineup_errors.size}] (good: [${good_games.size}])")
     val num_good_possessions = good_games.foldLeft(0) { (acc, lineup) => acc + lineup.team_stats.num_possessions }

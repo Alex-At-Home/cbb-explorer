@@ -42,7 +42,7 @@ object BuildLineups {
       !args.toList.map(_.trim).exists(_ == "--full")
 
     val include_player_events =
-      !args.toList.map(_.trim).exists(_ == "--player-events")
+      args.toList.map(_.trim).exists(_ == "--player-events")
 
     val maybe_filter = args
       .map(_.trim).filter(_.startsWith("--from="))
@@ -53,8 +53,6 @@ object BuildLineups {
     val maybe_team_selector = args
       .map(_.trim).filter(_.startsWith("--team="))
       .headOption.map(_.split("=", 2)(1))
-
-    //TODO: need a team filter
 
     // Get year and then conference
 
@@ -125,6 +123,7 @@ object BuildLineups {
       file_name = s"bad_lineups_${conference}_$year${time_filter_suffix}.ndjson"
     )
     if (include_player_events) {
+      println(s"[LineupUtils] Writing [${player_events.size}] player events")
       storage_controller.write_player_events(
         player_events = player_events.map(p => strip_unused_data match {
           case true => p.copy(

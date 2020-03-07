@@ -265,10 +265,10 @@ trait LineupUtils {
       (Symbol(nameOf(f.player)) ->> player_id ::
         temp_lineup_event) ++
       (Symbol(nameOf(f.player_stats)) ->> LineupEventStats.empty.copy( //(inherited fields)
-          num_events = box_lineup.team_stats.num_events,
-          num_possessions = box_lineup.team_stats.num_possessions,
-          pts = box_lineup.team_stats.pts,
-          plus_minus = box_lineup.team_stats.plus_minus
+          num_events = lineup_event.team_stats.num_events,
+          num_possessions = lineup_event.team_stats.num_possessions,
+          pts = lineup_event.team_stats.pts,
+          plus_minus = lineup_event.team_stats.plus_minus
         ) ::
         Symbol(nameOf(f.player_count_error)) ->> lineup_event.player_count_error ::
         HNil)

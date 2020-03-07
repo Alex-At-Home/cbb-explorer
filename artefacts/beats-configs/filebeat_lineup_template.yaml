@@ -4,6 +4,7 @@ filebeat.inputs:
 - type: log
   enabled: true
   paths:
+    - ./women_misc_conf_20*.ndjson
     - ./misc_conf_20*.ndjson
 
     - ./women_acc_20*.ndjson
@@ -24,6 +25,8 @@ filebeat.inputs:
 
     - ./bad_lineups_*_20*.ndjson
 
+    - ./player_events_*_20*.ndjson
+
   json.keys_under_root: true
 
 #================================ Output =====================================
@@ -35,6 +38,12 @@ cloud.auth: "ADD_USER:ADD_PASSWORD"
 
 output.elasticsearch:
   indices:
+    # Lineups:
+
+    - index: "women_misc_conf_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/women_misc_conf_[0-9]+(_.*)?.ndjson"
+
     - index: "misc_conf_%{[team.year]}"
       when.regexp:
         log.file.path: ".*/misc_conf_[0-9]+(_.*)?.ndjson"
@@ -90,6 +99,60 @@ output.elasticsearch:
     - index: "bad_lineups_men_%{[team.year]}"
       when.regexp:
         log.file.path: ".*/bad_lineups_.*?_[0-9]+(_.*)?.ndjson"
+
+    # Player events:
+
+    - index: "player_events_women_misc_conf_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_misc_conf_[0-9]+(_.*)?.ndjson"
+
+    - index: "player_events_men_misc_conf_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/player_events_misc_conf_[0-9]+(_.*)?.ndjson"
+
+    - index: "player_events_women_acc_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_acc_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_american_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_american_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_bigten_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_bigten_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_bigtwelve_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_bigtwelve_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_pactwelve_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_pactwelve_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_sec_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_sec_[0-9]+(_.*)?.ndjson"
+
+    - index: "player_events_men_acc_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/player_events_acc_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_men_american_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/player_events_american_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_men_atlanticten_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/player_events_atlanticten_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_men_bigeast_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/player_events_bigeast_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_men_bigten_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/player_events_bigten_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_men_bigtwelve_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/player_events_bigtwelve_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_men_pactwelve_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/player_events_pactwelve_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_men_sec_%{[team.year]}"
+      when.regexp:
+        log.file.path: ".*/player_events_sec_[0-9]+(_.*)?.ndjson"
 
 setup.template.enabled: false
 

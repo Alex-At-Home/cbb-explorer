@@ -400,7 +400,7 @@ object ExtractorUtils {
   }
 
   /** Builds a lineup id from a list of players */
-  private def build_lineup_id(players: List[LineupEvent.PlayerCodeId]): LineupEvent.LineupId = {
+  def build_lineup_id(players: List[LineupEvent.PlayerCodeId]): LineupEvent.LineupId = {
     LineupEvent.LineupId(players.map(_.code).sorted.mkString("_"))
   }
 

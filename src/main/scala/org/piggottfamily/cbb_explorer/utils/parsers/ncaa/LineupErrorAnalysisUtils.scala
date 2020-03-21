@@ -357,7 +357,9 @@ object LineupErrorAnalysisUtils {
       if (debug && to_fix.evs.nonEmpty) { //(if debug flag enabled, display some info about unfixed clumps)
         analyze_unfixed_clumps(to_fix, box_lineup, valid_player_codes)
       }
-      (fixed, to_fix)
+      (fixed.map { fixed_lineup => //recalculate the lineup id now that I've removed players
+        fixed_lineup.copy(lineup_id = ExtractorUtils.build_lineup_id(fixed_lineup.players))
+      }, to_fix)
     }.getOrElse {
       (Nil, clump)
     }

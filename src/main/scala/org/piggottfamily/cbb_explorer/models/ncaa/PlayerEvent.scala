@@ -7,6 +7,7 @@ import org.joda.time.DateTime
 /**
  * Represents a portion of a game in which a given lineup occurs - within that portion, the stats of an individual
  * @param player The player in question
+ * @param player_stats The numerical stats extracted for the player (for the team under analysis)
  * @param date The date of the game
  * @param start_min The point in the game at which the lineup entered
  * @param end_min The point in the game at which the lineup changed
@@ -19,11 +20,13 @@ import org.joda.time.DateTime
  * @param players_in The list of players who subbed in for this event
  * @param players_out The list of players who subbed out for this event
  * @param raw_game_events A list of the event strings from the NCAA website for the teams under analysis
- * @param player_stats The numerical stats extracted for the player (for the team under analysis)
+ * @param team_stats The numerical stats extracted for the lineup (for the team under analysis)
+ * @param opponent_stats The numerical stats extracted for the lineup (for the opposing team)
  * @param player_count_error If a lineup is "impossible", count the number of players in the lineup for analysis purposes
  */
 case class PlayerEvent(
   player: LineupEvent.PlayerCodeId,
+  player_stats: LineupEventStats,
   date: DateTime,
   location_type: Game.LocationType.Value,
   start_min: Double,
@@ -37,6 +40,7 @@ case class PlayerEvent(
   players_in: List[LineupEvent.PlayerCodeId],
   players_out: List[LineupEvent.PlayerCodeId],
   raw_game_events: List[LineupEvent.RawGameEvent],
-  player_stats: LineupEventStats,
+  team_stats: LineupEventStats,
+  opponent_stats: LineupEventStats,
   player_count_error: Option[Int] = None
 )

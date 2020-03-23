@@ -256,22 +256,15 @@ trait LineupUtils {
     val team_event_filter = LineupEvent.RawGameEvent.PossessionEvent(team_dir)
     val gen_lineup_event = shapeless.LabelledGeneric[LineupEvent]
     val gen_player_event = shapeless.LabelledGeneric[PlayerEvent]
-    val temp_lineup_event = gen_lineup_event.to(lineup_event).take(13)
-      //(not ideal in the sense that still need to change if lineup_event changes, but
-      // will error and at least isn't a copy paste - nicer/more complex alt would be hlist.intersect)
+    val temp_lineup_event = gen_lineup_event.to(lineup_event)
+      //(not ideal in that requires player events all be at the front, but a lot simpler than a generic alternative)
 
     def base_player_event(player_id: LineupEvent.PlayerCodeId) = gen_player_event.from {
       var f: PlayerEvent = null // (just used to infer type in "nameOf")
       (Symbol(nameOf(f.player)) ->> player_id ::
-        temp_lineup_event) ++
-      (Symbol(nameOf(f.player_stats)) ->> LineupEventStats.empty.copy( //(inherited fields)
-          num_events = lineup_event.team_stats.num_events,
-          num_possessions = lineup_event.team_stats.num_possessions,
-          pts = lineup_event.team_stats.pts,
-          plus_minus = lineup_event.team_stats.plus_minus
-        ) ::
-        Symbol(nameOf(f.player_count_error)) ->> lineup_event.player_count_error ::
-        HNil)
+        Symbol(nameOf(f.player_stats)) ->> LineupEventStats.empty ::
+        HNil
+      ) ++ temp_lineup_event
     }
     val tidy_ctx = LineupErrorAnalysisUtils.build_tidy_player_context(box_lineup)
     val player_filter = (player_id: LineupEvent.PlayerCodeId) => (player_str: String) => {
@@ -283,14 +276,18 @@ trait LineupUtils {
     lineup_event.players.map { player =>
       val this_player_filter = player_filter(player)
       val player_event = base_player_event(player)
+      val player_raw_game_events = lineup_event.raw_game_events.collect {
+        case ev @ team_event_filter.AttackingTeam(EventUtils.ParseAnyPlay(player_str))
+          if this_player_filter(player_str) => ev
+      }
+      val player_stats = enrich_stats(
+        lineup_event.raw_game_events, team_event_filter, Some(this_player_filter)
+      )(player_event.player_stats)
       player_event.copy( // will fill in these 2 fields as we go along
-        player_stats = enrich_stats(
-          lineup_event.raw_game_events, team_event_filter, Some(this_player_filter)
-        )(player_event.player_stats),
-        raw_game_events = lineup_event.raw_game_events.collect {
-          case ev @ team_event_filter.AttackingTeam(EventUtils.ParseAnyPlay(player_str))
-            if this_player_filter(player_str) => ev
-        }
+        player_stats = player_stats.copy(
+          num_events = player_raw_game_events.size
+        ),
+        raw_game_events = player_raw_game_events
       )
     } //(note: need to keep empty events so we can calculate possessions and hence usage)
   }

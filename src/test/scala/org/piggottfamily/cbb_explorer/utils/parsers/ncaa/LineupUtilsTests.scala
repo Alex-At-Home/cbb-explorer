@@ -35,6 +35,7 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
       opponent_stats = LineupEventStats.empty
     )
     val base_player_event = PlayerEvent(
+      player_stats = LineupEventStats.empty,
       player = build_player_code("PlayerA, NameA", None),
       date = new DateTime(),
       location_type = Game.LocationType.Home,
@@ -51,7 +52,8 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
       players_in = Nil,
       players_out = Nil,
       raw_game_events = Nil,
-      player_stats = LineupEventStats.empty,
+      team_stats = LineupEventStats.empty,
+      opponent_stats = LineupEventStats.empty
     )
 
     "LineupUtils" - {
@@ -444,30 +446,36 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
           case player1 :: player2 :: player3 :: Nil =>
             player1 ==> base_player_event.copy(
               player = test_lineup.players(0),
-              players = test_lineup.players,
-              raw_game_events = Events.made_team :: Events.made_team :: Nil,
               player_stats = LineupEventStats.empty
-                .modify(_.num_possessions).setTo(test_lineup.team_stats.num_possessions)
+                .modify(_.num_events).setTo(2)
                 .modify(_.fg_3p.attempts.total).setTo(2)
                 .modify(_.fg_3p.made.total).setTo(2)
                 .modify(_.fg.attempts.total).setTo(2)
-                .modify(_.fg.made.total).setTo(2)
+                .modify(_.fg.made.total).setTo(2),
+              players = test_lineup.players,
+              raw_game_events = Events.made_team :: Events.made_team :: Nil,
+              team_stats = test_lineup.team_stats,
+              opponent_stats = test_lineup.opponent_stats
             )
             player2 ==> base_player_event.copy(
               player = test_lineup.players(1),
+              player_stats = LineupEventStats.empty
+                .modify(_.num_events).setTo(1)
+                .modify(_.drb.total).setTo(1),
               players = test_lineup.players,
               raw_game_events = Events.drb_team :: Nil,
-              player_stats = LineupEventStats.empty
-                .modify(_.num_possessions).setTo(test_lineup.team_stats.num_possessions)
-                .modify(_.drb.total).setTo(1)
+              team_stats = test_lineup.team_stats,
+              opponent_stats = test_lineup.opponent_stats
             )
             player3 ==> base_player_event.copy(
               player = test_lineup.players(2),
+              player_stats = LineupEventStats.empty
+                .modify(_.num_events).setTo(1)
+                .modify(_.blk.total).setTo(1),
               players = test_lineup.players,
               raw_game_events = Events.block_team :: Nil,
-              player_stats = LineupEventStats.empty
-                .modify(_.num_possessions).setTo(test_lineup.team_stats.num_possessions)
-                .modify(_.blk.total).setTo(1)
+              team_stats = test_lineup.team_stats,
+              opponent_stats = test_lineup.opponent_stats
             )
         }
       }

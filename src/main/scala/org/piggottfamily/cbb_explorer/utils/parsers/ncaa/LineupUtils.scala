@@ -251,7 +251,28 @@ trait LineupUtils {
   }
 
   /** Create a list of player-specific stats from each lineup event */
-  def create_player_events(lineup_event: LineupEvent, box_lineup: LineupEvent): List[PlayerEvent] = {
+  def create_player_events(lineup_event_maybe_bad: LineupEvent, box_lineup: LineupEvent): List[PlayerEvent] = {
+    val tidy_ctx = LineupErrorAnalysisUtils.build_tidy_player_context(box_lineup)
+    // Since we can process "bad" lineups we do some tidy up activity first:
+    val valid_player_codes = box_lineup.players.map(_.code).toSet
+    // Don't generate events for players not in the lineup
+    val player_tidier = (player: LineupEvent.PlayerCodeId) => {
+      val tidyPlayer = ExtractorUtils.build_player_code(
+        LineupErrorAnalysisUtils.tidy_player(player.id.name, tidy_ctx), Some(box_lineup.team.team)
+      )
+      if (valid_player_codes(tidyPlayer.code)) {
+        List(tidyPlayer)
+      } else {
+        Nil
+      }
+    }
+    val lineup_event = lineup_event_maybe_bad.copy(
+      players = lineup_event_maybe_bad.players.flatMap(player_tidier),
+      players_in = lineup_event_maybe_bad.players_in.flatMap(player_tidier),
+      players_out = lineup_event_maybe_bad.players_out.flatMap(player_tidier)
+    )
+    // OK now back to the main processing:
+
     val team_dir = LineupEvent.RawGameEvent.Direction.Team
     val team_event_filter = LineupEvent.RawGameEvent.PossessionEvent(team_dir)
     val gen_lineup_event = shapeless.LabelledGeneric[LineupEvent]
@@ -266,12 +287,11 @@ trait LineupUtils {
         HNil
       ) ++ temp_lineup_event
     }
-    val tidy_ctx = LineupErrorAnalysisUtils.build_tidy_player_context(box_lineup)
     val player_filter = (player_id: LineupEvent.PlayerCodeId) => (player_str: String) => {
       val code = ExtractorUtils.build_player_code(
         LineupErrorAnalysisUtils.tidy_player(player_str, tidy_ctx), Some(lineup_event.team.team)
       ).code
-      code == player_id.code
+      (code == player_id.code)
     }
     lineup_event.players.map { player =>
       val this_player_filter = player_filter(player)

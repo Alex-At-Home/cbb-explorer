@@ -434,15 +434,21 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
             Events.block_opponent :: //Layman block, ignore
             Events.steal_opponent :: //(Double ignore!)
             Events.made_team :: // Another Jalen Smith made 3!
+            Events.missed_team :: // This event comes from a different player not in the box score
             Nil
           },
           team_stats = base_lineup.team_stats.modify(_.num_possessions).setTo(7)
+        )
+        val in_lineup = test_lineup.copy( // Corrupt the box score to ensure it gets tidied up
+            players = build_player_code("JALEN SMITH", None) :: //check gets reformatted by the box score
+              build_player_code("Ayala, Eric", None) :: //(will remove from box lineup so his events get ignored)
+              test_lineup.players.filterNot(_.code == "JaSmith")
         )
         val test_box = test_lineup.copy(
           team_stats = base_lineup.team_stats,
           opponent_stats = base_lineup.opponent_stats,
         )
-        TestUtils.inside(create_player_events(test_lineup, test_box)) {
+        TestUtils.inside(create_player_events(in_lineup, test_box)) {
           case player1 :: player2 :: player3 :: Nil =>
             player1 ==> base_player_event.copy(
               player = test_lineup.players(0),

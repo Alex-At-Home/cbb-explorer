@@ -59,7 +59,9 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
     val deadball_orb_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = deadball_orb_team.team.get)
     // other events
     val assist_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,Kyle Guy, assist")
-    val block_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,04:53,55-69,LAYMAN,JAKE Blocked Shot")
+    val assist_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = assist_team.team.get)
+    val block_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "04:53,55-69,LAYMAN,JAKE Blocked Shot")
+    val block_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = block_team.team.get)
 
     val foul_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,MYKHAILIUK,SVI Commits Foul")
     val foul_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = foul_team.team.get)

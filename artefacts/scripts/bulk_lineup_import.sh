@@ -24,6 +24,7 @@ for i in $CONFS; do
     org.piggottfamily.cbb_explorer.BuildLineups \
     --in=$PBP_CRAWL_PATH/${i}/${CURR_YEAR}/ \
     --out=$PBP_OUT_DIR \
+    --player-events \
     --from=$CURR_TIME >> $PBP_OUT_DIR/bulk_import_logs_${CURR_TIME}.log
 done
 

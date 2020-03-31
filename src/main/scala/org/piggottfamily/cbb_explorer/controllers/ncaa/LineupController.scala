@@ -20,7 +20,7 @@ class LineupController(d: Dependencies = Dependencies())
     root_dir: Path, team: TeamId,
     game_id_filter: Option[Regex] = None, min_time_filter: Option[Long] = None
   )
-    : (List[LineupEvent], List[LineupEvent]) =
+  : (List[LineupEvent], List[LineupEvent], List[PlayerEvent]) =
   {
     sealed trait LineupError
     case class FileError(f: Path, ex: Throwable) extends LineupError
@@ -66,16 +66,19 @@ class LineupController(d: Dependencies = Dependencies())
         case Success(res) => res.left.map { errs => ParserError(game, errs) }
         case Failure(ex) => Left(FileError(game, ex))
       }
-    } yield lineup
+    } yield lineup //(good, bad, player_event) triples
 
-    case class State(good_lineups: List[LineupEvent], bad_lineups: List[LineupEvent])
-    val end_state = lineups.foldLeft(State(Nil, Nil)) { (state, lineup_info) =>
+    case class State(
+      good_lineups: List[LineupEvent], bad_lineups: List[LineupEvent], player_events: List[PlayerEvent]
+    )
+    val end_state = lineups.foldLeft(State(Nil, Nil, Nil)) { (state, lineup_info) =>
       lineup_info match {
-        case Right((good, bad)) =>
+        case Right((good, bad, player)) =>
           d.logger.info(s"Successful parse: good=[${good.size}] bad=[${bad.size}]")
           state.copy(
             good_lineups = state.good_lineups ++ good,
-            bad_lineups = state.bad_lineups ++ bad
+            bad_lineups = state.bad_lineups ++ bad,
+            player_events = state.player_events ++ player
           )
         case Left(FileError(game, ex)) =>
           d.logger.info(s"File error with [$game]: [$ex]")
@@ -85,12 +88,12 @@ class LineupController(d: Dependencies = Dependencies())
           state
       }
     }
-    (end_state.good_lineups, end_state.bad_lineups)
+    (end_state.good_lineups, end_state.bad_lineups, end_state.player_events)
   }
 
   /** Given a game/team id, returns good and bad paths for that game */
   def build_game_lineups(root_dir: Path, game_id: String, team: TeamId, neutral_game_dates: Set[String]):
-    Either[List[ParseError], (List[LineupEvent], List[LineupEvent])] =
+    Either[List[ParseError], (List[LineupEvent], List[LineupEvent], List[PlayerEvent])] =
   {
     val playbyplay_filename = s"$game_id.html"
     val boxscore_filename = s"${game_id}42b2.html" //(encoding of 1st period box score)
@@ -99,8 +102,13 @@ class LineupController(d: Dependencies = Dependencies())
     for {
       box_lineup <- d.boxscore_parser.get_box_lineup(boxscore_filename, box_html, team, neutral_game_dates)
       _ = d.logger.info(s"Parsed box score: opponent=[${box_lineup.opponent}] venue=[${box_lineup.location_type}]")
-      events <- d.playbyplay_parser.create_lineup_data(playbyplay_filename, play_by_play_html, box_lineup)
-    } yield events
+      lineup_events <- d.playbyplay_parser.create_lineup_data(playbyplay_filename, play_by_play_html, box_lineup)
+      player_events = (lineup_events._1 ++ lineup_events._2).flatMap(
+        //(note we are including bad lineups in our player events since it's not such a disaster -
+        // what we care about is mostly the individual stats)
+        LineupUtils.create_player_events(_, box_lineup)
+      )
+    } yield (lineup_events._1, lineup_events._2, player_events)
   }
 
 }

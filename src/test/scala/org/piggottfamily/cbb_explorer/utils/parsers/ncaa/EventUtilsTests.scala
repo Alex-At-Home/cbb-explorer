@@ -8,127 +8,127 @@ import org.piggottfamily.cbb_explorer.models.ncaa._
 
 object EventUtilsTests extends TestSuite {
 
+  val jumpball_test_cases =
+    "19:58:00,0-0,Kavell Bigby-Williams, jumpball lost" ::
+    "19:58:00,0-0,Bruno Fernando, jumpball won" ::
+    Nil
+
+  val timeout_test_cases =
+    "04:04:00,26-33,Ignored, timeout short" ::
+    "00:21,59-62,IGNORED 30 Second Timeout" ::
+    "10:00,51-60,TEAM 30 Second Timeout" ::
+    "10:00,51-60,TEAM Team Timeout" ::
+    "10:00,51-60,TEAM Media Timeout" ::
+    Nil
+
+  val shot_made_test_cases =
+    "08:44:00,20-23,Bruno Fernando1, 2pt dunk 2ndchance;pointsinthepaint made" ::
+    "08:44:00,20-23,Bruno Fernando2, 2pt alleyoop pointsinthepaint made" ::
+    "08:44:00,20-23,WATKINS,MIKE made Dunk" ::
+    "08:44:00,20-23,Jalen Smith, 2pt layup 2ndchance;pointsinthepaint made" ::
+    "08:44:00,20-23,BOLTON,RASIR made Layup" ::
+    "08:44:00,20-23,STEVENS,LAMAR made Tip In" ::
+    "08:44:00,20-23,Anthony Cowan, 2pt jumpshot fromturnover;fastbreak made" ::
+    "08:44:00,20-23,STEVENS,LAMAR2 made Two Point Jumper" ::
+    "08:44:00,20-23,Eric Ayala, 3pt jumpshot made" ::
+    "08:44:00,20-23,SMITH,JALEN made Three Point Jumper" ::
+    "15:27,13-8,TRIMBLE JR,BRYAN made Three Point Jumper" ::
+    Nil
+
+  val shot_missed_test_cases =
+    "08:44:00,20-23,Bruno Fernando3, 2pt dunk missed" ::
+    "08:44:00,20-23,Joshua Tomaic, 2pt alleyoop missed" ::
+    "08:44:00,20-23,WATKINS,MIKE1 missed Dunk" ::
+    "08:44:00,20-23,Eric Carter, 2pt layup missed" ::
+    "08:44:00,20-23,TOMAIC,JOSHUA missed Layup" ::
+    "08:44:00,20-23,HUERTER,KEVIN missed Tip In" ::
+    "08:44:00,20-23,Ricky Lindo Jr., 2pt jumpshot missed" ::
+    "08:44:00,20-23,SMITH,JALEN1 missed Two Point Jumper" ::
+    "08:44:00,20-23,Eric Ayala2, 3pt jumpshot 2ndchance missed" ::
+    "08:44:00,20-23,DREAD,MYLES missed Three Point Jumper" ::
+    Nil
+
+  val rebound_test_cases =
+    "08:44:00,20-23,Darryl Morsell, rebound defensive" ::
+    "08:44:00,20-23,Jalen Smith1, rebound offensive" ::
+    "08:44:00,20-23,Team, rebound offensive team" ::
+    "08:44:00,20-23,SMITH,JALEN2 Offensive Rebound" ::
+    "08:44:00,20-23,HARRAR,JOHN Defensive Rebound" ::
+    "04:33,46-45,TEAM Deadball Rebound" ::
+    "04:28:0,52-59,Team, rebound offensivedeadball" ::
+    "04:28:0,52-59,Team, rebound defensivedeadball" ::
+    Nil
+
+  val free_throw_made_test_cases =
+    "08:44:00,20-23,Kevin Anderson0M, freethrow 1of1 made" ::
+    "08:44:00,20-23,Kevin Anderson1M, freethrow 1of2 made" ::
+    "08:44:00,20-23,Kevin Anderson, freethrow 2of2 made" ::
+    "08:44:00,20-23,Kevin Anderson3M, freethrow 1of3 made" ::
+    "08:44:00,20-23,DREAD,MYLES1 made Free Throw" ::
+    Nil
+
+  val free_throw_missed_test_cases =
+    "08:44:00,20-23,Kevin Anderson0m, freethrow 1of1 missed" ::
+    "08:44:00,20-23,Kevin Anderson1, freethrow 1of2 missed" ::
+    "08:44:00,20-23,Kevin Anderson2, freethrow 2of2 missed" ::
+    "08:44:00,20-23,Kevin Anderson3, freethrow 1of3 missed" ::
+    "08:44:00,20-23,Kevin Anderson4, freethrow 2of3 missed" ::
+    "08:44:00,20-23,Kevin Anderson5, freethrow 3of3 missed" ::
+    "08:44:00,20-23,DREAD,MYLES2 missed Free Throw" ::
+    Nil
+
+  val turnover_test_cases =
+    "14:11:00,7-9,Bruno Fernando4, turnover badpass" ::
+    "14:11:00,7-9,Joshua Tomaic, turnover lostball" ::
+    "14:11:00,7-9,Jalen Smith2, turnover offensive" ::
+    "14:11:00,7-9,Kevin Anderson6, turnover travel" ::
+    "14:11:00,7-9,MORSELL,DARRYL Turnover" ::
+    Nil
+
+  val blocked_test_cases =
+    "14:11:00,7-9,Emmitt Williams, block" ::
+    "04:53,55-69,LAYMAN,JAKE Blocked Shot" ::
+    Nil
+
+  val stolen_test_cases =
+    "08:44:00,20-23,Jacob Cushing, steal" ::
+    "05:10,55-68,MASON III,FRANK Steal" ::
+    Nil
+
+  val assist_test_cases =
+    "18:28:00,0-0,Kyle Guy, assist" ::
+    "19:49,0-2,EDWARDS,CARSEN Assist" ::
+    Nil
+
+  val foul_test_cases =
+    "10:00,51-60,TEAM Commits Foul" :: //(old style tech)
+    "13:36:00,7-9,Jalen Smith3, foul personal shooting;2freethrow" ::
+    "10:00,51-60,MYKHAILIUK,SVI Commits Foul" ::
+    "06:43:00,55-79,Bruno Fernando5, foul technical classa;2freethrow" ::
+    "02:28:00,27-38,Jalen Smith4, foulon" ::
+    "03:42:00,10-10,Eric Carter1, foul personal flagrant1;2freethrow" ::
+    "02:28:00,27-38,Eric Ayala3, foul offensive" ::
+    Nil
+
+  val all_test_cases = (
+    jumpball_test_cases ++
+    timeout_test_cases ++
+    shot_made_test_cases ++
+    shot_missed_test_cases ++
+    rebound_test_cases ++
+    free_throw_made_test_cases ++
+    free_throw_missed_test_cases ++
+    turnover_test_cases ++
+    blocked_test_cases ++
+    stolen_test_cases ++
+    assist_test_cases ++
+    foul_test_cases
+  )
+
   val tests = Tests {
     "EventUtils" - {
       //TODO: add time-parsing tests, though they are covered by the main test logic
       //TODO: add substitution tests, though they are covered by the main test logic
-
-      val jumpball_test_cases =
-        "19:58:00,0-0,Kavell Bigby-Williams, jumpball lost" ::
-        "19:58:00,0-0,Bruno Fernando, jumpball won" ::
-        Nil
-
-      val timeout_test_cases =
-        "04:04:00,26-33,Ignored, timeout short" ::
-        "00:21,59-62,IGNORED 30 Second Timeout" ::
-        "10:00,51-60,TEAM 30 Second Timeout" ::
-        "10:00,51-60,TEAM Team Timeout" ::
-        "10:00,51-60,TEAM Media Timeout" ::
-        Nil
-
-      val shot_made_test_cases =
-        "08:44:00,20-23,Bruno Fernando1, 2pt dunk 2ndchance;pointsinthepaint made" ::
-        "08:44:00,20-23,Bruno Fernando2, 2pt alleyoop pointsinthepaint made" ::
-        "08:44:00,20-23,WATKINS,MIKE made Dunk" ::
-        "08:44:00,20-23,Jalen Smith, 2pt layup 2ndchance;pointsinthepaint made" ::
-        "08:44:00,20-23,BOLTON,RASIR made Layup" ::
-        "08:44:00,20-23,STEVENS,LAMAR made Tip In" ::
-        "08:44:00,20-23,Anthony Cowan, 2pt jumpshot fromturnover;fastbreak made" ::
-        "08:44:00,20-23,STEVENS,LAMAR2 made Two Point Jumper" ::
-        "08:44:00,20-23,Eric Ayala, 3pt jumpshot made" ::
-        "08:44:00,20-23,SMITH,JALEN made Three Point Jumper" ::
-        "15:27,13-8,TRIMBLE JR,BRYAN made Three Point Jumper" ::
-        Nil
-
-      val shot_missed_test_cases =
-        "08:44:00,20-23,Bruno Fernando3, 2pt dunk missed" ::
-        "08:44:00,20-23,Joshua Tomaic, 2pt alleyoop missed" ::
-        "08:44:00,20-23,WATKINS,MIKE1 missed Dunk" ::
-        "08:44:00,20-23,Eric Carter, 2pt layup missed" ::
-        "08:44:00,20-23,TOMAIC,JOSHUA missed Layup" ::
-        "08:44:00,20-23,HUERTER,KEVIN missed Tip In" ::
-        "08:44:00,20-23,Ricky Lindo Jr., 2pt jumpshot missed" ::
-        "08:44:00,20-23,SMITH,JALEN1 missed Two Point Jumper" ::
-        "08:44:00,20-23,Eric Ayala2, 3pt jumpshot 2ndchance missed" ::
-        "08:44:00,20-23,DREAD,MYLES missed Three Point Jumper" ::
-        Nil
-
-      val rebound_test_cases =
-        "08:44:00,20-23,Darryl Morsell, rebound defensive" ::
-        "08:44:00,20-23,Jalen Smith1, rebound offensive" ::
-        "08:44:00,20-23,Team, rebound offensive team" ::
-        "08:44:00,20-23,SMITH,JALEN2 Offensive Rebound" ::
-        "08:44:00,20-23,HARRAR,JOHN Defensive Rebound" ::
-        "04:33,46-45,TEAM Deadball Rebound" ::
-        "04:28:0,52-59,Team, rebound offensivedeadball" ::
-        "04:28:0,52-59,Team, rebound defensivedeadball" ::
-        Nil
-
-      val free_throw_made_test_cases =
-        "08:44:00,20-23,Kevin Anderson0M, freethrow 1of1 made" ::
-        "08:44:00,20-23,Kevin Anderson1M, freethrow 1of2 made" ::
-        "08:44:00,20-23,Kevin Anderson, freethrow 2of2 made" ::
-        "08:44:00,20-23,Kevin Anderson3M, freethrow 1of3 made" ::
-        "08:44:00,20-23,DREAD,MYLES1 made Free Throw" ::
-        Nil
-
-      val free_throw_missed_test_cases =
-        "08:44:00,20-23,Kevin Anderson0m, freethrow 1of1 missed" ::
-        "08:44:00,20-23,Kevin Anderson1, freethrow 1of2 missed" ::
-        "08:44:00,20-23,Kevin Anderson2, freethrow 2of2 missed" ::
-        "08:44:00,20-23,Kevin Anderson3, freethrow 1of3 missed" ::
-        "08:44:00,20-23,Kevin Anderson4, freethrow 2of3 missed" ::
-        "08:44:00,20-23,Kevin Anderson5, freethrow 3of3 missed" ::
-        "08:44:00,20-23,DREAD,MYLES2 missed Free Throw" ::
-        Nil
-
-      val turnover_test_cases =
-        "14:11:00,7-9,Bruno Fernando4, turnover badpass" ::
-        "14:11:00,7-9,Joshua Tomaic, turnover lostball" ::
-        "14:11:00,7-9,Jalen Smith2, turnover offensive" ::
-        "14:11:00,7-9,Kevin Anderson6, turnover travel" ::
-        "14:11:00,7-9,MORSELL,DARRYL Turnover" ::
-        Nil
-
-      val blocked_test_cases =
-        "14:11:00,7-9,Emmitt Williams, block" ::
-        "04:53,55-69,LAYMAN,JAKE Blocked Shot" ::
-        Nil
-
-      val stolen_test_cases =
-        "08:44:00,20-23,Jacob Cushing, steal" ::
-        "05:10,55-68,MASON III,FRANK Steal" ::
-        Nil
-
-      val assist_test_cases =
-        "18:28:00,0-0,Kyle Guy, assist" ::
-        "19:49,0-2,EDWARDS,CARSEN Assist" ::
-        Nil
-
-      val foul_test_cases =
-        "10:00,51-60,TEAM Commits Foul" :: //(old style tech)
-        "13:36:00,7-9,Jalen Smith3, foul personal shooting;2freethrow" ::
-        "10:00,51-60,MYKHAILIUK,SVI Commits Foul" ::
-        "06:43:00,55-79,Bruno Fernando5, foul technical classa;2freethrow" ::
-        "02:28:00,27-38,Jalen Smith4, foulon" ::
-        "03:42:00,10-10,Eric Carter1, foul personal flagrant1;2freethrow" ::
-        "02:28:00,27-38,Eric Ayala3, foul offensive" ::
-        Nil
-
-      val all_test_cases = (
-        jumpball_test_cases ++
-        timeout_test_cases ++
-        shot_made_test_cases ++
-        shot_missed_test_cases ++
-        rebound_test_cases ++
-        free_throw_made_test_cases ++
-        free_throw_missed_test_cases ++
-        turnover_test_cases ++
-        blocked_test_cases ++
-        stolen_test_cases ++
-        assist_test_cases ++
-        foul_test_cases
-      )
 
       // All plays - check the players are pulled out
       "ParseAnyPlay" - {

@@ -26,13 +26,18 @@ object EventUtilsTests extends TestSuite {
     "08:44:00,20-23,Bruno Fernando2, 2pt alleyoop pointsinthepaint made" ::
     "08:44:00,20-23,WATKINS,MIKE made Dunk" ::
     "08:44:00,20-23,Jalen Smith, 2pt layup 2ndchance;pointsinthepaint made" ::
+    "08:44:00,20-23,Landers Nolley II, 2pt drivinglayup made" ::
     "08:44:00,20-23,BOLTON,RASIR made Layup" ::
     "08:44:00,20-23,STEVENS,LAMAR made Tip In" ::
-    "08:44:00,20-23,Anthony Cowan, 2pt jumpshot fromturnover;fastbreak made" ::
-    "08:44:00,20-23,STEVENS,LAMAR2 made Two Point Jumper" ::
     "08:44:00,20-23,Eric Ayala, 3pt jumpshot made" ::
     "08:44:00,20-23,SMITH,JALEN made Three Point Jumper" ::
     "15:27,13-8,TRIMBLE JR,BRYAN made Three Point Jumper" ::
+    "08:44:00,20-23,Francesca Pan2, 2pt hookshot 2ndchance;pointsinthepaint made" :: //(add more formats because the regex is a bit more complex)
+    "08:44:00,20-23,Francesca Pan3, 2pt hookshot pointsinthepaint;fastbreak made" ::
+    "08:44:00,20-23,Francesca Pan4, 2pt hookshot pointsinthepaint made" ::
+    "08:44:00,20-23,Francesca Pan, 2pt hookshot 2ndchance made" :: //(counts as mid range)
+    "08:44:00,20-23,Anthony Cowan, 2pt jumpshot fromturnover;fastbreak made" ::
+    "08:44:00,20-23,STEVENS,LAMAR2 made Two Point Jumper" ::
     Nil
 
   val shot_missed_test_cases =
@@ -40,12 +45,17 @@ object EventUtilsTests extends TestSuite {
     "08:44:00,20-23,Joshua Tomaic, 2pt alleyoop missed" ::
     "08:44:00,20-23,WATKINS,MIKE1 missed Dunk" ::
     "08:44:00,20-23,Eric Carter, 2pt layup missed" ::
+    "08:44:00,20-23,Landers Nolley II2, 2pt drivinglayup;pointsinthepaint missed" ::
     "08:44:00,20-23,TOMAIC,JOSHUA missed Layup" ::
     "08:44:00,20-23,HUERTER,KEVIN missed Tip In" ::
-    "08:44:00,20-23,Ricky Lindo Jr., 2pt jumpshot missed" ::
-    "08:44:00,20-23,SMITH,JALEN1 missed Two Point Jumper" ::
     "08:44:00,20-23,Eric Ayala2, 3pt jumpshot 2ndchance missed" ::
     "08:44:00,20-23,DREAD,MYLES missed Three Point Jumper" ::
+    "08:44:00,20-23,Christina Morra2, 2pt hookshot 2ndchance;pointsinthepaint missed" :: //(add more formats because the regex is a bit more complex)
+    "08:44:00,20-23,Christina Morra3, 2pt hookshot pointsinthepaint;fastbreak missed" ::
+    "08:44:00,20-23,Christina Morra4, 2pt hookshot pointsinthepaint missed" ::
+    "08:44:00,20-23,Christina Morra, 2pt hookshot 2ndchance missed" :: //(counts as mid range)
+    "08:44:00,20-23,Ricky Lindo Jr., 2pt jumpshot missed" ::
+    "08:44:00,20-23,SMITH,JALEN1 missed Two Point Jumper" ::
     Nil
 
   val rebound_test_cases =
@@ -187,8 +197,10 @@ object EventUtilsTests extends TestSuite {
       // Shots
       val shots_made = List(
         "Bruno Fernando1", "Bruno Fernando2", "WATKINS,MIKE", "Jalen Smith",
-        "BOLTON,RASIR", "STEVENS,LAMAR", "Anthony Cowan", "STEVENS,LAMAR2",
-        "Eric Ayala", "SMITH,JALEN", "TRIMBLE JR,BRYAN"
+        "Landers Nolley II", "BOLTON,RASIR", "STEVENS,LAMAR",
+        "Eric Ayala", "SMITH,JALEN", "TRIMBLE JR,BRYAN",
+        "Francesca Pan2", "Francesca Pan3", "Francesca Pan4",
+        "Francesca Pan", "Anthony Cowan", "STEVENS,LAMAR2"
       )
       "ParseShotMade" - {
         TestUtils.inside(all_test_cases.collect {
@@ -200,7 +212,8 @@ object EventUtilsTests extends TestSuite {
       // Sub-categories
       val rim_shots_made = List(
         "Bruno Fernando1", "Bruno Fernando2", "WATKINS,MIKE",
-        "Jalen Smith", "BOLTON,RASIR", "STEVENS,LAMAR"
+        "Jalen Smith", "Landers Nolley II", "BOLTON,RASIR", "STEVENS,LAMAR",
+        "Francesca Pan2", "Francesca Pan3", "Francesca Pan4"
       )
       "ParseRimMade" - {
         TestUtils.inside(all_test_cases.collect {
@@ -210,7 +223,7 @@ object EventUtilsTests extends TestSuite {
         }
       }
       val ft_2p_made = rim_shots_made ++ List(
-        "Anthony Cowan", "STEVENS,LAMAR2"
+        "Francesca Pan", "Anthony Cowan", "STEVENS,LAMAR2"
       )
       "ParseTwoPointerMade" - {
         TestUtils.inside(all_test_cases.collect {
@@ -231,8 +244,10 @@ object EventUtilsTests extends TestSuite {
 
       val shots_missed = List(
         "Bruno Fernando3", "Joshua Tomaic", "WATKINS,MIKE1", "Eric Carter",
-        "TOMAIC,JOSHUA", "HUERTER,KEVIN", "Ricky Lindo Jr.", "SMITH,JALEN1",
-        "Eric Ayala2", "DREAD,MYLES"
+        "Landers Nolley II2", "TOMAIC,JOSHUA", "HUERTER,KEVIN",
+        "Eric Ayala2", "DREAD,MYLES",
+        "Christina Morra2", "Christina Morra3", "Christina Morra4",
+        "Christina Morra", "Ricky Lindo Jr.","SMITH,JALEN1"
       )
       "ParseShotMissed" - {
           TestUtils.inside(all_test_cases.collect {
@@ -244,7 +259,8 @@ object EventUtilsTests extends TestSuite {
       // Sub-categories
       val rim_missed = List(
         "Bruno Fernando3", "Joshua Tomaic", "WATKINS,MIKE1",
-        "Eric Carter", "TOMAIC,JOSHUA", "HUERTER,KEVIN"
+        "Eric Carter", "Landers Nolley II2", "TOMAIC,JOSHUA", "HUERTER,KEVIN",
+        "Christina Morra2", "Christina Morra3", "Christina Morra4"
       )
       "ParseRimMissed" - {
         TestUtils.inside(all_test_cases.collect {
@@ -254,7 +270,7 @@ object EventUtilsTests extends TestSuite {
         }
       }
       val fg_2p_missed = rim_missed ++ List(
-        "Ricky Lindo Jr.", "SMITH,JALEN1"
+        "Christina Morra", "Ricky Lindo Jr.", "SMITH,JALEN1"
       )
       "ParseTwoPointerMissed" - {
         TestUtils.inside(all_test_cases.collect {

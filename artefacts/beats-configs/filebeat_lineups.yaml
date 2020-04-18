@@ -33,124 +33,129 @@ filebeat.inputs:
 
 setup.ilm.enabled: false
 
-cloud.id: "ADD_CLOUD_ID"
-cloud.auth: "ADD_USER:ADD_PASSWORD"
+cloud.id: "${ELASTIC_CLOUD_ID:?ELASTIC_CLOUD_ID}"
+cloud.auth: "${ELASTIC_USER:?ELASTIC_USER}:${ELASTIC_PASS:?ELASTIC_PASS}"
 
 output.elasticsearch:
   indices:
+    # Just check a ping/pong var is set:
+    - index: "test_${PING:?PING=ping-or-pong}"
+      when.regexp:
+        log.file.path: "DUMMY_PATTERN_JUST_ERROR_CHECKING"
+
     # Lineups:
 
-    - index: "women_misc_conf_%{[team.year]}"
+    - index: "women_misc_conf_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/women_misc_conf_[0-9]+(_.*)?.ndjson"
 
-    - index: "misc_conf_%{[team.year]}"
+    - index: "misc_conf_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/misc_conf_[0-9]+(_.*)?.ndjson"
 
-    - index: "women_acc_%{[team.year]}"
+    - index: "women_acc_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/women_acc_[0-9]+(_.*)?.ndjson"
-    - index: "women_american_%{[team.year]}"
+    - index: "women_american_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/women_american_[0-9]+(_.*)?.ndjson"
-    - index: "women_bigten_%{[team.year]}"
+    - index: "women_bigten_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/women_bigten_[0-9]+(_.*)?.ndjson"
-    - index: "women_bigtwelve_%{[team.year]}"
+    - index: "women_bigtwelve_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/women_bigtwelve_[0-9]+(_.*)?.ndjson"
-    - index: "women_pactwelve_%{[team.year]}"
+    - index: "women_pactwelve_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/women_pactwelve_[0-9]+(_.*)?.ndjson"
-    - index: "women_sec_%{[team.year]}"
+    - index: "women_sec_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/women_sec_[0-9]+(_.*)?.ndjson"
 
-    - index: "acc_%{[team.year]}"
+    - index: "acc_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/acc_[0-9]+(_.*)?.ndjson"
-    - index: "american_%{[team.year]}"
+    - index: "american_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/american_[0-9]+(_.*)?.ndjson"
-    - index: "atlanticten_%{[team.year]}"
+    - index: "atlanticten_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/atlanticten_[0-9]+(_.*)?.ndjson"
-    - index: "bigeast_%{[team.year]}"
+    - index: "bigeast_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/bigeast_[0-9]+(_.*)?.ndjson"
-    - index: "bigten_%{[team.year]}"
+    - index: "bigten_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/bigten_[0-9]+(_.*)?.ndjson"
-    - index: "bigtwelve_%{[team.year]}"
+    - index: "bigtwelve_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/bigtwelve_[0-9]+(_.*)?.ndjson"
-    - index: "pactwelve_%{[team.year]}"
+    - index: "pactwelve_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/pactwelve_[0-9]+(_.*)?.ndjson"
-    - index: "sec_%{[team.year]}"
+    - index: "sec_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/sec_[0-9]+(_.*)?.ndjson"
 
     # (order of these 2 matter:)
-    - index: "bad_lineups_women_%{[team.year]}"
+    - index: "bad_lineups_women_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/bad_lineups_women_.*?_[0-9]+(_.*)?.ndjson"
-    - index: "bad_lineups_men_%{[team.year]}"
+    - index: "bad_lineups_men_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/bad_lineups_.*?_[0-9]+(_.*)?.ndjson"
 
     # Player events:
 
-    - index: "player_events_women_misc_conf_%{[team.year]}"
+    - index: "player_events_women_misc_conf_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_women_misc_conf_[0-9]+(_.*)?.ndjson"
 
-    - index: "player_events_men_misc_conf_%{[team.year]}"
+    - index: "player_events_men_misc_conf_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_misc_conf_[0-9]+(_.*)?.ndjson"
 
-    - index: "player_events_women_acc_%{[team.year]}"
+    - index: "player_events_women_acc_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_women_acc_[0-9]+(_.*)?.ndjson"
-    - index: "player_events_women_american_%{[team.year]}"
+    - index: "player_events_women_american_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_women_american_[0-9]+(_.*)?.ndjson"
-    - index: "player_events_women_bigten_%{[team.year]}"
+    - index: "player_events_women_bigten_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_women_bigten_[0-9]+(_.*)?.ndjson"
-    - index: "player_events_women_bigtwelve_%{[team.year]}"
+    - index: "player_events_women_bigtwelve_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_women_bigtwelve_[0-9]+(_.*)?.ndjson"
-    - index: "player_events_women_pactwelve_%{[team.year]}"
+    - index: "player_events_women_pactwelve_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_women_pactwelve_[0-9]+(_.*)?.ndjson"
-    - index: "player_events_women_sec_%{[team.year]}"
+    - index: "player_events_women_sec_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_women_sec_[0-9]+(_.*)?.ndjson"
 
-    - index: "player_events_men_acc_%{[team.year]}"
+    - index: "player_events_men_acc_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_acc_[0-9]+(_.*)?.ndjson"
-    - index: "player_events_men_american_%{[team.year]}"
+    - index: "player_events_men_american_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_american_[0-9]+(_.*)?.ndjson"
-    - index: "player_events_men_atlanticten_%{[team.year]}"
+    - index: "player_events_men_atlanticten_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_atlanticten_[0-9]+(_.*)?.ndjson"
-    - index: "player_events_men_bigeast_%{[team.year]}"
+    - index: "player_events_men_bigeast_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_bigeast_[0-9]+(_.*)?.ndjson"
-    - index: "player_events_men_bigten_%{[team.year]}"
+    - index: "player_events_men_bigten_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_bigten_[0-9]+(_.*)?.ndjson"
-    - index: "player_events_men_bigtwelve_%{[team.year]}"
+    - index: "player_events_men_bigtwelve_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_bigtwelve_[0-9]+(_.*)?.ndjson"
-    - index: "player_events_men_pactwelve_%{[team.year]}"
+    - index: "player_events_men_pactwelve_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_pactwelve_[0-9]+(_.*)?.ndjson"
-    - index: "player_events_men_sec_%{[team.year]}"
+    - index: "player_events_men_sec_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_sec_[0-9]+(_.*)?.ndjson"
 

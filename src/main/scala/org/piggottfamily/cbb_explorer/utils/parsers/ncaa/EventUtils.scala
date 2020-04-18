@@ -125,16 +125,23 @@ object EventUtils {
     //Bruno Fernando, 2pt dunk 2ndchance;pointsinthepaint made
     //Bruno Fernando, 2pt alleyoop pointsinthepaint made
     // Jalen Smith, 2pt layup 2ndchance;pointsinthepaint made
+    // Jalen Smith, 2pt drivinglayup 2ndchance;pointsinthepaint made
+    // Hooks we _force_ to be in the paint, otherwise they get treated as mid range:
+    // 2pt hookshot 2ndchance;fromturnover;pointsinthepaint made
+    // BUT NOT 2pt hookshot 2ndchance made
+    //
     // Legacy:
     // WATKINS,MIKE made Dunk
     // BOLTON,RASIR made Layup
     // STEVENS,LAMAR made Tip In
 
     private val shot_made_regex = "[^,]+,[^,]+,(.+) made +(?:Dunk|Layup|Tip In)".r
-    private val shot_made_regex_new = "[^,]+,[^,]+,(.+), +2pt +(?:dunk|layup|alleyoop)(?:.* +)?made".r
+    private val shot_made_regex_new = "[^,]+,[^,]+,(.+), +2pt +(?:dunk|drivinglayup|layup|alleyoop)(?:.* +)?made".r
+    private val hook_at_rim_regex_new = "[^,]+,[^,]+,(.+), +2pt +(?:hookshot.*pointsinthepaint)(?:.* +)?made".r
     def unapply(x: String): Option[String] = Option(x) match {
       case Some(shot_made_regex(player)) => Some(player)
       case Some(shot_made_regex_new(player)) => Some(player)
+      case Some(hook_at_rim_regex_new(player)) => Some(player)
       case _ => None
     }
   }
@@ -144,16 +151,19 @@ object EventUtils {
     //New:
     //Bruno Fernando, 2pt dunk missed
     // Eric Carter, 2pt layup missed
+    // (see above for remarks regarding hookshots)
     // Legacy:
     // WATKINS,MIKE missed Dunk
     // TOMAIC,JOSHUA missed Layup
     // 03:05,65-58,CEKOVSKY,MICHAL missed Tip In
 
     private val shot_missed_regex = "[^,]+,[^,]+,(.+) missed +(?:Dunk|Layup|Tip In)".r
-    private val shot_missed_regex_new = "[^,]+,[^,]+,(.+), +2pt +(?:dunk|layup|alleyoop)(?:.* +)?missed".r
+    private val shot_missed_regex_new = "[^,]+,[^,]+,(.+), +2pt +(?:dunk|drivinglayup|layup|alleyoop)(?:.* +)?missed".r
+    private val hook_at_rim_regex_new = "[^,]+,[^,]+,(.+), +2pt +(?:hookshot.*pointsinthepaint)(?:.* +)?missed".r
     def unapply(x: String): Option[String] = Option(x) match {
       case Some(shot_missed_regex(player)) => Some(player)
       case Some(shot_missed_regex_new(player)) => Some(player)
+      case Some(hook_at_rim_regex_new(player)) => Some(player)
       case _ => None
     }
   }

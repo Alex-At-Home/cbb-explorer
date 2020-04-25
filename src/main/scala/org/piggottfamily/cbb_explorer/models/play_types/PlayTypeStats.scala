@@ -1,6 +1,7 @@
 package org.piggottfamily.cbb_explorer.models.play_types
 
 import org.piggottfamily.cbb_explorer.models._
+import org.piggottfamily.cbb_explorer.models.ncaa._
 import org.joda.time.DateTime
 
 /**

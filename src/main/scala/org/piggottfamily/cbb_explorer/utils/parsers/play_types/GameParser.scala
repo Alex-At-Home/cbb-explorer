@@ -1,4 +1,4 @@
-package org.piggottfamily.cbb_explorer.utils.parsers.ncaa
+package org.piggottfamily.cbb_explorer.utils.parsers.play_types
 
 import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.models.ncaa._
@@ -39,7 +39,11 @@ trait GameParser {
 
     def possessions_finder(doc: Document): List[Element] =
       (doc >?> elementList("td.PlayByPlayRowShaded, td.PlayByPlayRow"))
+      .getOrElse(Nil)
 
     def play_finder(el: Element): String = "" //TODO
   }
+
+
+
 }

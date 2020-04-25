@@ -14,6 +14,9 @@ fi
 if [ "$UPLOAD" != "yes" ] && [ "$UPLOAD" != "no" ]; then
   echo "Need to specify DOWNLOAD/PARSE/UPLOAD as yes or no [UPLOAD]"
 fi
+if [ ! -z "$TEAM_FILTER" ]; then
+  export TEAM_FILTER="--team=$TEAM_FILTER"
+fi
 
 export CURR_TIME=${CURR_TIME:=$(date +"%s")}
 
@@ -24,7 +27,7 @@ export CONFS=${CONFS:="acc american atlanticten bigeast bigten bigtwelve pactwel
 #export CONFS=${CONFS:="acc american atlanticten bigeast bigten bigtwelve pactwelve sec misc_conf"}
 #export CONFS=${CONFS:="women_acc women_american women_bigten women_bigtwelve women_pactwelve women_sec"}
 
-echo ">>>>>>> Extracting from [$CURR_TIME] for [$CURR_YEAR]/[$CURR_YEAR_STR] on [$CONFS]"
+echo ">>>>>>> Extracting from [$CURR_TIME] for [$CURR_YEAR]/[$CURR_YEAR_STR] on [$CONFS] with [$TEAM_FILTER]"
 sleep 2
 
 if [ "$PARSE" == "yes" ]; then
@@ -49,7 +52,7 @@ for i in $CONFS; do
       org.piggottfamily.cbb_explorer.BuildLineups \
       --in=$PBP_CRAWL_PATH/${i}/${CURR_YEAR}/ \
       --out=$PBP_OUT_DIR \
-      --player-events \
+      --player-events $TEAM_FILTER \
       --from=$CURR_TIME >> $PBP_OUT_DIR/bulk_import_logs_${CURR_TIME}.log
   else
     echo "Skipping parse"

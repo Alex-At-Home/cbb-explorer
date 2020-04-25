@@ -24,6 +24,13 @@ object DataQualityIssues {
       "Akinbode-James, O." -> "James, Onome",
     ),
 
+    Option(TeamId("Florida St.")) -> Map(
+      // PBP errors (see also generic misspellings, which doesn't work for player events
+      // because it doesn't change the tidy name, only fixes the code)
+      "Willliams, Patrick" -> "Williams, Patrick",
+      "Osbrone, Malik" -> "Osborne, Malik"
+    ),
+
     Option(TeamId("Georgia Tech")) -> Map(
       //PBP fix complicated game from W 2019/20
       "Nerea Hermosa Monreal" -> "Nerea Hermosa",
@@ -121,6 +128,11 @@ object DataQualityIssues {
       "HOLLINSHED,MYA" -> "HOLLINGSHED,MYA"
     ),
 
+    Option(TeamId("Oregon")) -> Map(
+      // Was handled by generic misspellings but that doesn't work for player analysis, see below:
+      "CAHVEZ,TAYLOR" -> "CHAVEZ,TAYLOR"
+    ),
+
     // SEC:
 
     // Wrong in the PBP
@@ -139,9 +151,8 @@ object DataQualityIssues {
   ).withDefault(_ => generic_misspellings)
   /** common mispellings */
   val generic_misspellings: Map[String, String] = Map(
+    //TODO: using this doesn't fix the name, only the code, which is problematic
     // Seen in PbP data for FSU 2019/20
-    "osbrone" -> "osborne",
-    "willliams" -> "williams",
-    "cahvez" -> "chavez"
+    // So for now I've removed all the entries and added them to the known cases to the misspellings map
   )
 }

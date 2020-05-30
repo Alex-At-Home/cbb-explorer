@@ -1,0 +1,90 @@
+#POST _data_frame/transforms/_preview
+PUT _data_frame/transforms/trank_aggregator
+{
+  "source": {
+    "index": "trank_players"
+  },
+  "pivot": {
+    "group_by": {
+      "name": {
+         "terms": {
+            "field": "player_name"
+         }
+      },
+      "team": {
+         "terms": {
+            "field": "team"
+         }
+      }
+    },
+    "aggregations": {
+      "combined": {
+        "scripted_metric":  {
+                  "init_script": "//Add internal logic here\n//to keep the map/etc scripts\n//easier to follow.\n//Everything in here is \n//available to all other\n//scripts. Eg:\n//def myFunction(def param) {\n// return value   \n//}\n\nstate.collect = [:];\nstate.build_lists = params.build_lists;",
+                  "map_script": "//Add internal logic here\n//to keep the map/etc scripts\n//easier to follow.\n//Everything in here is \n//available to all other\n//scripts. Eg:\n//def myFunction(def param) {\n// return value   \n//}\n\n\ndef obj = state.collect;\ndef prefix = doc[\"yr\"].value.toLowerCase() + \"_\";\n\n//(a bit of data quality)\ndef supported_prefixes = new HashSet([\"fr_\", \"so_\", \"jr_\", \"sr_\"]);\n\n// Complicated:\n\nif (null == obj.num_years) {\n   obj.num_years = new HashSet();\n}\nif (!obj.num_years.contains(prefix) && supported_prefixes.contains(prefix)) {\n   //(dup check)\n   obj.num_years.add(prefix);\n\n  if (state.build_lists) {\n\n    if (null == obj.missing_fields) {\n       obj.missing_fields = new HashSet();\n    }\n\n    if (null == obj.classes) {\n       obj.classes = new HashSet();\n    }\n    obj.classes.add(doc[\"yr\"].value);\n\n  }//END if (state.build_lists)\n\n  // Simple:\n\n  def fields = [\n  \"player_name\",\"team\",\"conf\",\"GP\",\"Min_per\",\"ORtg\",\"usg\",\"eFG\",\"TS_per\",\"ORB_per\",\"DRB_per\",\"AST_per\",\"TO_per\",\"FTM\",\"FTA\",\"FT_per\",\"twoPM\",\"twoPA\",\"twoP_per\",\"TPM\",\"TPA\",\"TP_per\",\"blk_per\",\"stl_per\",\"ftr\",\"yr\",\"ht\",\"num\",\"porpag\",\"adjoe\",\"pfr\",\"year\",\"pid\",\"type\",\"Rec Rank\",\n  \"ast/tov\",\"rimmade\",\"rimmade_p_rimmiss\",\"midmade\",\"midmade_p_midmiss\",\"rimmade_by_rimmade_p_rimmiss\",\"midmade_by_midmade_p_midmiss\",\"dunksmade\",\"dunksmiss_p_dunksmade\",\"dunksmade_by_dunksmade_p_dunksmiss\",\"pick\",\"drtg\",\"adrtg\",\"dporpag\",\"stops\",\"bpm\",\"obpm\",\"dbpm\",\"gbpm\",\"mp\",\"ogbpm\",\"dgbpm\",\"oreb\",\"dreb\",\"treb\",\"ast\",\"stl\",\"blk\",\"pts\"\n  ];\n\n  for (def i: fields) {\n     def field = i == \"ast/tov\" ?\n      \"ast_tov\" : (i == \"Rec Rank\" ?\n        \"rec_rank\" : i\n      )\n      ; //(fix mistakes in mapping)\n     if (doc[i].size() > 0) {\n        obj[prefix + field] = doc[i].value;\n     } else {\n        if (state.build_lists) {\n           obj.missing_fields.add(prefix + field);\n           obj.missing_fields.add(field);\n        }\n     }\n  }//END for\n\n  // Handle height separately:\n  def height_str = doc[\"ht\"];\n  if (height_str.size() > 0) {\n    def height_str_val = height_str.value;\n    if (height_str_val.length() >= 3) {\n      def feet_str = height_str_val.substring(0, 1);\n      def in_str = height_str_val.substring(2);\n\n      obj[prefix + \"ht_in\"] = Integer.parseInt(feet_str)*12 + Integer.parseInt(in_str);\n    }\n  }\n\n  // DunkR, RimR, MidR and 3PR as fields:\n  def twoga = doc[\"twoPA\"];\n  def threega = doc[\"TPA\"];\n  if (twoga.size() > 0 && threega.size() > 0 && (twoga.value + threega.value) > 0) {\n    def total_attempts = twoga.value + threega.value;\n\n    def dunk_attempts = doc[\"dunksmiss_p_dunksmade\"];\n    if (dunk_attempts.size() > 0) {\n      obj[prefix + \"dunk_rate\"] = 100.0 * dunk_attempts.value / total_attempts;\n    } else {\n      obj[prefix + \"dunk_rate\"] = 0.0;\n    }\n    def rim_attempts = doc[\"rimmade_p_rimmiss\"];\n    if (rim_attempts.size() > 0) {\n      obj[prefix + \"rim_rate\"] = 100.0 * rim_attempts.value / total_attempts;\n    } else {\n      obj[prefix + \"rim_rate\"] = 0.0;\n    }\n    def mid_attempts = doc[\"midmade_p_midmiss\"];\n    if (mid_attempts.size() > 0) {\n      obj[prefix + \"mid_rate\"] = 100.0 * mid_attempts.value / total_attempts;\n    } else {\n      obj[prefix + \"mid_rate\"] = 0.0;\n    }\n    obj[prefix + \"three_rate\"] = 100.0* threega.value / total_attempts;\n  } else {\n    obj[prefix + \"rim_rate\"] = 0.0;\n    obj[prefix + \"mid_rate\"] = 0.0;\n    obj[prefix + \"three_rate\"] = 0.0;\n  }\n\n}//END if (!obj.num_years.contains(prefix))\n",
+                  "combine_script": "//Add internal logic here\n//to keep the map/etc scripts\n//easier to follow.\n//Everything in here is \n//available to all other\n//scripts. Eg:\n//def myFunction(def param) {\n// return value   \n//}\n\ndef fields = [ \"missing_fields\", \"num_years\", \"classes\" ];\nfor (def kk: fields) {\n    if (null != state.collect[kk]) {\n      state.collect[kk] = new ArrayList(state.collect[kk]);\n    }\n}\nreturn state.collect;",
+                  "params": {
+                     "build_lists": false,
+                     "_name_": "composite"
+                  },
+                  "reduce_script": "//Add internal logic here\n//to keep the map/etc scripts\n//easier to follow.\n//Everything in here is \n//available to all other\n//scripts. Eg:\n//def myFunction(def param) {\n// return value   \n//}\n\ndef finalObj = [:];\n\nfor (def o: states) {\n   for (def kk: o.keySet()) {\n      if ((kk == \"missing_fields\") || (kk == \"num_years\") || (kk == \"classes\")) {\n         if (null == finalObj[kk]) {\n            finalObj[kk] = new HashSet();\n         }\n         finalObj[kk].addAll(o[kk]);\n      }\n      else {\n         finalObj[kk] = o[kk];\n      }\n   }\n}\n\nfinalObj.num_years = finalObj.num_years.size();\nif ((null != finalObj.missing_fields) && (finalObj.missing_fields.size() > 0)) {\n  finalObj.is_valid = false;\n}\n\nfinalObj.transferred = (null == finalObj.fr_yr);\n\nreturn finalObj;"
+               }
+        }
+    }
+  },
+  "dest": {
+    "index": "combined_trank_players"
+  }
+}
+
+
+PUT _data_frame/transforms/trank_tidier
+{
+  "source": {
+    "index": "trank_players"
+  },
+  "pivot": {
+    "group_by": {
+      "name": {
+         "terms": {
+            "field": "player_name"
+         }
+      },
+      "team": {
+         "terms": {
+            "field": "team"
+         }
+      },
+      "yr": {
+         "terms": {
+            "field": "yr"
+         }
+      }
+    },
+    "aggregations": {
+      "combined": {
+        "scripted_metric":   {
+                  "init_script": "//Add internal logic here\n//to keep the map/etc scripts\n//easier to follow.\n//Everything in here is \n//available to all other\n//scripts. Eg:\n//def myFunction(def param) {\n// return value   \n//}\n\nstate.collect = [:];\nstate.build_lists = params.build_lists;",
+                  "map_script": "//Add internal logic here\n//to keep the map/etc scripts\n//easier to follow.\n//Everything in here is \n//available to all other\n//scripts. Eg:\n//def myFunction(def param) {\n// return value   \n//}\n\n\ndef obj = state.collect;\ndef prefix = params.fixed_prefix ? \"\" : doc[\"yr\"].value.toLowerCase() + \"_\";\n\n//(a bit of data quality)\ndef supported_prefixes = new HashSet([\"\", \"fr_\", \"so_\", \"jr_\", \"sr_\"]);\n\n// Complicated:\n\nif (null == obj.num_years) {\n   obj.num_years = new HashSet();\n}\nif (!obj.num_years.contains(prefix) && supported_prefixes.contains(prefix)) {\n   //(dup check)\n   obj.num_years.add(prefix);\n\n  if (state.build_lists) {\n\n    if (null == obj.missing_fields) {\n       obj.missing_fields = new HashSet();\n    }\n\n    if (null == obj.classes) {\n       obj.classes = new HashSet();\n    }\n    obj.classes.add(doc[\"yr\"].value);\n\n  }//END if (state.build_lists)\n\n  // Simple:\n\n  def fields = [\n  \"player_name\",\"team\",\"conf\",\"GP\",\"Min_per\",\"ORtg\",\"usg\",\"eFG\",\"TS_per\",\"ORB_per\",\"DRB_per\",\"AST_per\",\"TO_per\",\"FTM\",\"FTA\",\"FT_per\",\"twoPM\",\"twoPA\",\"twoP_per\",\"TPM\",\"TPA\",\"TP_per\",\"blk_per\",\"stl_per\",\"ftr\",\"yr\",\"ht\",\"num\",\"porpag\",\"adjoe\",\"pfr\",\"year\",\"pid\",\"type\",\"Rec Rank\",\n  \"ast/tov\",\"rimmade\",\"rimmade_p_rimmiss\",\"midmade\",\"midmade_p_midmiss\",\"rimmade_by_rimmade_p_rimmiss\",\"midmade_by_midmade_p_midmiss\",\"dunksmade\",\"dunksmiss_p_dunksmade\",\"dunksmade_by_dunksmade_p_dunksmiss\",\"pick\",\"drtg\",\"adrtg\",\"dporpag\",\"stops\",\"bpm\",\"obpm\",\"dbpm\",\"gbpm\",\"mp\",\"ogbpm\",\"dgbpm\",\"oreb\",\"dreb\",\"treb\",\"ast\",\"stl\",\"blk\",\"pts\"\n  ];\n\n  for (def i: fields) {\n     def field = i == \"ast/tov\" ?\n      \"ast_tov\" : (i == \"Rec Rank\" ?\n        \"rec_rank\" : i\n      )\n      ; //(fix mistakes in mapping)\n     if (doc[i].size() > 0) {\n        obj[prefix + field] = doc[i].value;\n     } else {\n        if (state.build_lists) {\n           obj.missing_fields.add(prefix + field);\n           obj.missing_fields.add(field);\n        }\n     }\n  }//END for\n\n  // Handle height separately:\n  def height_str = doc[\"ht\"];\n  if (height_str.size() > 0) {\n    def height_str_val = height_str.value;\n    if (height_str_val.length() >= 3) {\n      def feet_str = height_str_val.substring(0, 1);\n      def in_str = height_str_val.substring(2);\n\n      obj[prefix + \"ht_in\"] = Integer.parseInt(feet_str)*12 + Integer.parseInt(in_str);\n    }\n  }\n\n  // DunkR, RimR, MidR and 3PR as fields:\n  def twoga = doc[\"twoPA\"];\n  def threega = doc[\"TPA\"];\n  if (twoga.size() > 0 && threega.size() > 0 && (twoga.value + threega.value) > 0) {\n    def total_attempts = twoga.value + threega.value;\n    def eFG = doc[\"eFG\"].value/100.0;\n    if (eFG == 0) eFG = 1;\n\n    // (Also build a quality independent set of relative shooting ability metrics)\n\n    def dunk_attempts = doc[\"dunksmiss_p_dunksmade\"];\n    if (dunk_attempts.size() > 0) {\n      obj[prefix + \"dunk_rate\"] = 100.0 * dunk_attempts.value / total_attempts;\n    } else {\n      obj[prefix + \"dunk_rate\"] = 0.0;\n    }\n    def rim_attempts = doc[\"rimmade_p_rimmiss\"];\n    def rim_pct = doc[\"rimmade_by_rimmade_p_rimmiss\"];\n    if (rim_attempts.size() > 0) {\n      obj[prefix + \"rim_rate\"] = 100.0 * rim_attempts.value / total_attempts;\n      obj[prefix + \"rim_relative\"] = rim_pct.size() > 0 ? 100.0*rim_pct.value/eFG : 0.0;\n\n    } else {\n      obj[prefix + \"rim_rate\"] = 0.0;\n      obj[prefix + \"rim_relative\"] = 0.0;\n    }\n    def mid_attempts = doc[\"midmade_p_midmiss\"];\n    def mid_pct = doc[\"midmade_by_midmade_p_midmiss\"];\n    if (mid_attempts.size() > 0) {\n      obj[prefix + \"mid_rate\"] = 100.0 * mid_attempts.value / total_attempts;\n      obj[prefix + \"mid_relative\"] = mid_pct.size() > 0 ? 100.0*mid_pct.value/eFG : 0.0;\n    } else {\n      obj[prefix + \"mid_rate\"] = 0.0;\n      obj[prefix + \"mid_relative\"] = 0.0;\n    }\n    obj[prefix + \"three_rate\"] = 100.0* threega.value / total_attempts;\n    obj[prefix + \"three_relative\"] = 150.0*doc[\"TP_per\"].value/eFG; //(1.5x because eFG scale)\n  } else {\n    obj[prefix + \"rim_rate\"] = 0.0;\n    obj[prefix + \"mid_rate\"] = 0.0;\n    obj[prefix + \"three_rate\"] = 0.0;\n    obj[prefix + \"rim_relative\"] = 0.0;\n    obj[prefix + \"mid_relative\"] = 0.0;\n    obj[prefix + \"three_relative\"] = 0.0;\n  }\n\n  // Assists per FG (might be useful as a pos classifier)\n  def assists = doc[\"ast\"];\n  def games = doc[\"GP\"];\n  if (assists.size() > 0 && games.size() > 0 && twoga.size() > 0 && threega.size() > 0 &&\n    (twoga.value + threega.value) > 0)\n  {\n    def total_attempts = twoga.value + threega.value;\n    def total_assists = assists.value*games.value;\n    obj[prefix + \"assist_per_fga\"] = 100.0*total_assists/total_attempts;\n  } else {\n    obj[prefix + \"assist_per_fga\"] = 0.0;\n  }\n\n}//END if (!obj.num_years.contains(prefix))\n",
+                  "combine_script": "//Add internal logic here\n//to keep the map/etc scripts\n//easier to follow.\n//Everything in here is \n//available to all other\n//scripts. Eg:\n//def myFunction(def param) {\n// return value   \n//}\n\ndef fields = [ \"missing_fields\", \"num_years\", \"classes\" ];\nfor (def kk: fields) {\n    if (null != state.collect[kk]) {\n      state.collect[kk] = new ArrayList(state.collect[kk]);\n    }\n}\nreturn state.collect;",
+                  "params": {
+                     "build_lists": false,
+                     "fixed_prefix": true,
+                     "_name_": "composite"
+                  },
+                  "reduce_script": "//Add internal logic here\n//to keep the map/etc scripts\n//easier to follow.\n//Everything in here is \n//available to all other\n//scripts. Eg:\n//def myFunction(def param) {\n// return value   \n//}\n\ndef finalObj = [:];\n\nfor (def o: states) {\n   for (def kk: o.keySet()) {\n      if ((kk == \"missing_fields\") || (kk == \"num_years\") || (kk == \"classes\")) {\n         if (null == finalObj[kk]) {\n            finalObj[kk] = new HashSet();\n         }\n         finalObj[kk].addAll(o[kk]);\n      }\n      else {\n         finalObj[kk] = o[kk];\n      }\n   }\n}\n\nfinalObj.num_years = finalObj.num_years.size();\nif ((null != finalObj.missing_fields) && (finalObj.missing_fields.size() > 0)) {\n  finalObj.is_valid = false;\n}\n\nfinalObj.transferred = (null == finalObj.fr_yr);\n\nreturn finalObj;"
+               }
+        }
+    }
+  },
+  "dest": {
+    "index": "tidied_trank_players"
+  }
+}
+
+
+POST _data_frame/transforms/trank_aggregator/_start
+POST _data_frame/transforms/trank_aggregator/_stop?force
+DELETE _data_frame/transforms/trank_aggregator
+GET _data_frame/transforms/trank_aggregator
+GET _data_frame/transforms/trank_aggregator/_stats

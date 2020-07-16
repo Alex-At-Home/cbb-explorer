@@ -1,20 +1,25 @@
 //////////////////////////////////////////////////////////////
 //
-// Params
+// Params description
 
 {
   "build_lists": true, //(needs to be false if running inside elasticsearch-sheets)
-  "fixed_prefix": false, //(true only for tidier)
+  "fixed_prefix": false, //(true if running inside trank_tidier, false for trank_aggregator, see -ops.txt)
    "_name_": "composite"
 }
 
+// INSERT FROM HERE DOWN:
+
+"init_script": """
 //////////////////////////////////////////////////////////////
 //
 // Init
 
 state.collect = [:];
 state.build_lists = params.build_lists;
+""",
 
+"map_script": """
 //////////////////////////////////////////////////////////////
 //
 // Map
@@ -49,9 +54,12 @@ if (!obj.num_years.contains(prefix) && supported_prefixes.contains(prefix)) {
 
   // Simple:
 
+  obj["player_name"] = doc["player_name"].value;
+
   def fields = [
   "player_name","team","conf","GP","Min_per","ORtg","usg","eFG","TS_per","ORB_per","DRB_per","AST_per","TO_per","FTM","FTA","FT_per","twoPM","twoPA","twoP_per","TPM","TPA","TP_per","blk_per","stl_per","ftr","yr","ht","num","porpag","adjoe","pfr","year","pid","type","Rec Rank",
-  "ast/tov","rimmade","rimmade_p_rimmiss","midmade","midmade_p_midmiss","rimmade_by_rimmade_p_rimmiss","midmade_by_midmade_p_midmiss","dunksmade","dunksmiss_p_dunksmade","dunksmade_by_dunksmade_p_dunksmiss","pick","drtg","adrtg","dporpag","stops","bpm","obpm","dbpm","gbpm","mp","ogbpm","dgbpm","oreb","dreb","treb","ast","stl","blk","pts"
+  "ast/tov","rimmade","rimmade_p_rimmiss","midmade","midmade_p_midmiss","rimmade_by_rimmade_p_rimmiss","midmade_by_midmade_p_midmiss","dunksmade","dunksmiss_p_dunksmade","dunksmade_by_dunksmade_p_dunksmiss","pick","drtg","adrtg","dporpag","stops","bpm","obpm","dbpm","gbpm","mp","ogbpm","dgbpm","oreb","dreb","treb","ast","stl","blk","pts",
+  "role"
   ];
 
   for (def i: fields) {
@@ -140,11 +148,12 @@ if (!obj.num_years.contains(prefix) && supported_prefixes.contains(prefix)) {
   } else {
     obj[prefix + "assist_per_fga"] = 0.0;
   }
+  //END if (!obj.num_years.contains(prefix))
+}
+""",
 
-}//END if (!obj.num_years.contains(prefix))
-
+"combine_script": """
 //(IMPORTANT NOTE: can't ship multi-shard HashSet from map/combine -> reduce)
-
 //////////////////////////////////////////////////////////////
 //
 // Combine
@@ -156,16 +165,24 @@ for (def kk: fields) {
     }
 }
 return state.collect;
+""",
 
+"reduce_script": """
 //////////////////////////////////////////////////////////////
 //
 // Reduce
 
 def finalObj = [:];
+def teams = new HashSet();
 
 for (def o: states) {
    for (def kk: o.keySet()) {
-      if ((kk == "missing_fields") || (kk == "num_years") || (kk == "classes")) {
+      if (kk.substring(3) == "team") { //(in every object, just overwrite)
+        teams.add(o[kk]);
+        finalObj[kk] = o[kk];
+      } else if (kk == "player_name") { //(in every object, just overwrite)
+        finalObj[kk] = o[kk];
+      } else if ((kk == "missing_fields") || (kk == "num_years") || (kk == "classes")) {
          if (null == finalObj[kk]) {
             finalObj[kk] = new HashSet();
          }
@@ -177,11 +194,52 @@ for (def o: states) {
    }
 }
 
+// Find the most recent conference transfer
+def prev_conf = null;
+def prev_team = null;
+def after_yr = null;
+def before_yr = null;
+for (def yr: [ "sr_", "jr_", "so_", "fr_"  ]) {
+  def conf = finalObj[yr + "conf"];
+  def team = finalObj[yr + "team"];
+  if ((null != conf) && (null != team)) {
+    if ((null != prev_team) && (prev_conf != conf) && (prev_team != team)) {
+      before_yr = yr;
+      break;
+    }
+    after_yr = yr;
+    prev_conf = conf;
+    prev_team = team;
+  }
+}
+finalObj.conf_transferred = null != before_yr;
+
+// Duplicate all the from before/after the final conference transfer
+if (finalObj.conf_transferred) {
+  def transferObj = [:];
+  for (def kk: finalObj.keySet()) {
+    def new_field = null;
+    if (kk.startsWith(before_yr)) {
+      new_field = "pre_";
+    } else if (kk.startsWith(after_yr)) {
+      new_field = "post_";
+    }
+    if (null != new_field) {
+      transferObj[new_field + kk.substring(3)] = finalObj[kk];
+    }
+  }
+  for (def kk: transferObj.keySet()) {
+    finalObj[kk] = transferObj[kk];
+  }
+}
+
+finalObj.transferred = teams.size() > 1;
+finalObj.teams = teams.join(";");
+
 finalObj.num_years = finalObj.num_years.size();
 if ((null != finalObj.missing_fields) && (finalObj.missing_fields.size() > 0)) {
   finalObj.is_valid = false;
 }
 
-finalObj.transferred = (null == finalObj.fr_yr);
-
 return finalObj;
+"""

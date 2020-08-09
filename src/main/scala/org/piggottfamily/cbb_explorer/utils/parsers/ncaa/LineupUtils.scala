@@ -18,6 +18,8 @@ import com.softwaremill.quicklens._
 /** Utilities related to building up the lineup stats */
 trait LineupUtils {
   import ExtractorUtils._
+  import StateUtils.StateTypes._
+  import PossessionUtils.Concurrency
 
   /** TODO build the stats from the game events */
   def enrich_lineup(lineup: LineupEvent): LineupEvent =
@@ -88,12 +90,44 @@ trait LineupUtils {
 
   /** Takes a unfiltered set of game events
    *  builds all the counting stats
-   * TODO: figure out start of possession times and use
    */
   protected def enrich_stats(
-    evs: List[LineupEvent.RawGameEvent],
+    lineup: LineupEvent,
     event_parser: LineupEvent.RawGameEvent.PossessionEvent,
     player_filter: Option[String => Boolean] = None
+  ): LineupEventStats => LineupEventStats = { case stats: LineupEventStats =>
+
+    val game_events_as_clumps = Concurrency.lineup_as_raw_clumps(lineup).toStream
+
+    case class StatsBuilder(curr_stats: LineupEventStats)
+
+    StateUtils.foldLeft(
+      game_events_as_clumps, StatsBuilder(stats),
+      classOf[LineupEvent], Concurrency.concurrent_event_handler[StatsBuilder]
+    ) {
+      case StateEvent.Next(ctx, StatsBuilder(curr_stats), clump @ Concurrency.ConcurrentClump(evs, _)) =>
+        val updated_stats = enrich_stats(evs, event_parser, player_filter, clump)(curr_stats)
+        ctx.stateChange(StatsBuilder(updated_stats))
+
+      case StateEvent.Complete(ctx, _) => //(no additional processing when element list complete)
+        ctx.noChange
+
+    } match {
+      case FoldStateComplete(StatsBuilder(curr_stats), _) =>
+        curr_stats
+    }
+  }
+
+  /** Takes a unfiltered set of game events
+   *  builds all the counting stats
+   * - includes context needed for some "possessional processing" (clump)
+   * TODO: figure out start of possession times and use (will require prev clump as well I think?)
+   */
+  private def enrich_stats(
+    evs: List[LineupEvent.RawGameEvent],
+    event_parser: LineupEvent.RawGameEvent.PossessionEvent,
+    player_filter: Option[String => Boolean],
+    clump: Concurrency.ConcurrentClump
   ): LineupEventStats => LineupEventStats = { case stats: LineupEventStats =>
       case class StatsBuilder(curr: LineupEventStats)
 
@@ -214,6 +248,8 @@ trait LineupUtils {
         =>
           increment_misc_stat(modify[StatsBuilder](_.curr.assist))(state)
 
+        /** TODO: more info about assists! */
+
         case (state, event_parser.AttackingTeam(EventUtils.ParsePersonalFoul(player)))
           if player_filter.forall(_(player))
         =>
@@ -245,8 +281,8 @@ trait LineupUtils {
     val team_event_filter = LineupEvent.RawGameEvent.PossessionEvent(team_dir)
     val oppo_event_filter = LineupEvent.RawGameEvent.PossessionEvent(oppo_dir)
     lineup.copy(
-      team_stats = enrich_stats(lineup.raw_game_events, team_event_filter)(lineup.team_stats),
-      opponent_stats = enrich_stats(lineup.raw_game_events, oppo_event_filter)(lineup.opponent_stats),
+      team_stats = enrich_stats(lineup, team_event_filter)(lineup.team_stats),
+      opponent_stats = enrich_stats(lineup, oppo_event_filter)(lineup.opponent_stats),
     )
   }
 
@@ -301,7 +337,7 @@ trait LineupUtils {
           if this_player_filter(player_str) => ev
       }
       val player_stats = enrich_stats(
-        lineup_event.raw_game_events, team_event_filter, Some(this_player_filter)
+        lineup_event, team_event_filter, Some(this_player_filter)
       )(player_event.player_stats)
       player_event.copy( // will fill in these 2 fields as we go along
         player_stats = player_stats.copy(

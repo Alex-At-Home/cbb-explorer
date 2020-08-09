@@ -356,7 +356,8 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
             case (in, out) => (in.map(Events.reverse_dir), out)
           }
           adjusted_test_cases.foreach { case (test_case, expected_transforms) =>
-            TestUtils.inside((test_case, enrich_stats(test_case, filter)(zero_stats))) {
+            val test_case_lineup = base_lineup.copy(raw_game_events = test_case)
+            TestUtils.inside((test_case, enrich_stats(test_case_lineup, filter)(zero_stats))) {
               case (_, stats) =>
                 stats ==> expected_transforms.foldLeft(zero_stats) {
                   (acc, v) => v.using(_ + 1)(acc)
@@ -365,9 +366,9 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
           }
         }
         // Check player filter works:
-        val player_filter_test = List(
+        val player_filter_test = base_lineup.copy(raw_game_events = List(
           Events.foul_team, Events.tech_team
-        )
+        ))
         TestUtils.inside(
           enrich_stats(
             player_filter_test, team_event_filter, Some(_ == "Bruno Fernando")
@@ -378,9 +379,12 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
         }
 
         // player filter, empty case:
+        val player_filter_test_2 = base_lineup.copy(raw_game_events =
+          EventUtilsTests.all_test_cases.map(LineupEvent.RawGameEvent.team(_, 0.0))
+        )
         TestUtils.inside(
           enrich_stats(
-            EventUtilsTests.all_test_cases.map(LineupEvent.RawGameEvent.team(_, 0.0)),
+            player_filter_test_2,
             team_event_filter, Some(_ => false)
           )(zero_stats)
         ) {
@@ -448,9 +452,11 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
           team_stats = base_lineup.team_stats,
           opponent_stats = base_lineup.opponent_stats,
         )
+
         TestUtils.inside(create_player_events(in_lineup, test_box)) {
           case player1 :: player2 :: player3 :: Nil =>
             player1 ==> base_player_event.copy(
+              date = player1.date, //(has been out by 1ms!)
               player = test_lineup.players(0),
               player_stats = LineupEventStats.empty
                 .modify(_.num_events).setTo(2)
@@ -464,6 +470,7 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
               opponent_stats = test_lineup.opponent_stats
             )
             player2 ==> base_player_event.copy(
+              date = player2.date, //(has been out by 1ms!)
               player = test_lineup.players(1),
               player_stats = LineupEventStats.empty
                 .modify(_.num_events).setTo(1)
@@ -474,6 +481,7 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
               opponent_stats = test_lineup.opponent_stats
             )
             player3 ==> base_player_event.copy(
+              date = player3.date, //(has been out by 1ms!)
               player = test_lineup.players(2),
               player_stats = LineupEventStats.empty
                 .modify(_.num_events).setTo(1)

@@ -20,7 +20,11 @@ case class LineupEventStats(
   to: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
   stl: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
   blk: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
+
   assist: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
+  assist_rim: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
+  assist_mid: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
+  assist_3p: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
 
   foul: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
 
@@ -51,10 +55,12 @@ object LineupEventStats {
    * Break down of counting stats specific to field goals/shot clock
    * @param attempts The number of shot attempts, successful or not
    * @param made The number of successful shot attempts
+   * @param ast The number of successful shot attempts that were assisted
    */
   case class FieldGoalStats(
     attempts: ShotClockStats = ShotClockStats(),
-    made: ShotClockStats = ShotClockStats()
+    made: ShotClockStats = ShotClockStats(),
+    ast: ShotClockStats = ShotClockStats(),
   )
 
 }

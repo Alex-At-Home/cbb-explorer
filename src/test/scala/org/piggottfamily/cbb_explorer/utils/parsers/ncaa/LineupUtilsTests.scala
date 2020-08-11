@@ -348,8 +348,13 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
         }
         val all_at_once = test_cases.fold(test_cases.head) {
           (acc, v) => (acc._1 ++ v._1, acc._2 ++ v._2)
+        } match { // Need to add all the assists
+          case (l1, l2) => l1 -> (l2 ++ List(
+            modify[LineupEventStats](_.fg_3p.ast.total),
+            modify[LineupEventStats](_.fg_rim.ast.total),
+            modify[LineupEventStats](_.fg_mid.ast.total),
+          ))
         }
-        val all_test_cases = test_cases ++ List(all_at_once)
         List(team_event_filter, oppo_event_filter).foreach { filter =>
           val adjusted_test_cases = (test_cases ++ List(all_at_once)).map {
             case tuple if filter == team_event_filter => tuple
@@ -391,6 +396,7 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
           case stats =>
             stats ==> zero_stats
         }
+        // See "create_player_events" for test of assist.source generation
       }
       "add_stats_to_lineups" - {
         val test_lineup = base_lineup.copy(
@@ -462,8 +468,17 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
                 .modify(_.num_events).setTo(2)
                 .modify(_.fg_3p.attempts.total).setTo(2)
                 .modify(_.fg_3p.made.total).setTo(2)
+                .modify(_.fg_3p.ast.total).setTo(2)
                 .modify(_.fg.attempts.total).setTo(2)
-                .modify(_.fg.made.total).setTo(2),
+                .modify(_.fg.made.total).setTo(2)
+                .modify(_.fg.made.total).setTo(2)
+                .modify(_.ast_3p).setTo(LineupEventStats.AssistInfo().copy(
+                  source = LineupEventStats.AssistEvent(
+                    "Kyle Guy",
+                    LineupEventStats.ShotClockStats().copy(total = 2)
+                  ) :: Nil
+                ))
+              ,
               players = test_lineup.players,
               raw_game_events = Events.made_team :: Events.made_team :: Nil,
               team_stats = test_lineup.team_stats,

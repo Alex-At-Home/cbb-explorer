@@ -131,6 +131,26 @@ trait LineupUtils {
     }.headOption
   }
 
+  /**
+   * Given an assist, finds the FG - the player and the FG type (represented as a lens
+   * path to the assist)
+   */
+  private def find_matching_fg(
+    evs: List[LineupEvent.RawGameEvent],
+    event_parser: LineupEvent.RawGameEvent.PossessionEvent
+  ): Option[(String, PathLazyModify[LineupEventStats, LineupEventStats.AssistInfo])] = {
+    evs.collect {
+      case event_parser.AttackingTeam(ev_str @ EventUtils.ParseRimMade(player)) =>
+        (player, modify[LineupEventStats](_.ast_rim))
+
+      case event_parser.AttackingTeam(ev_str @ EventUtils.ParseTwoPointerMade(player)) =>
+        (player, modify[LineupEventStats](_.ast_mid))
+
+      case event_parser.AttackingTeam(ev_str @ EventUtils.ParseThreePointerMade(player)) =>
+        (player, modify[LineupEventStats](_.ast_3p))
+    }.headOption
+  }
+
   //TODO: find assisted FG
 
   /** Takes a unfiltered set of game events
@@ -191,6 +211,22 @@ trait LineupUtils {
             })
 
           transforms.foldLeft(state) { (acc, v) => v(acc) }
+        }.getOrElse(state)
+      }
+      def increment_assisted_fg_stats(): StatsBuilder => StatsBuilder = { case state =>
+        find_matching_fg(clump.evs, event_parser).map { case (player_name, assist_path) =>
+          val count_selector = assist_path andThenModify modify[LineupEventStats.AssistInfo](_.counts)
+          val assistor_selector = assist_path andThenModify modify[LineupEventStats.AssistInfo](_.target)
+          val transforms = (count_selector.using(increment_misc_count()) :: Nil) ++  //(always increment counts)
+            //(increment player info only for team players):
+            (if (player_filter.nonEmpty && event_parser.dir == LineupEvent.RawGameEvent.Direction.Team) {
+              assistor_selector.using(increment_player_assist(player_name)) :: Nil
+            } else {
+              Nil
+            })
+          transforms.foldLeft(state) { (acc, v) =>
+            acc.modify(_.curr).using(v)
+          }
         }.getOrElse(state)
       }
 
@@ -318,9 +354,9 @@ trait LineupUtils {
         case (state, event_parser.AttackingTeam(EventUtils.ParseAssist(player)))
           if player_filter.forall(_(player))
         =>
-          increment_misc_stat(modify[StatsBuilder](_.curr.assist))(state)
-
-/** TODO: more info about assists! - find the right FG type and update that */
+          (increment_misc_stat(modify[StatsBuilder](_.curr.assist))
+            andThen increment_assisted_fg_stats()
+          )(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParsePersonalFoul(player)))
           if player_filter.forall(_(player))

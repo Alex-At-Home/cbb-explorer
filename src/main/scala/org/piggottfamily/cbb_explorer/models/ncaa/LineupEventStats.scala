@@ -53,11 +53,11 @@ object LineupEventStats {
 
   /**
    * A list of all the assists from or to players
-   * @param player_id - the other player in the assist event (by name not code)
+   * @param player_code - the other player in the assist event (by code not name)
    * @param count - the count of assists (by shot clock, like everything else)
    */
   case class AssistEvent(
-    player_id: String,
+    player_code: String,
     count: ShotClockStats = ShotClockStats()
   )
 

@@ -353,6 +353,8 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
             modify[LineupEventStats](_.fg_3p.ast.total),
             modify[LineupEventStats](_.fg_rim.ast.total),
             modify[LineupEventStats](_.fg_mid.ast.total),
+
+            modify[LineupEventStats](_.ast_3p.counts.total) //(only the 3P'er since they are co-located in time)
           ))
         }
         List(team_event_filter, oppo_event_filter).foreach { filter =>
@@ -376,7 +378,7 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
         ))
         TestUtils.inside(
           enrich_stats(
-            player_filter_test, team_event_filter, Some(_ == "Bruno Fernando")
+            player_filter_test, team_event_filter, Some((p: String) => (p == "Bruno Fernando", "not_used"))
           )(zero_stats)
         ) {
           case stats =>
@@ -390,13 +392,53 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
         TestUtils.inside(
           enrich_stats(
             player_filter_test_2,
-            team_event_filter, Some(_ => false)
+            team_event_filter, Some(_ => (false, "not_used"))
           )(zero_stats)
         ) {
           case stats =>
             stats ==> zero_stats
         }
         // See "create_player_events" for test of assist.source generation
+
+        // Test assist.target generation (+mid/rim counts to go along with the 3p above):
+        val assist_rim_test = base_lineup.copy(raw_game_events = List(
+          Events.assist_team, Events.made_rim_team
+        ))
+        TestUtils.inside(
+          enrich_stats(
+            assist_rim_test, team_event_filter, Some((p: String) => (p == "Kyle Guy", s"code($p)"))
+          )(zero_stats)
+        ) {
+          case stats =>
+            stats ==> zero_stats
+              .modify(_.assist.total).setTo(1)
+              .modify(_.ast_rim).setTo(LineupEventStats.AssistInfo().copy(
+                counts = LineupEventStats.ShotClockStats().copy(total = 1),
+                target = LineupEventStats.AssistEvent(
+                  "code(Eric Carter)",
+                  LineupEventStats.ShotClockStats().copy(total = 1)
+                ) :: Nil
+              ))
+        }
+        val assist_mid_test = base_lineup.copy(raw_game_events = List(
+          Events.assist_team, Events.made_mid_team
+        ))
+        TestUtils.inside(
+          enrich_stats(
+            assist_mid_test, team_event_filter, Some((p: String) => (p == "Kyle Guy", s"code($p)"))
+          )(zero_stats)
+        ) {
+          case stats =>
+            stats ==> zero_stats
+              .modify(_.assist.total).setTo(1)
+              .modify(_.ast_mid).setTo(LineupEventStats.AssistInfo().copy(
+                counts = LineupEventStats.ShotClockStats().copy(total = 1),
+                target = LineupEventStats.AssistEvent(
+                  "code(Eric Ayala)",
+                  LineupEventStats.ShotClockStats().copy(total = 1)
+                ) :: Nil
+              ))
+        }
       }
       "add_stats_to_lineups" - {
         val test_lineup = base_lineup.copy(
@@ -474,7 +516,7 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
                 .modify(_.fg.made.total).setTo(2)
                 .modify(_.ast_3p).setTo(LineupEventStats.AssistInfo().copy(
                   source = LineupEventStats.AssistEvent(
-                    "Kyle Guy",
+                    "KyGuy",
                     LineupEventStats.ShotClockStats().copy(total = 2)
                   ) :: Nil
                 ))

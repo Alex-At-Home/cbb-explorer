@@ -94,7 +94,7 @@ trait LineupUtils {
   protected def enrich_stats(
     lineup: LineupEvent,
     event_parser: LineupEvent.RawGameEvent.PossessionEvent,
-    player_filter: Option[String => Boolean] = None
+    player_filter_coder: Option[String => (Boolean, String)] = None
   ): LineupEventStats => LineupEventStats = { case stats: LineupEventStats =>
 
     val game_events_as_clumps = Concurrency.lineup_as_raw_clumps(lineup).toStream
@@ -106,7 +106,7 @@ trait LineupUtils {
       classOf[LineupEvent], Concurrency.concurrent_event_handler[StatsBuilder]
     ) {
       case StateEvent.Next(ctx, StatsBuilder(curr_stats), clump @ Concurrency.ConcurrentClump(evs, _)) =>
-        val updated_stats = enrich_stats(evs, event_parser, player_filter, clump)(curr_stats)
+        val updated_stats = enrich_stats_with_clump(evs, event_parser, player_filter_coder, clump)(curr_stats)
         ctx.stateChange(StatsBuilder(updated_stats))
 
       case StateEvent.Complete(ctx, _) => //(no additional processing when element list complete)
@@ -159,13 +159,16 @@ trait LineupUtils {
    * - includes context needed for some "possessional processing" (clump)
    * TODO: figure out start of possession times and use (will require prev clump as well I think? and prob some other state)
    */
-  private def enrich_stats(
+  private def enrich_stats_with_clump(
     evs: List[LineupEvent.RawGameEvent],
     event_parser: LineupEvent.RawGameEvent.PossessionEvent,
-    player_filter: Option[String => Boolean],
+    player_filter_coder: Option[String => (Boolean, String)] = None,
     clump: Concurrency.ConcurrentClump
   ): LineupEventStats => LineupEventStats = { case stats: LineupEventStats =>
       case class StatsBuilder(curr: LineupEventStats)
+
+      val player_filter = player_filter_coder.map { f => (s: String) => f(s)._1 }
+      val player_coder = player_filter_coder.map { f => (s: String) => f(s)._2 }
 
       // A bunch of Lensy plumbing to allow us to increment stats anywhere in the large object
 
@@ -184,49 +187,53 @@ trait LineupUtils {
         selector.using(increment_misc_count())(state)
       }
       def increment_player_assist(
-        player_name: String,
+        player_code: String,
       ): List[LineupEventStats.AssistEvent] => List[LineupEventStats.AssistEvent] = {
         case list =>
-          (if (list.exists(_.player_id == player_name)) {
+          (if (list.exists(_.player_code == player_code)) {
             list
           } else {
-            LineupEventStats.AssistEvent(player_name) :: list
+            LineupEventStats.AssistEvent(player_code) :: list
           }).map {
-            case assist_event if assist_event.player_id == player_name =>
+            case assist_event if assist_event.player_code == player_code =>
               assist_event.modify(_.count).using(increment_misc_count())
             case assist_event => assist_event
           }
+      }
+      def assist_network_builder(
+        player_name: String,
+        count_selector: PathLazyModify[StatsBuilder, LineupEventStats.ShotClockStats],
+        assist_selector: PathLazyModify[StatsBuilder, List[LineupEventStats.AssistEvent]]
+      ): StatsBuilder => StatsBuilder = { case state =>
+        val transforms = (increment_misc_stat(count_selector) :: Nil) ++  //(always increment counts)
+          //(increment player info only for team players):
+          (player_coder.map(_(player_name)) match {
+            case Some(player_code) if event_parser.dir == LineupEvent.RawGameEvent.Direction.Team =>
+              Some(assist_selector.using(increment_player_assist(player_code)))
+            case _ =>
+              None
+          }).toList
+
+          transforms.foldLeft(state) { (acc, v) => v(acc) }
       }
       def maybe_increment_assisted_stats(
         count_selector: PathLazyModify[StatsBuilder, LineupEventStats.ShotClockStats],
         assisted_selector: PathLazyModify[StatsBuilder, List[LineupEventStats.AssistEvent]],
       ): StatsBuilder => StatsBuilder = { case state =>
         find_matching_assist(clump.evs, event_parser).map { player_name =>
-          val transforms = (increment_misc_stat(count_selector) :: Nil) ++  //(always increment counts)
-            //(increment player info only for team players):
-            (if (player_filter.nonEmpty && event_parser.dir == LineupEvent.RawGameEvent.Direction.Team) {
-              assisted_selector.using(increment_player_assist(player_name)) :: Nil
-            } else {
-              Nil
-            })
 
-          transforms.foldLeft(state) { (acc, v) => v(acc) }
+          assist_network_builder(player_name, count_selector, assisted_selector)(state)
+
         }.getOrElse(state)
       }
       def increment_assisted_fg_stats(): StatsBuilder => StatsBuilder = { case state =>
         find_matching_fg(clump.evs, event_parser).map { case (player_name, assist_path) =>
-          val count_selector = assist_path andThenModify modify[LineupEventStats.AssistInfo](_.counts)
-          val assistor_selector = assist_path andThenModify modify[LineupEventStats.AssistInfo](_.target)
-          val transforms = (count_selector.using(increment_misc_count()) :: Nil) ++  //(always increment counts)
-            //(increment player info only for team players):
-            (if (player_filter.nonEmpty && event_parser.dir == LineupEvent.RawGameEvent.Direction.Team) {
-              assistor_selector.using(increment_player_assist(player_name)) :: Nil
-            } else {
-              Nil
-            })
-          transforms.foldLeft(state) { (acc, v) =>
-            acc.modify(_.curr).using(v)
-          }
+          val curr_selector = modify[StatsBuilder](_.curr)
+          val count_selector = curr_selector andThenModify assist_path andThenModify modify[LineupEventStats.AssistInfo](_.counts)
+          val assistor_selector = curr_selector andThenModify assist_path andThenModify modify[LineupEventStats.AssistInfo](_.target)
+
+          assist_network_builder(player_name, count_selector, assistor_selector)(state)
+
         }.getOrElse(state)
       }
 
@@ -435,14 +442,14 @@ trait LineupUtils {
       val code = ExtractorUtils.build_player_code(
         LineupErrorAnalysisUtils.tidy_player(player_str, tidy_ctx), Some(lineup_event.team.team)
       ).code
-      (code == player_id.code)
+      ((code == player_id.code), code)
     }
     lineup_event.players.map { player =>
       val this_player_filter = player_filter(player)
       val player_event = base_player_event(player)
       val player_raw_game_events = lineup_event.raw_game_events.collect {
         case ev @ team_event_filter.AttackingTeam(EventUtils.ParseAnyPlay(player_str))
-          if this_player_filter(player_str) => ev
+          if this_player_filter(player_str)._1 => ev
       }
       val player_stats = enrich_stats(
         lineup_event, team_event_filter, Some(this_player_filter)

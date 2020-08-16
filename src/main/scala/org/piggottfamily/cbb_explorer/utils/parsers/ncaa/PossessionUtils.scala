@@ -38,13 +38,17 @@ trait PossessionUtils {
   protected case class PossState(
     team_stats: PossCalcFragment,
     opponent_stats: PossCalcFragment,
-    prev_clump: ConcurrentClump
+    prev_clump: Concurrency.ConcurrentClump
   )
   protected object PossState {
     /** Starting state */
     def init: PossState  = PossState(
-      PossCalcFragment(), PossCalcFragment(), ConcurrentClump(Nil)
+      PossCalcFragment(), PossCalcFragment(), Concurrency.ConcurrentClump(Nil)
     )
+  }
+
+  /** A collection of objects and methods related to concurrency in game events */
+  object Concurrency {
     /** Handles concurrency issues with the input data */
     case class ConcurrencyState(
       last_min: Double,
@@ -54,14 +58,65 @@ trait PossessionUtils {
       /** Starting state */
       def init: ConcurrencyState = ConcurrencyState(-1.0, "")
     }
-  }
 
-  /** A clump of concurrent events, together with the lineups that end in that clump */
-  protected case class ConcurrentClump(
-    evs: List[LineupEvent.RawGameEvent], lineups: List[LineupEvent] = Nil
-  ) {
-    def min: Option[Double] = evs.headOption.map(_.min)
-    def date_str: Option[String] = evs.headOption.map(_.date_str)
+    /** A clump of concurrent events, together with the lineups that end in that clump */
+    case class ConcurrentClump(
+      evs: List[LineupEvent.RawGameEvent], lineups: List[LineupEvent] = Nil
+    ) {
+      def min: Option[Double] = evs.headOption.map(_.min)
+      def date_str: Option[String] = evs.headOption.map(_.date_str)
+    }
+
+    /** Identify concurrent events (easy) */
+    protected def check_for_concurrent_event[S](
+      ev: Clumper.Event[S, Concurrency.ConcurrencyState, Concurrency.ConcurrentClump]
+    ): (Concurrency.ConcurrencyState, Boolean) = ev match {
+      case Clumper.Event(_, cs, Nil, Concurrency.ConcurrentClump(ev :: _, _)) =>
+        //(first event always gens a clump, possibly of size 1)
+        (cs.copy(last_min = ev.min, last_date_str = ev.date_str), true)
+
+      case Clumper.Event(_, cs, _, Concurrency.ConcurrentClump(Nil, _ :: _)) =>
+        // Lineup change -  lineups just get added to the list
+        (cs, true)
+
+      case Clumper.Event(_, cs, _, Concurrency.ConcurrentClump(ev :: _, _)) if ev.date_str > cs.last_date_str =>
+        // Game break
+        (cs.copy(last_min = -1.0, last_date_str = ev.date_str), false)
+
+      case Clumper.Event(_, cs, _, Concurrency.ConcurrentClump(ev :: _, _)) if ev.min == cs.last_min =>
+        (cs, true)
+      case Clumper.Event(_, cs, _, Concurrency.ConcurrentClump(ev :: _, _)) =>
+        (cs.copy(last_min = ev.min, last_date_str = ev.date_str), false)
+      case Clumper.Event(_, cs, _, Concurrency.ConcurrentClump(Nil, Nil)) => //(empty Concurrency.ConcurrentClump, not possible by construction)
+        (cs, true)
+    }
+
+    /** Aggregates all concurrent clumps of 1 event into a single clump of many events */
+    protected def rearrange_concurrent_event[S](
+      s: S, cs: Concurrency.ConcurrencyState, reverse_clump: List[Concurrency.ConcurrentClump]
+    ): List[Concurrency.ConcurrentClump] = {
+      List(
+        reverse_clump.foldLeft(Concurrency.ConcurrentClump(Nil, Nil)) { (acc, v) =>
+          acc.copy(evs = v.evs ++ acc.evs, lineups = v.lineups ++ acc.lineups)
+        } //(re-reverses the lists)
+      )
+    }
+
+    /** Manages splitting stream into concurrent chunks and then combining them */
+    def concurrent_event_handler[S] = Clumper(
+      Concurrency.ConcurrencyState.init,
+      check_for_concurrent_event[S] _,
+      rearrange_concurrent_event[S] _
+    )
+
+    /** Util to turn game events into unprocessed clumps, ready for subsequent processing use StateUtils */
+    def lineup_as_raw_clumps(lineup: LineupEvent): Iterator[Concurrency.ConcurrentClump] = {
+      lineup.raw_game_events.iterator.map { ev =>
+        Concurrency.ConcurrentClump(List(ev))
+      } ++ List(
+        Concurrency.ConcurrentClump(Nil, List(lineup))
+      ).iterator
+    }
   }
 
   /** Maintains stats needed to calculate possessions for each lineup event */
@@ -99,48 +154,6 @@ trait PossessionUtils {
 
   /** Util methods */
 
-  /** Identify concurrent events (easy) */
-  protected def check_for_concurrent_event[S](
-    ev: Clumper.Event[S, PossState.ConcurrencyState, ConcurrentClump]
-  ): (PossState.ConcurrencyState, Boolean) = ev match {
-    case Clumper.Event(_, cs, Nil, ConcurrentClump(ev :: _, _)) =>
-      //(first event always gens a clump, possibly of size 1)
-      (cs.copy(last_min = ev.min, last_date_str = ev.date_str), true)
-
-    case Clumper.Event(_, cs, _, ConcurrentClump(Nil, _ :: _)) =>
-      // Lineup change -  lineups just get added to the list
-      (cs, true)
-
-    case Clumper.Event(_, cs, _, ConcurrentClump(ev :: _, _)) if ev.date_str > cs.last_date_str =>
-      // Game break
-      (cs.copy(last_min = -1.0, last_date_str = ev.date_str), false)
-
-    case Clumper.Event(_, cs, _, ConcurrentClump(ev :: _, _)) if ev.min == cs.last_min =>
-      (cs, true)
-    case Clumper.Event(_, cs, _, ConcurrentClump(ev :: _, _)) =>
-      (cs.copy(last_min = ev.min, last_date_str = ev.date_str), false)
-    case Clumper.Event(_, cs, _, ConcurrentClump(Nil, Nil)) => //(empty ConcurrentClump, not possible by construction)
-      (cs, true)
-  }
-
-  /** Aggregates all concurrent clumps of 1 event into a single clump of many events */
-  protected def rearrange_concurrent_event[S](
-    s: S, cs: PossState.ConcurrencyState, reverse_clump: List[ConcurrentClump]
-  ): List[ConcurrentClump] = {
-    List(
-      reverse_clump.foldLeft(ConcurrentClump(Nil, Nil)) { (acc, v) =>
-        acc.copy(evs = v.evs ++ acc.evs, lineups = v.lineups ++ acc.lineups)
-      } //(re-reverses the lists)
-    )
-  }
-
-  /** Manages splitting stream into concurrent chunks and then combining them */
-  protected def concurrent_event_handler[S] = Clumper(
-    PossState.ConcurrencyState.init,
-    check_for_concurrent_event[S] _,
-    rearrange_concurrent_event[S] _
-  )
-
   /** Calculates the possessions from a block of data (eg game or lineup)
       for one direction only. As stateless and independent in the 2 dirs as possible!
 
@@ -154,7 +167,7 @@ trait PossessionUtils {
   ...there's _probably_ a missing turnover, don't think there's much we can do about it
   */
   protected def calculate_stats(
-    clump: ConcurrentClump, prev: ConcurrentClump, dir: Direction.Value
+    clump: Concurrency.ConcurrentClump, prev: Concurrency.ConcurrentClump, dir: Direction.Value
   ): PossCalcFragment = {
     val attacking_team = PossessionEvent(dir).AttackingTeam
     val defending_team = PossessionEvent(dir).DefendingTeam
@@ -368,13 +381,8 @@ trait PossessionUtils {
     lineup_events: Seq[LineupEvent]
   ): List[LineupEvent] = {
 
-    var game_events = lineup_events.iterator.flatMap { lineup =>
-      lineup.raw_game_events.iterator.map { ev =>
-        ConcurrentClump(List(ev))
-      } ++ List(
-        ConcurrentClump(Nil, List(lineup))
-      ).iterator
-    }
+    val game_events =
+      lineup_events.iterator.flatMap(Concurrency.lineup_as_raw_clumps)
     calculate_possessions_by_event(game_events.toStream)
   }
 
@@ -419,7 +427,7 @@ trait PossessionUtils {
     state: PossState,
     team_stats: PossCalcFragment,
     opponent_stats: PossCalcFragment,
-    clump: ConcurrentClump, prev_clump: ConcurrentClump
+    clump: Concurrency.ConcurrentClump, prev_clump: Concurrency.ConcurrentClump
   ): List[LineupEvent] = {
 
     val selector_team = modify(_: LineupEvent)(_.team_stats)
@@ -437,10 +445,10 @@ trait PossessionUtils {
 
         val balancer_by_dir = List(Direction.Team, Direction.Opponent).map { dir =>
           val indexed_off_evs = l.zipWithIndex.map { case (lineup, index) =>
-            val prev = if (index == 0) prev_clump else ConcurrentClump(Nil)
+            val prev = if (index == 0) prev_clump else Concurrency.ConcurrentClump(Nil)
               //(not actually sure how to interpret prev when we _know_ everything's concurrent with lineup breaks!)
             val min_of_interest = clump.min.getOrElse(-1.0)
-            val events_of_interest = ConcurrentClump(lineup.raw_game_events.filter(_.min == min_of_interest))
+            val events_of_interest = Concurrency.ConcurrentClump(lineup.raw_game_events.filter(_.min == min_of_interest))
             val approx_stats =  calculate_stats(events_of_interest, prev, dir)
             (-approx_stats.total_poss, index)
           }.sortBy(_._1)
@@ -519,16 +527,16 @@ trait PossessionUtils {
 
   /** Returns team and opponent possessions based on the raw event data */
   protected def calculate_possessions_by_event(
-    raw_events_as_clumps: Seq[ConcurrentClump]
+    raw_events_as_clumps: Seq[Concurrency.ConcurrentClump]
   ): List[LineupEvent] =
   {
     var diagnostic_state = PossState.init //(display only)
 
     StateUtils.foldLeft(
       raw_events_as_clumps, PossState.init,
-      classOf[LineupEvent], concurrent_event_handler[PossState]
+      classOf[LineupEvent], Concurrency.concurrent_event_handler[PossState]
     ) {
-      case StateEvent.Next(ctx, state, clump @ ConcurrentClump(evs, lineups)) =>
+      case StateEvent.Next(ctx, state, clump @ Concurrency.ConcurrentClump(evs, lineups)) =>
         val team_stats = calculate_stats(clump, state.prev_clump, Direction.Team)
         val opponent_stats = calculate_stats(clump, state.prev_clump, Direction.Opponent)
 

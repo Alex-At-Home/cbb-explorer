@@ -10,6 +10,7 @@ import org.piggottfamily.cbb_explorer.models.ncaa._
 object PossessionUtilsTests extends TestSuite with PossessionUtils {
   import ExtractorUtils._
   import StateUtils.StateTypes._
+  import Concurrency._
   //(these used to live in here but moved them centrally)
   import org.piggottfamily.cbb_explorer.models.ncaa.LineupEvent.RawGameEvent.Direction
   import org.piggottfamily.cbb_explorer.models.ncaa.LineupEvent.RawGameEvent.PossessionEvent

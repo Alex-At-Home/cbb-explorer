@@ -20,7 +20,11 @@ case class LineupEventStats(
   to: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
   stl: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
   blk: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
+
   assist: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
+  ast_rim: LineupEventStats.AssistInfo = LineupEventStats.AssistInfo(),
+  ast_mid: LineupEventStats.AssistInfo = LineupEventStats.AssistInfo(),
+  ast_3p: LineupEventStats.AssistInfo = LineupEventStats.AssistInfo(),
 
   foul: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
 
@@ -48,13 +52,37 @@ object LineupEventStats {
   )
 
   /**
+   * A list of all the assists from or to players
+   * @param player_code - the other player in the assist event (by code not name)
+   * @param count - the count of assists (by shot clock, like everything else)
+   */
+  case class AssistEvent(
+    player_code: String,
+    count: ShotClockStats = ShotClockStats()
+  )
+
+  /**
    * Break down of counting stats specific to field goals/shot clock
    * @param attempts The number of shot attempts, successful or not
    * @param made The number of successful shot attempts
+   * @param ast The number of successful shot attempts that were assisted
    */
   case class FieldGoalStats(
     attempts: ShotClockStats = ShotClockStats(),
-    made: ShotClockStats = ShotClockStats()
+    made: ShotClockStats = ShotClockStats(),
+    ast: ShotClockStats = ShotClockStats(),
+  )
+
+  /**
+   * More detailed assist info
+   * @param counts - raw statistics
+   * @param target - a list of players who "I" assisted
+   * @param source - a list of players who assisted "me"
+   */
+  case class AssistInfo(
+    counts: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
+    target: List[AssistEvent] = Nil,
+    source: List[AssistEvent] = Nil
   )
 
 }

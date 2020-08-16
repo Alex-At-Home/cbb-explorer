@@ -64,12 +64,6 @@ object ExtractorUtilsTests extends TestSuite {
             case LineupEvent.PlayerCodeId("DyOstekowski", PlayerId(`name_wrong_box_format`)) =>
           }
         }
-        List(None, Some(TeamId("TCU")), Some(TeamId("NotExist"))).foreach { team =>
-          val misspelling = "Willliams,John"
-          TestUtils.inside(build_player_code(misspelling, None)) {
-            case LineupEvent.PlayerCodeId("JoWilliams", PlayerId(`misspelling`)) =>
-          }
-        }
         //TODO add some other cases (single name, no space for intermediate)
       }
       "parse_team_name" - {

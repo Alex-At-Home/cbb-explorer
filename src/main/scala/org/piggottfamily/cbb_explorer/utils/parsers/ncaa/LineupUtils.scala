@@ -118,6 +118,11 @@ trait LineupUtils {
     }
   }
 
+  // Useful lens constants:
+  val emptyAssist = LineupEventStats.AssistInfo() //(for filling in options)
+  val emptyShotClock = LineupEventStats.ShotClockStats()
+  val emptyShotClockModify = modify[Option[LineupEventStats.ShotClockStats]](_.atOrElse(emptyShotClock))
+
   /**
    * Find an assist at the same time as a shot
    * TODO: handle the case where there are multiple shots for a single assist
@@ -141,13 +146,13 @@ trait LineupUtils {
   ): Option[(String, PathLazyModify[LineupEventStats, LineupEventStats.AssistInfo])] = {
     evs.collect {
       case event_parser.AttackingTeam(ev_str @ EventUtils.ParseRimMade(player)) =>
-        (player, modify[LineupEventStats](_.ast_rim))
+        (player, modify[LineupEventStats](_.ast_rim.atOrElse(emptyAssist)))
 
       case event_parser.AttackingTeam(ev_str @ EventUtils.ParseTwoPointerMade(player)) =>
-        (player, modify[LineupEventStats](_.ast_mid))
+        (player, modify[LineupEventStats](_.ast_mid.atOrElse(emptyAssist)))
 
       case event_parser.AttackingTeam(ev_str @ EventUtils.ParseThreePointerMade(player)) =>
-        (player, modify[LineupEventStats](_.ast_3p))
+        (player, modify[LineupEventStats](_.ast_3p.atOrElse(emptyAssist)))
     }.headOption
   }
 
@@ -171,7 +176,6 @@ trait LineupUtils {
       val player_coder = player_filter_coder.map { f => (s: String) => f(s)._2 }
 
       // A bunch of Lensy plumbing to allow us to increment stats anywhere in the large object
-
       val selector_shotclock_total = modify[LineupEventStats.ShotClockStats](_.total)
       def shotclock_selectors() = List(selector_shotclock_total) // TODO
       def increment_misc_count()
@@ -185,6 +189,11 @@ trait LineupUtils {
         selector: PathLazyModify[StatsBuilder, LineupEventStats.ShotClockStats]
       ): StatsBuilder => StatsBuilder = { case state =>
         selector.using(increment_misc_count())(state)
+      }
+      def increment_misc_opt_stat(
+        selector: PathLazyModify[StatsBuilder, Option[LineupEventStats.ShotClockStats]]
+      ): StatsBuilder => StatsBuilder = {
+        increment_misc_stat(selector andThenModify emptyShotClockModify)
       }
       def increment_player_assist(
         player_code: String,
@@ -203,13 +212,14 @@ trait LineupUtils {
       def assist_network_builder(
         player_name: String,
         count_selector: PathLazyModify[StatsBuilder, LineupEventStats.ShotClockStats],
-        assist_selector: PathLazyModify[StatsBuilder, List[LineupEventStats.AssistEvent]]
+        assist_selector: PathLazyModify[StatsBuilder, Option[List[LineupEventStats.AssistEvent]]]
       ): StatsBuilder => StatsBuilder = { case state =>
+        val emptyListModify = modify[Option[List[LineupEventStats.AssistEvent]]](_.atOrElse(Nil))
         val transforms = (increment_misc_stat(count_selector) :: Nil) ++  //(always increment counts)
           //(increment player info only for team players):
           (player_coder.map(_(player_name)) match {
             case Some(player_code) if event_parser.dir == LineupEvent.RawGameEvent.Direction.Team =>
-              Some(assist_selector.using(increment_player_assist(player_code)))
+              Some((assist_selector andThenModify emptyListModify).using(increment_player_assist(player_code)))
             case _ =>
               None
           }).toList
@@ -218,7 +228,7 @@ trait LineupUtils {
       }
       def maybe_increment_assisted_stats(
         count_selector: PathLazyModify[StatsBuilder, LineupEventStats.ShotClockStats],
-        assisted_selector: PathLazyModify[StatsBuilder, List[LineupEventStats.AssistEvent]],
+        assisted_selector: PathLazyModify[StatsBuilder, Option[List[LineupEventStats.AssistEvent]]],
       ): StatsBuilder => StatsBuilder = { case state =>
         find_matching_assist(clump.evs, event_parser).map { player_name =>
 
@@ -270,8 +280,8 @@ trait LineupUtils {
                     andThen increment_misc_stat(modify[StatsBuilder](_.curr.fg_rim.made))
 
             andThen maybe_increment_assisted_stats(
-              modify[StatsBuilder](_.curr.fg_rim.ast),
-              modify[StatsBuilder](_.curr.ast_rim.source)
+              modify[StatsBuilder](_.curr.fg_rim.ast.atOrElse(emptyShotClock)),
+              modify[StatsBuilder](_.curr.ast_rim.atOrElse(emptyAssist).source),
             )
           )(state)
 
@@ -294,8 +304,8 @@ trait LineupUtils {
                     andThen increment_misc_stat(modify[StatsBuilder](_.curr.fg_mid.made))
 
               andThen maybe_increment_assisted_stats(
-                modify[StatsBuilder](_.curr.fg_mid.ast),
-                modify[StatsBuilder](_.curr.ast_mid.source)
+                modify[StatsBuilder](_.curr.fg_mid.ast.atOrElse(emptyShotClock)),
+                modify[StatsBuilder](_.curr.ast_mid.atOrElse(emptyAssist).source)
               )
             )(state)
 
@@ -316,8 +326,8 @@ trait LineupUtils {
                 andThen increment_misc_stat(modify[StatsBuilder](_.curr.fg_3p.made))
 
               andThen maybe_increment_assisted_stats(
-                modify[StatsBuilder](_.curr.fg_3p.ast),
-                modify[StatsBuilder](_.curr.ast_3p.source)
+                modify[StatsBuilder](_.curr.fg_3p.ast.atOrElse(emptyShotClock)),
+                modify[StatsBuilder](_.curr.ast_3p.atOrElse(emptyAssist).source)
               )
             )(state)
 
@@ -336,12 +346,12 @@ trait LineupUtils {
           /** TODO: what about defensive deadball rebounds in old format? */
             && EventUtils.ParseOffensiveDeadballRebound.unapply(ev_str).isEmpty
         =>
-          increment_misc_stat(modify[StatsBuilder](_.curr.orb))(state)
+          increment_misc_opt_stat(modify[StatsBuilder](_.curr.orb))(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParseDefensiveRebound(player)))
           if player_filter.forall(_(player))
         =>
-          increment_misc_stat(modify[StatsBuilder](_.curr.drb))(state)
+          increment_misc_opt_stat(modify[StatsBuilder](_.curr.drb))(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParseTurnover(player)))
           if player_filter.forall(_(player))
@@ -351,39 +361,39 @@ trait LineupUtils {
         case (state, event_parser.AttackingTeam(EventUtils.ParseStolen(player)))
           if player_filter.forall(_(player))
         =>
-          increment_misc_stat(modify[StatsBuilder](_.curr.stl))(state)
+          increment_misc_opt_stat(modify[StatsBuilder](_.curr.stl))(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParseShotBlocked(player)))
           if player_filter.forall(_(player))
         =>
-          increment_misc_stat(modify[StatsBuilder](_.curr.blk))(state)
+          increment_misc_opt_stat(modify[StatsBuilder](_.curr.blk))(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParseAssist(player)))
           if player_filter.forall(_(player))
         =>
-          (increment_misc_stat(modify[StatsBuilder](_.curr.assist))
+          (increment_misc_opt_stat(modify[StatsBuilder](_.curr.assist))
             andThen increment_assisted_fg_stats()
           )(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParsePersonalFoul(player)))
           if player_filter.forall(_(player))
         =>
-          increment_misc_stat(modify[StatsBuilder](_.curr.foul))(state)
+          increment_misc_opt_stat(modify[StatsBuilder](_.curr.foul))(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParseFlagrantFoul(player)))
           if player_filter.forall(_(player))
         =>
-          increment_misc_stat(modify[StatsBuilder](_.curr.foul))(state)
+          increment_misc_opt_stat(modify[StatsBuilder](_.curr.foul))(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParseTechnicalFoul(player)))
           if player_filter.forall(_(player))
         =>
-          increment_misc_stat(modify[StatsBuilder](_.curr.foul))(state)
+          increment_misc_opt_stat(modify[StatsBuilder](_.curr.foul))(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParseOffensiveFoul(player)))
           if player_filter.forall(_(player))
         =>
-          increment_misc_stat(modify[StatsBuilder](_.curr.foul))(state)
+          increment_misc_opt_stat(modify[StatsBuilder](_.curr.foul))(state)
 
         case (state, _) => state
       }).curr
@@ -466,40 +476,42 @@ trait LineupUtils {
   // Very low level:
 
   /** Adds two lineup stats objects together  - just used for debug */
-  protected def sum(lhs: LineupEventStats, rhs: LineupEventStats): LineupEventStats = {
-    trait sum_int extends Poly1 {
-      implicit def case_int2 = at[(Int, Int)](lr => lr._1 + lr._2)
-    }
-    trait sum_shot extends sum_int {
-      val gen_shot = Generic[LineupEventStats.ShotClockStats]
-      object sum_int_obj extends sum_int
-      implicit def case_shot2 =
-        at[(LineupEventStats.ShotClockStats, LineupEventStats.ShotClockStats)] { lr =>
-          gen_shot.from((gen_shot.to(lr._1) zip gen_shot.to(lr._2)).map(sum_int_obj))
-        }
-    }
-    trait sum_assist extends sum_shot {
-      val gen_ast = Generic[LineupEventStats.AssistInfo]
-      object sum_assist_obj extends sum_shot
-      implicit def case_assist2 =
-        at[(LineupEventStats.AssistInfo, LineupEventStats.AssistInfo)] { lr =>
-          LineupEventStats.AssistInfo(
-            gen_shot.from((gen_shot.to(lr._1.counts) zip gen_shot.to(lr._2.counts)).map(sum_int_obj)),
-            lr._1.target ++ lr._2.target,
-            lr._1.source ++ lr._2.source //TODO (this is just for debug so for now just concat the arrarys)
-          )
-        }
-    }
-    object sum extends sum_assist {
-      val gen_fg = Generic[LineupEventStats.FieldGoalStats]
-      object sum_shot_obj extends sum_assist
-      implicit def case_field2 =
-        at[(LineupEventStats.FieldGoalStats, LineupEventStats.FieldGoalStats)] { lr =>
-          gen_fg.from((gen_fg.to(lr._1) zip gen_fg.to(lr._2)).map(sum_shot_obj))
-        }
-    }
-    val gen_lineup = Generic[LineupEventStats]
-    gen_lineup.from((gen_lineup.to(lhs) zip gen_lineup.to(rhs)).map(sum))
-  }
+  // TODO: now I've moved everything to Options, this needs some rework, but that's pretty low priority
+  // (since it's only usede for debug)
+  // protected def sum(lhs: LineupEventStats, rhs: LineupEventStats): LineupEventStats = {
+  //   trait sum_int extends Poly1 {
+  //     implicit def case_int2 = at[(Int, Int)](lr => lr._1 + lr._2)
+  //   }
+  //   trait sum_shot extends sum_int {
+  //     val gen_shot = Generic[LineupEventStats.ShotClockStats]
+  //     object sum_int_obj extends sum_int
+  //     implicit def case_shot2 =
+  //       at[(LineupEventStats.ShotClockStats, LineupEventStats.ShotClockStats)] { lr =>
+  //         gen_shot.from((gen_shot.to(lr._1) zip gen_shot.to(lr._2)).map(sum_int_obj))
+  //       }
+  //   }
+  //   trait sum_assist extends sum_shot {
+  //     val gen_ast = Generic[LineupEventStats.AssistInfo]
+  //     object sum_assist_obj extends sum_shot
+  //     implicit def case_assist2 =
+  //       at[(LineupEventStats.AssistInfo, LineupEventStats.AssistInfo)] { lr =>
+  //         LineupEventStats.AssistInfo(
+  //           gen_shot.from((gen_shot.to(lr._1.counts) zip gen_shot.to(lr._2.counts)).map(sum_int_obj)),
+  //           lr._1.target ++ lr._2.target,
+  //           lr._1.source ++ lr._2.source //TODO (this is just for debug so for now just concat the arrarys)
+  //         )
+  //       }
+  //   }
+  //   object sum extends sum_assist {
+  //     val gen_fg = Generic[LineupEventStats.FieldGoalStats]
+  //     object sum_shot_obj extends sum_assist
+  //     implicit def case_field2 =
+  //       at[(LineupEventStats.FieldGoalStats, LineupEventStats.FieldGoalStats)] { lr =>
+  //         gen_fg.from((gen_fg.to(lr._1) zip gen_fg.to(lr._2)).map(sum_shot_obj))
+  //       }
+  //   }
+  //   val gen_lineup = Generic[LineupEventStats]
+  //   gen_lineup.from((gen_lineup.to(lhs) zip gen_lineup.to(rhs)).map(sum))
+  // }
 }
 object LineupUtils extends LineupUtils

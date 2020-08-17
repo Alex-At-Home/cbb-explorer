@@ -93,7 +93,7 @@ libraryDependencies ++= Seq(
 ).map(_ % circeVersion)
 
 // Lens support
-libraryDependencies += "com.softwaremill.quicklens" % "quicklens_2.12" % "1.4.12"
+libraryDependencies += "com.softwaremill.quicklens" % "quicklens_2.12" % "1.6.1"
 
 val kantanVersion = "0.4.0"
 

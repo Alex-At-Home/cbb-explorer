@@ -18,6 +18,15 @@ object ExtractorUtils {
 
   // Top level
 
+  /** Converts score to a number so don't get bitten by number of digits in lexi ordering */
+  def score_to_tuple(str: String): (Int, Int) = {
+    val regex = "([0-9]+)-([[0-9]+])".r
+    str match {
+      case regex(s1, s2) => (s1.toInt, s2.toInt) //(ints by construction)
+      case _ => (0, 0)
+    }
+  }
+  
   /** Converts a stream of partially parsed events into a list of lineup events
    * (note box_lineup has all players, but the top 5 are always the starters)
    */

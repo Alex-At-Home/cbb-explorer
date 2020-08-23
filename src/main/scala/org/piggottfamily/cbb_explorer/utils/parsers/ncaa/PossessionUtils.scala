@@ -335,15 +335,6 @@ trait PossessionUtils {
     Also only works with new format
     */
 
-    /** Converts score to a number so don't get bitten by number of digits in lexi ordering */
-    def score_to_tuple(str: String): (Int, Int) = {
-      val regex = "([0-9]+)-([[0-9]+])".r
-      str match {
-        case regex(s1, s2) => (s1.toInt, s2.toInt) //(ints by construction)
-        case _ => (0, 0)
-      }
-    }
-
     // (explained in the block comment above)
     val recent_dead_ft_misses = List(prev.evs, clump.evs).flatten.collect {
       case ev @ attacking_team(EventUtils.ParseFreeThrowMade(_)) => ev

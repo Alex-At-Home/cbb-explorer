@@ -161,55 +161,12 @@ trait LineupUtils {
     }.headOption
   }
 
-/**TODO Check out:
-<b>Jalen Smith,</b> 2pt dunk 2ndchance;fromturnover;pointsinthepaint;fastbreak  made</td>
-*/
-
-/**TODO errors:
-
-1] Orphan FT error (see on both sides ofc)
-
-1ab] ((free throws))
-Only these event(s): [Set(16:19:00,30-59,Trent Frazier, freethrow 2of2 fastbreak missed)]
------------------------------------
-<16:20:00,30-59,Shea Feehan, foul personal shooting;2freethrow
->16:20:00,30-59,Team, rebound offensivedeadball
->16:20:00,30-59,Trent Frazier, freethrow 1of2 fastbreak missed
->16:20:00,30-59,Trent Frazier, foulon
-+++++++++++++++++++++++++++++++++++
->16:19:00,30-59,Trent Frazier, freethrow 2of2 fastbreak missed
-
-Old version:
-
-1ab] ((free throws))
-Only these event(s): [Set(09:45,40-60,BESS,JAVON missed Free Throw)]
------------------------------------
-<09:47,40-60,BESS,JAVON Offensive Rebound
->09:47,40-60,NICKENS,JARED Commits Foul
-<09:47,40-60,BESS,JAVON missed Free Throw
-<09:47,40-60,TEAM Deadball Rebound
-<09:47,40-60,SCHILLING,GAVIN Enters Game
-<09:47,40-60,COSTELLO,MATT Leaves Game
-+++++++++++++++++++++++++++++++++++
-<09:45,40-60,BESS,JAVON missed Free Throw
->09:45,40-60,LAYMAN,JAKE Defensive Rebound
-
-2] In old format, ORB is sometimes in the wrong place:
-
->02:34,55-89,BENDER,IVAN Offensive Rebound
-<02:34,55-89,WRENCHER,PATRICK Commits Foul
->02:34,55-90,BENDER,IVAN made Free Throw
->02:34,55-91,BENDER,IVAN made Free Throw
-
-*/
-
   /** Figure out if the last action was part of a "scramble scenario" following an ORB
    * A few stats:
-  * - Maryland 2014, 2015, 2016, 2017: 1721 scrambles / 2809 ORBs
+  * - Maryland 2014, 2015, 2016, 2017: 1721 scrambles / 2809 ORBs. 3 "scramble-errors", all weird PbP
   *   [0a: 11, 1aa: 240, 1ab: 1410, 1b: 5, 2aa: 34, 2ab: 21]
-  * - B1G 2018, 2019: 11952 scrambles / ~21K ORBs (18664 things marked 2ndchance).
-  TODO 183 errors (basically all dangling "FT"s)
-  * distribution: (65 0a, 3492 1aa, 7864 1ab, 338 2aa, 180 2ab)
+  * - B1G 2018, 2019: 12781 scrambles / ~21K ORBs (18664 things marked 2ndchance). 5 "scramble-errors", all weird PbP
+  *   [69 0a, 3604 1aa, 8548 1ab, 14 1b, 351 2aa, 195 2ab]
   */
   def is_scramble(
     curr_clump: Concurrency.ConcurrentClump,
@@ -222,9 +179,9 @@ Only these event(s): [Set(09:45,40-60,BESS,JAVON missed Free Throw)]
 
     val play_type_debug_scramble = true && !player_version
 
-    /** Empty ignore list, or just 1 FT */
-    def debug_check_select_events(evs: List[String]) = if (play_type_debug_scramble) {
-      if (evs.isEmpty ||
+    /** Empty ignore list, or just 1 FT (allow_empty means we've hand emptied it) */
+    def debug_check_select_events(evs: List[String], allow_empty: Boolean) = if (play_type_debug_scramble) {
+      if ((evs.isEmpty && !allow_empty) ||
         ((evs.size == 1) && evs.exists(i => EventUtils.ParseFreeThrowAttempt.unapply(i).nonEmpty))
       ) {
         println("---SCRAMBLE-ERROR--------------------")
@@ -272,6 +229,8 @@ Only these event(s): [Set(09:45,40-60,BESS,JAVON missed Free Throw)]
     // You get a deadball rebound, but the ball is inbounded (unless it's a shooting foul). Regardless
     // we don't categorize that as a scramble play
 
+    // First some utilities
+
     /** Filters down to shot/FT/TO */
     def get_off_ev: PartialFunction[LineupEvent.RawGameEvent, LineupEvent.RawGameEvent] = {
       case ev @ event_parser.AttackingTeam(EventUtils.ParseShotMissed(_)) => ev
@@ -305,6 +264,9 @@ Only these event(s): [Set(09:45,40-60,BESS,JAVON missed Free Throw)]
 
         case Some(ev @ event_parser.AttackingTeam(EventUtils.ParseFreeThrowAttempt(player))) =>
           (EventUtils.ParseFreeThrowEventAttemptGen2.unapply(ev.info) match {
+            case Some((_, 1, 1)) if skip_2nd_chance => // this is an and-1 so it can't start the event, will just bypass
+              Nil //(this ensures it all works if we have a 2ndchance make, then a non-2ndchance and-1)
+
             case Some((_, _, total_fts)) => //new format, can infer the right number of FT events to take
               curr_clump.evs.collect {
                 case ev @ event_parser.AttackingTeam(EventUtils.ParseFreeThrowAttempt(p)) if p == player => ev
@@ -313,6 +275,8 @@ Only these event(s): [Set(09:45,40-60,BESS,JAVON missed Free Throw)]
             case None => //old gen...
               curr_clump.evs.takeWhile { //(...keep going until you see a rebound)
                 case ev @ event_parser.AttackingTeam(EventUtils.ParseLiveOffensiveRebound(_)) => false
+                  //(this isn't perfect, since ORB _can_ be out-of-order; but only occurred once in my test set / 2K ORBs.
+                  // correct fix would to ensure we've always grabbed 2 FTs before applying this)
                 case _ => true
               }.collect {
                 case ev @ event_parser.AttackingTeam(EventUtils.ParseFreeThrowAttempt(p)) if p == player => ev
@@ -361,6 +325,8 @@ Only these event(s): [Set(09:45,40-60,BESS,JAVON missed Free Throw)]
     val threshold = 6.5/60;
       //(6.5s, leads to about 60% of ORBs being categorized as scrambles - Synergy has 50% being called "putback"s)
 
+    // Then the actual business logic to determine the different cases
+
     (curr_clump_has_offense match {
       case false =>  //(no offensive plays in current clump so can just ignore all this logic)
         Some((ev: LineupEvent.RawGameEvent) => {
@@ -388,15 +354,23 @@ Only these event(s): [Set(09:45,40-60,BESS,JAVON missed Free Throw)]
             val (first_off_ev_set, first_off_ev_list, more_debug_context) =
               get_first_off_ev_set(curr_clump.evs.collect(get_off_ev), allow_tos = true, skip_2nd_chance = false)
 
-            debug_check_select_events(first_off_ev_list)
+            // Look for dangling FT - ignore if so, timing error in PbP
+            val (first_off_ev_set_ftfix, first_off_ev_list_ftfix) = first_off_ev_list match {
+              case EventUtils.ParseFreeThrowAttempt(_) :: Nil =>
+                (Set[String](), List[String]()) //special case: empty the set
+              case _ =>
+                (first_off_ev_set, first_off_ev_list)
+            }
+
+            debug_check_select_events(first_off_ev_list_ftfix, allow_empty = first_off_ev_list.nonEmpty)
             debug_scramble_context(
               s"1ab] ($more_debug_context)" ::
-              s"Only these event(s): [${first_off_ev_set}]" ::
+              s"Only these event(s): [${first_off_ev_set_ftfix}]" ::
                 Nil,
               curr_clump, maybe_prev_clump
             )
             Some((ev: LineupEvent.RawGameEvent) => {
-              val was_scramble = first_off_ev_set(ev.info)
+              val was_scramble = first_off_ev_set_ftfix(ev.info)
               was_scramble
             })
         }
@@ -429,7 +403,7 @@ Only these event(s): [Set(09:45,40-60,BESS,JAVON missed Free Throw)]
           case _ if last_clump_offense_time.nonEmpty => "1b"
           case _ => "2aa" //(see below for 2ab)
         }
-        debug_check_select_events(first_off_ev_list)
+        debug_check_select_events(first_off_ev_list, allow_empty = false)
         debug_scramble_context(
           s"$debug_case] ($more_debug_context)" ::
           s"Ignore 1st event(s): [${first_off_ev_set}]" ::
@@ -480,6 +454,10 @@ Only these event(s): [Set(09:45,40-60,BESS,JAVON missed Free Throw)]
       =>
     }.hasNext
   }
+
+  /**TODO Check out:
+  <b>Jalen Smith,</b> 2pt dunk 2ndchance;fromturnover;pointsinthepaint;fastbreak  made</td>
+  */
 
   /** Figure out if the last action was part of a transition offense */
   def is_transition(

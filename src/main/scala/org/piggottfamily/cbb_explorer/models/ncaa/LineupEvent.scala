@@ -55,6 +55,9 @@ object LineupEvent {
     /** Gets the event information (either from team or opponent - can't be both) */
     def info: String = get_info.getOrElse("")
 
+    /** For display - shows the direction of the event (team > or opponent <)*/
+    def show_dir: String = team.map(_ => ">").getOrElse("<")
+
     /** Gets the date string associated with the event */
     def get_date_str: Option[String] = get_info.map { ev_str =>
       ev_str.split(',')(0)

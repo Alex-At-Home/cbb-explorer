@@ -19,6 +19,7 @@ trait PossessionUtils {
   import org.piggottfamily.cbb_explorer.models.ncaa.LineupEvent.RawGameEvent.PossessionEvent
 
   /** Debug flags */
+  private val print_debug_info = false
   protected val show_end_of_raw_calcs = true
   protected val log_lineup_fixes = true
 
@@ -470,7 +471,7 @@ trait PossessionUtils {
     }
 
     /** Debug util */
-    def log_lineup_fix(dir: String, stats: LineupEventStats, l: List[LineupEvent]): Unit = {
+    def log_lineup_fix(dir: String, stats: LineupEventStats, l: List[LineupEvent]): Unit = if (print_debug_info) {
       println(
         s"""
         ************Possession fix required [$dir]: [${stats.num_possessions}]:
@@ -558,7 +559,7 @@ trait PossessionUtils {
     } match {
       case FoldStateComplete(_, lineups) =>
         /** Debug util */
-        def summarize_state(label: String, state: PossState): Unit = {
+        def summarize_state(label: String, state: PossState): Unit = if (print_debug_info) {
           println(s"--------$label------------")
           println(s"[${state.team_stats.summary}]")
           println(s"[${state.opponent_stats.summary}]")

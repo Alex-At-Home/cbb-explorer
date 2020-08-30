@@ -161,106 +161,299 @@ trait LineupUtils {
     }.headOption
   }
 
-  /** Figure out if the last action was part of a "putback scenario" following an ORB */
-  def is_putback(
+/**TODO Check out:
+<b>Jalen Smith,</b> 2pt dunk 2ndchance;fromturnover;pointsinthepaint;fastbreak  made</td>
+*/
+
+/**TODO errors:
+
+1] Orphan FT error (see on both sides ofc)
+
+1ab] ((free throws))
+Only these event(s): [Set(16:19:00,30-59,Trent Frazier, freethrow 2of2 fastbreak missed)]
+-----------------------------------
+<16:20:00,30-59,Shea Feehan, foul personal shooting;2freethrow
+>16:20:00,30-59,Team, rebound offensivedeadball
+>16:20:00,30-59,Trent Frazier, freethrow 1of2 fastbreak missed
+>16:20:00,30-59,Trent Frazier, foulon
++++++++++++++++++++++++++++++++++++
+>16:19:00,30-59,Trent Frazier, freethrow 2of2 fastbreak missed
+
+Old version:
+
+1ab] ((free throws))
+Only these event(s): [Set(09:45,40-60,BESS,JAVON missed Free Throw)]
+-----------------------------------
+<09:47,40-60,BESS,JAVON Offensive Rebound
+>09:47,40-60,NICKENS,JARED Commits Foul
+<09:47,40-60,BESS,JAVON missed Free Throw
+<09:47,40-60,TEAM Deadball Rebound
+<09:47,40-60,SCHILLING,GAVIN Enters Game
+<09:47,40-60,COSTELLO,MATT Leaves Game
++++++++++++++++++++++++++++++++++++
+<09:45,40-60,BESS,JAVON missed Free Throw
+>09:45,40-60,LAYMAN,JAKE Defensive Rebound
+
+2] In old format, ORB is sometimes in the wrong place:
+
+>02:34,55-89,BENDER,IVAN Offensive Rebound
+<02:34,55-89,WRENCHER,PATRICK Commits Foul
+>02:34,55-90,BENDER,IVAN made Free Throw
+>02:34,55-91,BENDER,IVAN made Free Throw
+
+*/
+
+  /** Figure out if the last action was part of a "scramble scenario" following an ORB
+   * A few stats:
+  * - Maryland 2014, 2015, 2016, 2017: 1721 scrambles / 2809 ORBs
+  *   [0a: 11, 1aa: 240, 1ab: 1410, 1b: 5, 2aa: 34, 2ab: 21]
+  * - B1G 2018, 2019: 11952 scrambles / ~21K ORBs (18664 things marked 2ndchance).
+  TODO 183 errors (basically all dangling "FT"s)
+  * distribution: (65 0a, 3492 1aa, 7864 1ab, 338 2aa, 180 2ab)
+  */
+  def is_scramble(
     curr_clump: Concurrency.ConcurrentClump,
     prev_clumps: List[Concurrency.ConcurrentClump],
-    event_parser: LineupEvent.RawGameEvent.PossessionEvent
-  ): LineupEvent.RawGameEvent => Boolean = { prev_clumps match {
-    case Nil =>
-      (ev: LineupEvent.RawGameEvent) => {
-        //(if a lineup change has occurred can't be a putback)
-        false
+    event_parser: LineupEvent.RawGameEvent.PossessionEvent,
+    player_version: Boolean
+  ): LineupEvent.RawGameEvent => Boolean = {
+
+    // A] Debug infra for scrambles:
+
+    val play_type_debug_scramble = true && !player_version
+
+    /** Empty ignore list, or just 1 FT */
+    def debug_check_select_events(evs: List[String]) = if (play_type_debug_scramble) {
+      if (evs.isEmpty ||
+        ((evs.size == 1) && evs.exists(i => EventUtils.ParseFreeThrowAttempt.unapply(i).nonEmpty))
+      ) {
+        println("---SCRAMBLE-ERROR--------------------")
+        println(s"Bad ignore list: ${evs}")
+      }
+    }
+    def debug_scramble_context(
+      context_info_lines: List[String],
+      curr_clump: Concurrency.ConcurrentClump,
+      prev_clump: Option[Concurrency.ConcurrentClump]
+    ) = {
+      if (play_type_debug_scramble) {
+        println("---SCRAMBLE-ANALYSIS-----------------")
+        context_info_lines.foreach(println)
+        println("-----------------------------------")
+        prev_clump.map(_.evs).getOrElse(Nil).foreach(ev => println(ev.show_dir + ev.info))
+        println("+++++++++++++++++++++++++++++++++++")
+        curr_clump.evs.foreach(ev => println(ev.show_dir + ev.info))
+        println("===================================")
+      }
+    }
+
+    // B] Actual logic:
+
+    val maybe_prev_clump = prev_clumps.headOption
+
+    // First we decide if the last clump involved opponent offense or not
+
+    // Case 0: off lineup change
+    // 0a]  Then 1st shot isn't scramble (including +1s) but others will
+
+    // Case 1: recent team offense
+    // 1a] if last clump was close - all shots/FTs must be scrambles
+    //     (1+ ORB => all events are [1aa], 0 ORBS, just the 1st [1ab])
+    // 1b] else 1st shot doesn't count as scramble but others will
+    //     provided there is at least 1 ORB in current clump
+
+    // Case 2: recent opponent offense only
+    // 2a] Then 1st shot isn't scramble (including +1s) but others will (2aa)
+    //     provided there is at least 1 ORB in current clump (else 2ab) [see 1aa/1ab]
+    // (2ab precludes this case: Shot/Deadball rebound/Turnover, which seems fine though also see with ORB in
+    //  which case I do count it, so a bit inconsistent but :shrugs:)
+
+    // An example of 2ab is when the defensive team commits a foul on the rebounding team
+    // You get a deadball rebound, but the ball is inbounded (unless it's a shooting foul). Regardless
+    // we don't categorize that as a scramble play
+
+    /** Filters down to shot/FT/TO */
+    def get_off_ev: PartialFunction[LineupEvent.RawGameEvent, LineupEvent.RawGameEvent] = {
+      case ev @ event_parser.AttackingTeam(EventUtils.ParseShotMissed(_)) => ev
+      case ev @ event_parser.AttackingTeam(EventUtils.ParseShotMade(_)) => ev
+      case ev @ event_parser.AttackingTeam(EventUtils.ParseFreeThrowAttempt(_)) => ev
+      case ev @ event_parser.AttackingTeam(EventUtils.ParseTurnover(_)) => ev
+    }
+
+    /** This is used in a couple of places later to get the first offensive play
+     * @param allow_tos - if looking for events to _exclude_ it can't be a TO (see below)
+     * @param skip_2nd_chance - for recursive call
+    */
+    def get_first_off_ev_set(off_evs: List[LineupEvent.RawGameEvent], allow_tos: Boolean, skip_2nd_chance: Boolean)
+      :
+    (Set[String], List[String], String) = {
+      /** TO can't be the first of a multi-pseudo-possession clump */
+      val is_to_or_maybe_2ndchance: LineupEvent.RawGameEvent => Boolean = {
+        case ev if skip_2nd_chance && ev.info.contains("2ndchance") => true
+        case ev @ event_parser.AttackingTeam(EventUtils.ParseTurnover(_)) if !allow_tos => true
+        case _ => false
       }
 
-    case prev_clump :: _ =>
+      (off_evs.filterNot(is_to_or_maybe_2ndchance).headOption match {
+        case Some(ev @ event_parser.AttackingTeam(EventUtils.ParseShotMade(_))) =>
+          // check for and-1
+          // check for assists
+          (ev :: curr_clump.evs.collect { //(needs to be the original to ensure it has assists)
+            case ev @ event_parser.AttackingTeam(EventUtils.ParseFreeThrowAttempt(_)) => ev
+            case ev @ event_parser.AttackingTeam(EventUtils.ParseAssist(_)) => ev
+          }, "(made shot)")
 
-//TODO: check whether new events have a putback indicator
+        case Some(ev @ event_parser.AttackingTeam(EventUtils.ParseFreeThrowAttempt(player))) =>
+          (EventUtils.ParseFreeThrowEventAttemptGen2.unapply(ev.info) match {
+            case Some((_, _, total_fts)) => //new format, can infer the right number of FT events to take
+              curr_clump.evs.collect {
+                case ev @ event_parser.AttackingTeam(EventUtils.ParseFreeThrowAttempt(p)) if p == player => ev
+              }.take(total_fts)
 
-      // First we decide if the last clump involved opponent offense or not
+            case None => //old gen...
+              curr_clump.evs.takeWhile { //(...keep going until you see a rebound)
+                case ev @ event_parser.AttackingTeam(EventUtils.ParseLiveOffensiveRebound(_)) => false
+                case _ => true
+              }.collect {
+                case ev @ event_parser.AttackingTeam(EventUtils.ParseFreeThrowAttempt(p)) if p == player => ev
+              }
+          }, "(free throws)")
 
-      // Case 1: opponent offense
-      // Then in curr clump:
-      //    #(Shot | FT/2) > ORBs:
-      //       1st shot isn't putback, 2nd+ are
-      //       (we'll just use the shot in order it arrives and see how often that doesn't work)
-      //    #(Shot | FT/2) == ORBs
-      //       All shots are putbacks
+        case maybe_ev => //just this event
+          (maybe_ev.toList, "(missed shots, turnovers)")
 
-      // Case 2: team offense
-      // all shots/FTs must be putbacks (if close enough)
+      }) match {
+        case (Nil, _) if skip_2nd_chance => // try again but allowing 2nd chance this time
+          get_first_off_ev_set(off_evs, allow_tos, skip_2nd_chance = false)
+        case (Nil, _) if !allow_tos => // try again but allowing TOs this time
+          get_first_off_ev_set(off_evs, allow_tos = true, skip_2nd_chance)
+        case (ev_list, debug_context) =>
+          val ev_info_list = ev_list.map(_.info).toList
+          (ev_info_list.toSet, ev_info_list, debug_context)
+      }
+    }
 
-      val last_clump_my_offense = prev_clump.evs.iterator.collect {
-        case ev @ event_parser.AttackingTeam(EventUtils.ParseFreeThrowAttempt(_)) => ev
-        case ev @ event_parser.AttackingTeam(EventUtils.ParseShotMissed(_)) => ev
-        case ev @ event_parser.AttackingTeam(EventUtils.ParseOffensiveRebound(_)) => ev
+    // Some important things to know:
+
+    val curr_clump_has_offense = curr_clump.evs.iterator.exists {
+      case event_parser.AttackingTeam(EventUtils.ParseOffensiveEvent(_)) => true
+      case _ => false
+    }
+    // Two possibilitie we consider here:
+    // 1] live rebound, 2] deadball rebound and a foul that results in FTs ... those FTs should count
+    val curr_clump_has_orb = curr_clump.evs.iterator.exists {
+      case ev @ event_parser.AttackingTeam(EventUtils.ParseLiveOffensiveRebound(_)) => true
+      // We will ignore deadball rebounds since even when they aren't "1st FTm" indicators (old format)
+      // they result in OOB play, which precludes a scramble
+      // Note that sometimes this looks confusing because you'll see a missed shot, team deadball rebound
+      // and then FTs ... but I _think_ those FTs are always due to the bonus and hence shouldn't count
+      case _ => false
+    }
+    val last_clump_offense_time = if (curr_clump_has_offense) {
+      maybe_prev_clump.map(_.evs).getOrElse(Nil).iterator.collect {
+        case ev @ event_parser.AttackingTeam(EventUtils.ParseFreeThrowMissed(_)) => ev.min
+        case ev @ event_parser.AttackingTeam(EventUtils.ParseShotMissed(_)) => ev.min
+        case ev @ event_parser.AttackingTeam(EventUtils.ParseLiveOffensiveRebound(_)) => ev.min
+        //(*don't* include TO or made shot/FT here, since that (almost!) always ends the possession)
       }.toStream.headOption
+    } else None //(don't bother if this clump has no offense)
 
-      val threshold = 8.0/60; //(8s)
+    val threshold = 6.5/60;
+      //(6.5s, leads to about 60% of ORBs being categorized as scrambles - Synergy has 50% being called "putback"s)
 
-      last_clump_my_offense.flatMap { ev =>
-        // 1] Last playnwas my offense, and then:
-        val in_threshold = (ev.min - curr_clump.min.getOrElse(0.0)) < threshold
-        if (in_threshold) {
-          // 1a] all happened within 8s, so everything "now" is a putback
-          Some((ev: LineupEvent.RawGameEvent) => {
-            true
-          })
-        } else {
-          // 1b] Longer than 8s ago, so the first event _won't_ be, though subsequent events will be,
-          // (see 2)
-          None
+    (curr_clump_has_offense match {
+      case false =>  //(no offensive plays in current clump so can just ignore all this logic)
+        Some((ev: LineupEvent.RawGameEvent) => {
+          false
+        })
+      case true => None //(carry on to next phase of analysis)
+    }).orElse(last_clump_offense_time.flatMap { last_off_min =>
+      // 1] Last play was my offense, and then:
+      val events_diff_mins = curr_clump.min.getOrElse(0.0) - last_off_min
+      val in_threshold = events_diff_mins < threshold
+      if (in_threshold) {
+        curr_clump_has_orb match {
+          case true =>
+            debug_scramble_context(
+              s"1aa] (difference between offensive clumps = [$events_diff_mins])" ::
+                Nil,
+              curr_clump, maybe_prev_clump
+            )
+            // 1aa] all happened within 8s, so everything "now" is a scramble
+            Some((ev: LineupEvent.RawGameEvent) => {
+              true
+            })
+
+          case false => // the _1st_ event set is a scramble, but others aren't
+            val (first_off_ev_set, first_off_ev_list, more_debug_context) =
+              get_first_off_ev_set(curr_clump.evs.collect(get_off_ev), allow_tos = true, skip_2nd_chance = false)
+
+            debug_check_select_events(first_off_ev_list)
+            debug_scramble_context(
+              s"1ab] ($more_debug_context)" ::
+              s"Only these event(s): [${first_off_ev_set}]" ::
+                Nil,
+              curr_clump, maybe_prev_clump
+            )
+            Some((ev: LineupEvent.RawGameEvent) => {
+              val was_scramble = first_off_ev_set(ev.info)
+              was_scramble
+            })
         }
-      }.getOrElse { // 2] Last thing that happened was either opponent offense, or my recycled offense
-        val (num_orbs, num_shots, shots_fts) = curr_clump.evs.foldLeft((0, 0, 0)) {
-          case (acc, event_parser.AttackingTeam(EventUtils.ParseOffensiveRebound(_))) =>
-            acc.copy(_1 = acc._1 + 1)
-          case (acc, event_parser.AttackingTeam(EventUtils.ParseShotMissed(_))) =>
-            acc.copy(_2 = acc._2 + 1)
-          case (acc, event_parser.AttackingTeam(EventUtils.ParseShotMade(_))) =>
-            acc.copy(_2 = acc._2 + 1)
-          case (acc, event_parser.AttackingTeam(EventUtils.ParseFreeThrowAttempt(_))) =>
-            acc.copy(_3 = 1) //(this is basically a latch)
+      } else {
+        // 1b] Longer than 8s ago, so the first event _won't_ be, though subsequent events will be,
+        // (see 2)
+        None
+      }
+    }).getOrElse { // 2] Last thing that happened was either opponent offense, or my recycled offense
+      //(or a lineup change)
+
+      // So ... first shot is _not_ a scramble (possibly including +1s)
+      // (we also need to account for assist and TOs)
+      // Let's figure out what that is:
+
+      val off_evs = curr_clump.evs.collect(get_off_ev)
+      val skip_2nd_chance = last_clump_offense_time.isEmpty
+        //(ie lineup start or possession switch, start with 2nd chance => probably misordered events, common in new format)
+      val (first_off_ev_set, first_off_ev_list, more_debug_context) =
+        get_first_off_ev_set(off_evs, allow_tos = false, skip_2nd_chance)
+
+      val has_multiple_distinct_off_evs = off_evs.iterator.filterNot(
+        ev => first_off_ev_set(ev.info)
+      ).collect(get_off_ev).nonEmpty
+
+      if (curr_clump_has_orb && has_multiple_distinct_off_evs) { // Multiple offensive events so need to do some more scramble analysis
+
+        val debug_case = () match { // (see possible cases in comments at the start of this logic)
+          case _ if prev_clumps.isEmpty => "0a"
+          case _ if last_clump_offense_time.nonEmpty => "1b"
+          case _ => "2aa" //(see below for 2ab)
         }
-        val num_shots_fts = num_shots + shots_fts
-
-        // (The various cases:)
-        if (num_shots_fts <= 1) {
-          // 2a] At most 1 shot - no putback
-          (ev: LineupEvent.RawGameEvent) => {
-            false
-          }
-        } else if (num_orbs == num_shots_fts) {
-          // 2b] one ORB per shot - putback
-          (ev: LineupEvent.RawGameEvent) => {
-            true
-          }
-        } else {
-          // 2c] The first event (which must be a shot or pair of FTs) ISN'T, all the others are
-          // (the first event can't be a made shot o a turnover, though it can be madeFT+missFT)
-          val non_putback_ev_analysis = curr_clump.evs.collect {
-            case ev @ event_parser.AttackingTeam(EventUtils.ParseFreeThrowMissed(_)) => ev
-            case ev @ event_parser.AttackingTeam(EventUtils.ParseShotMissed(_)) => ev
-          }
-          val non_putback_ev_set = non_putback_ev_analysis.headOption.collect {
-            case ev @ event_parser.AttackingTeam(EventUtils.ParseShotMissed(_)) =>
-              // 2c.1] First shot
-              Set(ev.info)
-
-            case ev @ event_parser.AttackingTeam(EventUtils.ParseFreeThrowMissed(_)) =>
-              val ev_info = ev.info
-              // 2.c.2] Take all FTs up until the first miss
-              curr_clump.evs.iterator.collect {
-                case pre_ev @ event_parser.AttackingTeam(EventUtils.ParseFreeThrowAttempt(_)) => pre_ev.info
-              }.takeWhile(_ != ev_info).toSet + ev_info
-          }.getOrElse(Set())
-
-          (ev: LineupEvent.RawGameEvent) => {
-            !non_putback_ev_set(ev.info)
-          }
+        debug_check_select_events(first_off_ev_list)
+        debug_scramble_context(
+          s"$debug_case] ($more_debug_context)" ::
+          s"Ignore 1st event(s): [${first_off_ev_set}]" ::
+            Nil,
+          curr_clump, maybe_prev_clump
+        )
+        (ev: LineupEvent.RawGameEvent) => {
+          val was_scramble = !first_off_ev_set(ev.info)
+          was_scramble
+        }
+      } else { // Just have one offensive option so can return simpler method
+        //(or no ORB in current clump, we'll add a debug for that since it's interesting)
+        if (!curr_clump_has_orb && has_multiple_distinct_off_evs) {
+          debug_scramble_context(
+            s"2ab] Weird case (fouls not ORBs?)" :: Nil,
+            curr_clump, maybe_prev_clump
+          )
+        }
+        (ev: LineupEvent.RawGameEvent) => {
+          false
         }
       }
-  } }
+    }
+  }
 
   /** Check for intentional fouling to prolong the game */
   def is_end_of_game_fouling(
@@ -292,16 +485,14 @@ trait LineupUtils {
   def is_transition(
     curr_clump: Concurrency.ConcurrentClump,
     prev_clumps: List[Concurrency.ConcurrentClump],
-    event_parser: LineupEvent.RawGameEvent.PossessionEvent
+    event_parser: LineupEvent.RawGameEvent.PossessionEvent,
+    player_version: Boolean
   ): LineupEvent.RawGameEvent => Boolean = prev_clumps match {
     case Nil =>
       (ev: LineupEvent.RawGameEvent) => {
         //(if a lineup change has occurred we don't include it as transition by policy)
         false
       }
-
-
-//TODO: I think new event formats maybe have transition so probably check that also?
 
     case _ if is_end_of_game_fouling(curr_clump, event_parser) =>
       (ev: LineupEvent.RawGameEvent) => {
@@ -360,13 +551,13 @@ trait LineupUtils {
       val player_filter = player_filter_coder.map { f => (s: String) => f(s)._1 }
       val player_coder = player_filter_coder.map { f => (s: String) => f(s)._2 }
 
-      val is_transition_builder = is_transition(clump, prev_clumps, event_parser)
-      val is_putback_builder = is_putback(clump, prev_clumps, event_parser)
+      val is_transition_builder = is_transition(clump, prev_clumps, event_parser, player_filter_coder.nonEmpty)
+      val is_scramble_builder = is_scramble(clump, prev_clumps, event_parser, player_filter_coder.nonEmpty)
 
       // A bunch of Lensy plumbing to allow us to increment stats anywhere in the large object
       val selector_shotclock_total = modify[LineupEventStats.ShotClockStats](_.total)
       val selector_shotclock_transition = modify[LineupEventStats.ShotClockStats](_.early)
-      val selector_shotclock_putback = modify[LineupEventStats.ShotClockStats](_.orb)
+      val selector_shotclock_scramble = modify[LineupEventStats.ShotClockStats](_.orb)
 
       // Default and overridden versions
       implicit val shotclock_selectors = List(selector_shotclock_total)
@@ -374,7 +565,7 @@ trait LineupUtils {
         //(will use this for shots, FTs, assists, TOs)
         shotclock_selectors ++
           (if (is_transition_builder(ev)) List(selector_shotclock_transition) else List()) ++
-          (if (is_putback_builder(ev)) List(selector_shotclock_transition) else List())
+          (if (is_scramble_builder(ev)) List(selector_shotclock_transition) else List())
       }
 
       def increment_misc_count(

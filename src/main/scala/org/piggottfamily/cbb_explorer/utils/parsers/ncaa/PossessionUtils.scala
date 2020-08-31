@@ -19,7 +19,7 @@ trait PossessionUtils {
   import org.piggottfamily.cbb_explorer.models.ncaa.LineupEvent.RawGameEvent.PossessionEvent
 
   /** Debug flags */
-  private val print_debug_info = false
+  protected val print_debug_info = false
   protected val show_end_of_raw_calcs = true
   protected val log_lineup_fixes = true
 

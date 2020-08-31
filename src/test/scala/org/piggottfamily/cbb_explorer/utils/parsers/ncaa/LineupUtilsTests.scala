@@ -222,74 +222,74 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
           List(
             Events.made_3p_team
           ) -> List(
-            modify[LineupEventStats](_.fg_3p.attempts.total),
-            modify[LineupEventStats](_.fg.attempts.total),
-            modify[LineupEventStats](_.fg_3p.made.total),
-            modify[LineupEventStats](_.fg.made.total)
+            modify[LineupEventStats](_.fg_3p.attempts),
+            modify[LineupEventStats](_.fg.attempts),
+            modify[LineupEventStats](_.fg_3p.made),
+            modify[LineupEventStats](_.fg.made)
           ) ::
           List(
             Events.missed_3p_team
           ) -> List(
-            modify[LineupEventStats](_.fg_3p.attempts.total),
-            modify[LineupEventStats](_.fg.attempts.total)
+            modify[LineupEventStats](_.fg_3p.attempts),
+            modify[LineupEventStats](_.fg.attempts)
           ) ::
           List(
             Events.made_rim_team
           ) -> List(
-            modify[LineupEventStats](_.fg_2p.attempts.total),
-            modify[LineupEventStats](_.fg_rim.attempts.total),
-            modify[LineupEventStats](_.fg.attempts.total),
-            modify[LineupEventStats](_.fg_2p.made.total),
-            modify[LineupEventStats](_.fg_rim.made.total),
-            modify[LineupEventStats](_.fg.made.total)
+            modify[LineupEventStats](_.fg_2p.attempts),
+            modify[LineupEventStats](_.fg_rim.attempts),
+            modify[LineupEventStats](_.fg.attempts),
+            modify[LineupEventStats](_.fg_2p.made),
+            modify[LineupEventStats](_.fg_rim.made),
+            modify[LineupEventStats](_.fg.made)
           ) ::
           List(
             Events.missed_rim_team
           ) -> List(
-            modify[LineupEventStats](_.fg_2p.attempts.total),
-            modify[LineupEventStats](_.fg_rim.attempts.total),
-            modify[LineupEventStats](_.fg.attempts.total)
+            modify[LineupEventStats](_.fg_2p.attempts),
+            modify[LineupEventStats](_.fg_rim.attempts),
+            modify[LineupEventStats](_.fg.attempts)
           ) ::
           List(
             Events.made_mid_team
           ) -> List(
-            modify[LineupEventStats](_.fg_2p.attempts.total),
-            modify[LineupEventStats](_.fg_mid.attempts.total),
-            modify[LineupEventStats](_.fg.attempts.total),
-            modify[LineupEventStats](_.fg_2p.made.total),
-            modify[LineupEventStats](_.fg_mid.made.total),
-            modify[LineupEventStats](_.fg.made.total)
+            modify[LineupEventStats](_.fg_2p.attempts),
+            modify[LineupEventStats](_.fg_mid.attempts),
+            modify[LineupEventStats](_.fg.attempts),
+            modify[LineupEventStats](_.fg_2p.made),
+            modify[LineupEventStats](_.fg_mid.made),
+            modify[LineupEventStats](_.fg.made)
           ) ::
           List(
             Events.missed_mid_team
           ) -> List(
-            modify[LineupEventStats](_.fg_2p.attempts.total),
-            modify[LineupEventStats](_.fg_mid.attempts.total),
-            modify[LineupEventStats](_.fg.attempts.total)
+            modify[LineupEventStats](_.fg_2p.attempts),
+            modify[LineupEventStats](_.fg_mid.attempts),
+            modify[LineupEventStats](_.fg.attempts)
           ) ::
           // Free throws
           List(
             Events.made_ft_team
           ) -> List(
-            modify[LineupEventStats](_.ft.attempts.total),
-            modify[LineupEventStats](_.ft.made.total)
+            modify[LineupEventStats](_.ft.attempts),
+            modify[LineupEventStats](_.ft.made)
           ) ::
           List(
             Events.missed_ft_team
           ) -> List(
-            modify[LineupEventStats](_.ft.attempts.total)
+            modify[LineupEventStats](_.ft.attempts)
           ) ::
           // Misc
           // (rebounds)
           List(
             Events.orb_team
           ) -> List(
-            modify[LineupEventStats](_.orb.atOrElse(emptyShotClock).total)
+            modify[LineupEventStats](_.orb.atOrElse(emptyShotClock))
           ) ::
           List(
             Events.drb_team
           ) -> List(
-            modify[LineupEventStats](_.drb.atOrElse(emptyShotClock).total)
+            modify[LineupEventStats](_.drb.atOrElse(emptyShotClock))
           ) ::
           List(
             Events.deadball_orb_team
@@ -303,46 +303,46 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
           List(
             Events.steal_team
           ) -> List(
-            modify[LineupEventStats](_.stl.atOrElse(emptyShotClock).total)
+            modify[LineupEventStats](_.stl.atOrElse(emptyShotClock))
           ) ::
           // (turnovers)
           List(
             Events.turnover_team
           ) -> List(
-            modify[LineupEventStats](_.to.total)
+            modify[LineupEventStats](_.to)
           ) ::
           // (assists)
           List(
             Events.assist_team
           ) -> List(
-            modify[LineupEventStats](_.assist.atOrElse(emptyShotClock).total)
+            modify[LineupEventStats](_.assist.atOrElse(emptyShotClock))
           ) ::
           // (blocks)
           List(
             Events.block_team
           ) -> List(
-            modify[LineupEventStats](_.blk.atOrElse(emptyShotClock).total)
+            modify[LineupEventStats](_.blk.atOrElse(emptyShotClock))
           ) ::
           // Fouls:
           List(
             Events.foul_team
           ) -> List(
-            modify[LineupEventStats](_.foul.atOrElse(emptyShotClock).total)
+            modify[LineupEventStats](_.foul.atOrElse(emptyShotClock))
           ) ::
           List(
             Events.flagrant_team
           ) -> List(
-            modify[LineupEventStats](_.foul.atOrElse(emptyShotClock).total)
+            modify[LineupEventStats](_.foul.atOrElse(emptyShotClock))
           ) ::
           List(
             Events.tech_team
           ) -> List(
-            modify[LineupEventStats](_.foul.atOrElse(emptyShotClock).total)
+            modify[LineupEventStats](_.foul.atOrElse(emptyShotClock))
           ) ::
           List(
             Events.foul_off_team
           ) -> List(
-            modify[LineupEventStats](_.foul.atOrElse(emptyShotClock).total)
+            modify[LineupEventStats](_.foul.atOrElse(emptyShotClock))
           ) ::
           Nil
         }
@@ -350,11 +350,11 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
           (acc, v) => (acc._1 ++ v._1, acc._2 ++ v._2)
         } match { // Need to add all the assists
           case (l1, l2) => l1 -> (l2 ++ List(
-            modify[LineupEventStats](_.fg_3p.ast.atOrElse(emptyShotClock).total),
-            modify[LineupEventStats](_.fg_rim.ast.atOrElse(emptyShotClock).total),
-            modify[LineupEventStats](_.fg_mid.ast.atOrElse(emptyShotClock).total),
+            modify[LineupEventStats](_.fg_3p.ast.atOrElse(emptyShotClock)),
+            modify[LineupEventStats](_.fg_rim.ast.atOrElse(emptyShotClock)),
+            modify[LineupEventStats](_.fg_mid.ast.atOrElse(emptyShotClock)),
 
-            modify[LineupEventStats](_.ast_3p.atOrElse(emptyAssist).counts.total) //(only the 3P'er since they are co-located in time)
+            modify[LineupEventStats](_.ast_3p.atOrElse(emptyAssist).counts) //(only the 3P'er since they are co-located in time)
           ))
         }
         List(team_event_filter, oppo_event_filter).foreach { filter =>
@@ -366,8 +366,15 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
             val test_case_lineup = base_lineup.copy(raw_game_events = test_case)
             TestUtils.inside((test_case, enrich_stats(test_case_lineup, filter)(zero_stats))) {
               case (_, stats) =>
-                stats ==> expected_transforms.foldLeft(zero_stats) {
-                  (acc, v) => v.using(_ + 1)(acc)
+                val transformed_stats = expected_transforms.foldLeft(stats) {
+                  (acc, v) =>
+                    val pre1 = (v andThenModify modify[LineupEventStats.ShotClockStats](_.orb)).setTo(None)(acc)
+                    val pre2 = (v andThenModify modify[LineupEventStats.ShotClockStats](_.orb)).setTo(None)(pre1)
+                    pre2
+                } //(get rid of transition/scramble plays - we'll test them later)
+
+                transformed_stats ==> expected_transforms.foldLeft(zero_stats) {
+                  (acc, v) => (v andThenModify modify[LineupEventStats.ShotClockStats](_.total)).using(_ + 1)(acc)
                 }
             }
           }
@@ -450,6 +457,35 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
               .modify(_.team_stats.foul.atOrElse(emptyShotClock).total).setTo(1)
               .modify(_.opponent_stats.to.total).setTo(1)
         }
+      }
+
+/**TODO
+      def clump_scenario_builder(
+        before: List[LineupEvent.RawGameEvent], after: List[LineupEvent.RawGameEvent],
+        before_min: Double, after_min: Double
+      ): (Concurrency.ConcurrentClump, List[Concurrency.ConcurrentClump]) = {
+        //TODO: build
+      }
+*/
+      "is_scramble" - {
+
+        // All the different cases described in "is_scramble" method
+
+        // 0a:
+        // 1aa:
+        // 1ab:
+        // 1b:
+        // 2aa:
+        // 2ab:
+
+        //TODO
+
+        // Finally we run a sample scenario through "enrich_stats_with_clump" to prove is_scramble is called
+        // (team version and player version)
+
+        //TODO
+
+        //TODO: don't forget to turn the debug flag off when you're done
       }
       //TODO: commenting this out since it needs rework following move to optionals
       // but this is low prio because it's just a debug function

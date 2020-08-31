@@ -534,16 +534,16 @@ trait LineupUtils {
 
       // A bunch of Lensy plumbing to allow us to increment stats anywhere in the large object
       val selector_shotclock_total = modify[LineupEventStats.ShotClockStats](_.total)
-      val selector_shotclock_transition = modify[LineupEventStats.ShotClockStats](_.early)
-      val selector_shotclock_scramble = modify[LineupEventStats.ShotClockStats](_.orb)
+      val selector_shotclock_transition = modify[LineupEventStats.ShotClockStats](_.early.atOrElse(0))
+      val selector_shotclock_scramble = modify[LineupEventStats.ShotClockStats](_.orb.atOrElse(0))
 
       // Default and overridden versions
-      implicit val shotclock_selectors = List(selector_shotclock_total)
-      val shot_clock_selector_builder = (ev: LineupEvent.RawGameEvent) => {
+      val shotclock_selectors = List(selector_shotclock_total)
+      def shot_clock_selector_builder = (ev: LineupEvent.RawGameEvent) => {
         //(will use this for shots, FTs, assists, TOs)
         shotclock_selectors ++
           (if (is_transition_builder(ev)) List(selector_shotclock_transition) else List()) ++
-          (if (is_scramble_builder(ev)) List(selector_shotclock_transition) else List())
+          (if (is_scramble_builder(ev)) List(selector_shotclock_scramble) else List())
       }
 
       def increment_misc_count(
@@ -741,11 +741,13 @@ trait LineupUtils {
           /** TODO: what about defensive deadball rebounds in old format? */
             && EventUtils.ParseOffensiveDeadballRebound.unapply(ev_str).isEmpty
         =>
+          implicit val basic_shotclock_selector = shotclock_selectors
           (increment_misc_opt_stat(modify[StatsBuilder](_.curr.orb)) andThen id)(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParseDefensiveRebound(player)))
           if player_filter.forall(_(player))
         =>
+          implicit val basic_shotclock_selector = shotclock_selectors
           (increment_misc_opt_stat(modify[StatsBuilder](_.curr.drb)) andThen id)(state)
 
         case (state, ev @ event_parser.AttackingTeam(EventUtils.ParseTurnover(player)))
@@ -757,11 +759,13 @@ trait LineupUtils {
         case (state, event_parser.AttackingTeam(EventUtils.ParseStolen(player)))
           if player_filter.forall(_(player))
         =>
+          implicit val basic_shotclock_selector = shotclock_selectors
           (increment_misc_opt_stat(modify[StatsBuilder](_.curr.stl)) andThen id)(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParseShotBlocked(player)))
           if player_filter.forall(_(player))
         =>
+          implicit val basic_shotclock_selector = shotclock_selectors
           (increment_misc_opt_stat(modify[StatsBuilder](_.curr.blk)) andThen id)(state)
 
         case (state, ev @ event_parser.AttackingTeam(EventUtils.ParseAssist(player)))
@@ -775,21 +779,25 @@ trait LineupUtils {
         case (state, event_parser.AttackingTeam(EventUtils.ParsePersonalFoul(player)))
           if player_filter.forall(_(player))
         =>
+          implicit val basic_shotclock_selector = shotclock_selectors
           (increment_misc_opt_stat(modify[StatsBuilder](_.curr.foul)) andThen id)(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParseFlagrantFoul(player)))
           if player_filter.forall(_(player))
         =>
+          implicit val basic_shotclock_selector = shotclock_selectors
           (increment_misc_opt_stat(modify[StatsBuilder](_.curr.foul)) andThen id)(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParseTechnicalFoul(player)))
           if player_filter.forall(_(player))
         =>
+          implicit val basic_shotclock_selector = shotclock_selectors
           (increment_misc_opt_stat(modify[StatsBuilder](_.curr.foul)) andThen id)(state)
 
         case (state, event_parser.AttackingTeam(EventUtils.ParseOffensiveFoul(player)))
           if player_filter.forall(_(player))
         =>
+          implicit val basic_shotclock_selector = shotclock_selectors
           (increment_misc_opt_stat(modify[StatsBuilder](_.curr.foul)) andThen id)(state)
 
         case (state, _) => state

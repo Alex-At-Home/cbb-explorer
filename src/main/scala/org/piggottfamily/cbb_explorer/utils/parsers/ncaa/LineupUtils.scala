@@ -162,6 +162,7 @@ trait LineupUtils {
   }
 
   /** Figure out if the last action was part of a "scramble scenario" following an ORB
+  * @param player_version - just used for debugging
    * A few stats:
   * - Maryland 2014, 2015, 2016, 2017: 1721 scrambles / 2809 ORBs. 3 "scramble-errors", all weird PbP
   *   [0a: 11, 1aa: 240, 1ab: 1410, 1b: 5, 2aa: 34, 2ab: 21]
@@ -241,7 +242,7 @@ trait LineupUtils {
 
     /** This is used in a couple of places later to get the first offensive play
      * @param allow_tos - if looking for events to _exclude_ it can't be a TO (see below)
-     * @param skip_2nd_chance - for recursive call
+     * @param skip_2nd_chance - tries to handle OOO offensive events by looking for the 2nd chance first of all
     */
     def get_first_off_ev_set(off_evs: List[LineupEvent.RawGameEvent], allow_tos: Boolean, skip_2nd_chance: Boolean)
       :

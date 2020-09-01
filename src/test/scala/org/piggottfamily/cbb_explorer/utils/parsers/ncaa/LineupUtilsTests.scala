@@ -11,6 +11,7 @@ import com.softwaremill.quicklens._
 object LineupUtilsTests extends TestSuite with LineupUtils {
   import ExtractorUtils._
   import PossessionUtilsTests.Events //(handy compilation of game events)
+  import PossessionUtils.Concurrency
   import org.piggottfamily.cbb_explorer.utils.parsers.ncaa.EventUtilsTests
 
   val tests = Tests {
@@ -459,24 +460,66 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
         }
       }
 
-/**TODO
+      /** Builds 2 clumps of events with a specified time difference */
       def clump_scenario_builder(
-        before: List[LineupEvent.RawGameEvent], after: List[LineupEvent.RawGameEvent],
-        before_min: Double, after_min: Double
+        current: List[LineupEvent.RawGameEvent], before: List[LineupEvent.RawGameEvent],
+        current_min: Double, before_min: Double
       ): (Concurrency.ConcurrentClump, List[Concurrency.ConcurrentClump]) = {
-        //TODO: build
+        val current_clump = Concurrency.ConcurrentClump(
+          current.map(_.copy(min = current_min))
+        )
+        val before_clump = Concurrency.ConcurrentClump(
+          before.map(_.copy(min = before_min))
+        )
+        (current_clump, before_clump :: Nil)
       }
-*/
+
       "is_scramble" - {
+        val team_dir = LineupEvent.RawGameEvent.Direction.Team
+        val team_event_filter = LineupEvent.RawGameEvent.PossessionEvent(team_dir)
 
         // All the different cases described in "is_scramble" method
+        // (since 0a, 1b, 2aa, and 1ab all use the internal "get_first_off_ev_set", we'll
+        //  try to cover all the cases of that:
+        //  - made shot with assist
+        //  - made shot with +1: 0a.1
+        //  - FT attempt (old format, with rebound)
+        //  - FT attempt (new format, ignores rebounds)
+        //  - FT attempt (ignore +1s)  TODO locked to 2xx I think
+        //  - missed shots: 1aa.1
+        //  - TOs then missed shot (TO allowed) TODO locked to 1ax
+        //  - TOs then misseed shot (TO _not_ allowed) TODO not 1ax
+        //  - 2nd chance event is first event, concurrent with an earlier missed shot TODO locked to 2xx
 
-        // 0a:
-        // 1aa:
-        // 1ab:
-        // 1b:
-        // 2aa:
-        // 2ab:
+        // 0a: (no prev clump, ORBs present, multiple events): 0a.1
+        // 1aa: (small gap between off clumps, ORBs present, multiple events): 1aa.1
+        // 1ab: (small gap between off clumps, no ORBs present, multiple events)
+        // 1b: (large gap between off clumps, ORBs present, multiple events)
+        // 2aa: (off then def, small gap, ORBs present, multiple events)
+        // 2ab: (large gap between clumps, gap irrelevant, no ORBs present)
+        // 2ab: (no prev clump, gap irrelevant, ORBs present but only one offensive event)
+        // 2ab: (off then def, gap irrelevant, no ORBs present and only one offensive event)
+
+        // 0a.1: no prev clump, made shot with missed +1, ORB, missed shot
+        {
+          val (current_clump, before_clumps) = clump_scenario_builder(
+            Events.made_team :: Events.missed_ft1_team :: Events.orb_team :: Events.missed_rim_team :: Nil,
+            Nil,
+            5.0, 10.0
+          )
+          val is_scramble_builder = is_scramble(current_clump, before_clumps, team_event_filter, player_version = false)
+          current_clump.evs.map(is_scramble_builder) ==> List(false, false, true, true)
+        }
+        // 1aa.1: missed short, rebound, missed shot + made shot (no ORBs in next clump needed)
+        {
+          val (current_clump, before_clumps) = clump_scenario_builder(
+            Events.missed_rim_team :: Events.made_team :: Events.orb_team :: Nil,
+            Events.missed_rim_team :: Nil,
+            5.0, 10.0
+          )
+          val is_scramble_builder = is_scramble(current_clump, before_clumps, team_event_filter, player_version = false)
+          current_clump.evs.map(is_scramble_builder) ==> List(true, true, true)
+        }
 
         //TODO
 

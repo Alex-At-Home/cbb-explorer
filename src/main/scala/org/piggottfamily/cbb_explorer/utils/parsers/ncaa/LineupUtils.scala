@@ -174,11 +174,11 @@ trait LineupUtils {
     prev_clumps: List[Concurrency.ConcurrentClump],
     event_parser: LineupEvent.RawGameEvent.PossessionEvent,
     player_version: Boolean
-  ): LineupEvent.RawGameEvent => Boolean = {
+  ): (LineupEvent.RawGameEvent => Boolean, String) = {
 
     // A] Debug infra for scrambles:
 
-    val play_type_debug_scramble = true && !player_version
+    val play_type_debug_scramble = false && !player_version
 
     /** Empty ignore list, or just 1 FT (allow_empty means we've hand emptied it) */
     def debug_check_select_events(evs: List[String], allow_empty: Boolean) = if (play_type_debug_scramble) {
@@ -330,9 +330,9 @@ trait LineupUtils {
 
     (curr_clump_has_offense match {
       case false =>  //(no offensive plays in current clump so can just ignore all this logic)
-        Some((ev: LineupEvent.RawGameEvent) => {
+        Some(((ev: LineupEvent.RawGameEvent) => {
           false
-        })
+        }, "N/A"))
       case true => None //(carry on to next phase of analysis)
     }).orElse(last_clump_offense_time.flatMap { last_off_min =>
       // 1] Last play was my offense, and then:
@@ -347,9 +347,9 @@ trait LineupUtils {
               curr_clump, maybe_prev_clump
             )
             // 1aa] all happened within 8s, so everything "now" is a scramble
-            Some((ev: LineupEvent.RawGameEvent) => {
+            Some(((ev: LineupEvent.RawGameEvent) => {
               true
-            })
+            }, "1aa"))
 
           case false => // the _1st_ event set is a scramble, but others aren't
             val (first_off_ev_set, first_off_ev_list, more_debug_context) =
@@ -370,10 +370,10 @@ trait LineupUtils {
                 Nil,
               curr_clump, maybe_prev_clump
             )
-            Some((ev: LineupEvent.RawGameEvent) => {
+            Some(((ev: LineupEvent.RawGameEvent) => {
               val was_scramble = first_off_ev_set_ftfix(ev.info)
               was_scramble
-            })
+            }, "1ab"))
         }
       } else {
         // 1b] Longer than 8s ago, so the first event _won't_ be, though subsequent events will be,
@@ -400,7 +400,7 @@ trait LineupUtils {
       if (curr_clump_has_orb && has_multiple_distinct_off_evs) { // Multiple offensive events so need to do some more scramble analysis
 
         val debug_case = () match { // (see possible cases in comments at the start of this logic)
-          case _ if prev_clumps.isEmpty => "0a"
+          case _ if maybe_prev_clump.isEmpty => "0a"
           case _ if last_clump_offense_time.nonEmpty => "1b"
           case _ => "2aa" //(see below for 2ab)
         }
@@ -411,10 +411,10 @@ trait LineupUtils {
             Nil,
           curr_clump, maybe_prev_clump
         )
-        (ev: LineupEvent.RawGameEvent) => {
+        ((ev: LineupEvent.RawGameEvent) => {
           val was_scramble = !first_off_ev_set(ev.info)
           was_scramble
-        }
+        }, debug_case)
       } else { // Just have one offensive option so can return simpler method
         //(or no ORB in current clump, we'll add a debug for that since it's interesting)
         if (!curr_clump_has_orb && has_multiple_distinct_off_evs) {
@@ -423,9 +423,9 @@ trait LineupUtils {
             curr_clump, maybe_prev_clump
           )
         }
-        (ev: LineupEvent.RawGameEvent) => {
+        ((ev: LineupEvent.RawGameEvent) => {
           false
-        }
+        }, "2ab")
       }
     }
   }
@@ -531,7 +531,7 @@ trait LineupUtils {
       val player_coder = player_filter_coder.map { f => (s: String) => f(s)._2 }
 
       val is_transition_builder = is_transition(clump, prev_clumps, event_parser, player_filter_coder.nonEmpty)
-      val is_scramble_builder = is_scramble(clump, prev_clumps, event_parser, player_filter_coder.nonEmpty)
+      val (is_scramble_builder, _) = is_scramble(clump, prev_clumps, event_parser, player_filter_coder.nonEmpty)
 
       // A bunch of Lensy plumbing to allow us to increment stats anywhere in the large object
       val selector_shotclock_total = modify[LineupEventStats.ShotClockStats](_.total)

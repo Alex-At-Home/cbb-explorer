@@ -463,15 +463,16 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
       /** Builds 2 clumps of events with a specified time difference */
       def clump_scenario_builder(
         current: List[LineupEvent.RawGameEvent], before: List[LineupEvent.RawGameEvent],
-        current_min: Double, before_min: Double
+        current_sec: Double, before_sec: Double
       ): (Concurrency.ConcurrentClump, List[Concurrency.ConcurrentClump]) = {
+        val sec_to_min = 1.0/60;
         val current_clump = Concurrency.ConcurrentClump(
-          current.map(_.copy(min = current_min))
+          current.map(_.copy(min = current_sec*sec_to_min))
         )
-        val before_clump = Concurrency.ConcurrentClump(
-          before.map(_.copy(min = before_min))
-        )
-        (current_clump, before_clump :: Nil)
+        val before_clump = if (before.isEmpty) None else Some(Concurrency.ConcurrentClump(
+          before.map(_.copy(min = before_sec*sec_to_min))
+        ))
+        (current_clump, before_clump.toList ++ Nil)
       }
 
       "is_scramble" - {
@@ -481,54 +482,206 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
         // All the different cases described in "is_scramble" method
         // (since 0a, 1b, 2aa, and 1ab all use the internal "get_first_off_ev_set", we'll
         //  try to cover all the cases of that:
-        //  - made shot with assist
+        //  - IGNORE made shot with assist: 1b.2
         //  - made shot with +1: 0a.1
-        //  - FT attempt (old format, with rebound)
-        //  - FT attempt (new format, ignores rebounds)
-        //  - FT attempt (ignore +1s)  TODO locked to 2xx I think
-        //  - missed shots: 1aa.1
-        //  - TOs then missed shot (TO allowed) TODO locked to 1ax
-        //  - TOs then misseed shot (TO _not_ allowed) TODO not 1ax
-        //  - 2nd chance event is first event, concurrent with an earlier missed shot TODO locked to 2xx
+        //  - FT attempt (old format, with rebound): 2aa.1
+        //  - FT attempt (new format, ignores rebounds): 2ab.2
+        //  - missed shots: 1aa.1, 1b.1, 2ab.1
+        //  - TOs then missed shot (TO allowed): 1ab.1
+        //  - TOs then missed shot (TO _not_ allowed): 0a.2
+        //  - 2nd chance event is first event, concurrent with an earlier missed shot: 2aa.2
+        //  - dangling FT case: FT miss, (gap), FT made: 1ab.2
 
-        // 0a: (no prev clump, ORBs present, multiple events): 0a.1
+        // 0a: (no prev clump, ORBs present, multiple events): 0a.1, 0a.2
         // 1aa: (small gap between off clumps, ORBs present, multiple events): 1aa.1
-        // 1ab: (small gap between off clumps, no ORBs present, multiple events)
-        // 1b: (large gap between off clumps, ORBs present, multiple events)
-        // 2aa: (off then def, small gap, ORBs present, multiple events)
-        // 2ab: (large gap between clumps, gap irrelevant, no ORBs present)
-        // 2ab: (no prev clump, gap irrelevant, ORBs present but only one offensive event)
-        // 2ab: (off then def, gap irrelevant, no ORBs present and only one offensive event)
+        // 1ab: (small gap between off clumps, no ORBs present, multiple events): 1ab.1, 1ab.2 (+ special case: 2ab.3)
+        // 1b: (large gap between off clumps, ORBs present, multiple events): 1b.1, 1b.2
+        // 2aa: (def then off, small/irrelevant gap, ORBs present, multiple events): 2aa.1, 2aa.2
+        // 2ab: (small gap between clumps, small/irrelevant gap, no ORBs present): 2ab.1
+        // 2ab: (no prev clump, gap irrelevant, ORBs present but only one offensive event): 2ab.2
 
-        // 0a.1: no prev clump, made shot with missed +1, ORB, missed shot
+        // N/A no offensive events in current
         {
           val (current_clump, before_clumps) = clump_scenario_builder(
+            Events.foul_team :: Events.made_opponent :: Nil,
             Events.made_team :: Events.missed_ft1_team :: Events.orb_team :: Events.missed_rim_team :: Nil,
-            Nil,
-            5.0, 10.0
+            10.0, 5.0
           )
-          val is_scramble_builder = is_scramble(current_clump, before_clumps, team_event_filter, player_version = false)
-          current_clump.evs.map(is_scramble_builder) ==> List(false, false, true, true)
+          val (is_scramble_builder, debug_category) = is_scramble(current_clump, before_clumps, team_event_filter, player_version = false)
+          debug_category ==> "N/A"
         }
-        // 1aa.1: missed short, rebound, missed shot + made shot (no ORBs in next clump needed)
+        // 0a.2: (nothing), small gap, turnover, ORB, made shot
+        {
+          val (current_clump, before_clumps) = clump_scenario_builder(
+            Events.turnover_team :: Events.orb_team :: Events.missed_rim_team :: Nil,
+            Nil,
+            10.0, 5.0
+          )
+          val (is_scramble_builder, debug_category) = is_scramble(current_clump, before_clumps, team_event_filter, player_version = false)
+          debug_category ==> "0a"
+          current_clump.evs.map(is_scramble_builder) ==> List(true, true, false)
+        }
+        // 1aa.1: missed, short gap, rebound, missed shot + made shot (no ORBs in next clump needed)
         {
           val (current_clump, before_clumps) = clump_scenario_builder(
             Events.missed_rim_team :: Events.made_team :: Events.orb_team :: Nil,
             Events.missed_rim_team :: Nil,
-            5.0, 10.0
+            10.0, 5.0
           )
-          val is_scramble_builder = is_scramble(current_clump, before_clumps, team_event_filter, player_version = false)
+          val (is_scramble_builder, debug_category) = is_scramble(current_clump, before_clumps, team_event_filter, player_version = false)
+          debug_category ==> "1aa"
           current_clump.evs.map(is_scramble_builder) ==> List(true, true, true)
         }
+        // 1ab.1: made shot, foul, (short gap), FTM, FTm, made shot, FTM [no ORBs]
+        {
+          val (current_clump, before_clumps) = clump_scenario_builder(
+            Events.turnover_team :: Events.made_team :: Events.missed_ftp1_team :: Nil,
+            Events.missed_team :: Events.orb_team :: Nil,
+            10.0, 5.0
+          )
+          val (is_scramble_builder, debug_category) = is_scramble(current_clump, before_clumps, team_event_filter, player_version = false)
+          debug_category ==> "1ab"
+          current_clump.evs.map(is_scramble_builder) ==> List(true, false, false)
+        }
+        // 1ab.2: dangling FT bug workaround
+        {
+          val (current_clump, before_clumps) = clump_scenario_builder(
+            Events.missed_ft_team :: Events.made_team :: Nil,
+            Events.missed_ft_team :: Nil,
+            10.0, 5.0
+          )
+          val (is_scramble_builder, debug_category) = is_scramble(current_clump, before_clumps, team_event_filter, player_version = false)
+          debug_category ==> "1ab"
+          current_clump.evs.map(is_scramble_builder) ==> List(false, false)
+        }
+        // 1b.1: like 1aa.1 but with large gap
+        {
+          val (current_clump, before_clumps) = clump_scenario_builder(
+            Events.missed_rim_team :: Events.made_team :: Events.orb_team :: Nil,
+            Events.missed_rim_team :: Nil,
+            12.0, 5.0
+          )
+          val (is_scramble_builder, debug_category) = is_scramble(current_clump, before_clumps, team_event_filter, player_version = false)
+          debug_category ==> "1b"
+          current_clump.evs.map(is_scramble_builder) ==> List(false, true, true)
+        }
+        // 1b.2: like 1aa.1 but with large gap and including an assist
+        {
+          val (current_clump, before_clumps) = clump_scenario_builder(
+            Events.made_team :: Events.assist_team :: Events.missed_ftp1_team :: Events.orb_team :: Events.missed_rim_team :: Nil,
+            Events.missed_rim_team :: Nil,
+            12.0, 5.0
+          )
+          val (is_scramble_builder, debug_category) = is_scramble(current_clump, before_clumps, team_event_filter, player_version = false)
+          debug_category ==> "1b"
+          current_clump.evs.map(is_scramble_builder) ==> List(false, false, false, true, true)
+        }
+        // 2aa.1: def, small gap, old format FTs split by ORBs
+        {
+          val (current_clump, before_clumps) = clump_scenario_builder(
+            Events.made_ft_team :: Events.orb_team :: Events.made_ft1_team :: Events.made_ft2_team :: Nil,
+            Events.foul_team :: Events.made_opponent :: Nil,
+            10.0, 5.0
+          )
+          val (is_scramble_builder, debug_category) = is_scramble(current_clump, before_clumps, team_event_filter, player_version = false)
+          debug_category ==> "2aa"
+          current_clump.evs.map(is_scramble_builder) ==> List(false, true, true, true)
+        }
+        // 2aa.2: def, long/irrelevant gap, 2ndchange miss, ORB, miss
+        {
+          val (current_clump, before_clumps) = clump_scenario_builder(
+            Events.missed_team_2ndchance :: Events.orb_team :: Events.made_team :: Nil,
+            Events.foul_team :: Events.made_opponent :: Nil,
+            12.0, 5.0
+          )
+          val (is_scramble_builder, debug_category) = is_scramble(current_clump, before_clumps, team_event_filter, player_version = false)
+          debug_category ==> "2aa"
+          current_clump.evs.map(is_scramble_builder) ==> List(true, true, false)
+        }
+        // 2ab.1: defense, small gap, missed shot, deadball rebound, FT, FT (no ORBs)
+        {
+          val (current_clump, before_clumps) = clump_scenario_builder(
+            Events.missed_rim_team :: Events.deadball_rb_team :: Events.made_ft_team :: Events.missed_ft2_team :: Nil,
+            Events.missed_opponent :: Nil,
+            10.0, 5.0
+          )
+          val (is_scramble_builder, debug_category) = is_scramble(current_clump, before_clumps, team_event_filter, player_version = false)
+          debug_category ==> "2ab"
+          current_clump.evs.map(is_scramble_builder) ==> List(false, false, false, false)
+        }
+        // 2ab.2: (nothing), small gap, FT1, FT2, ORB, FT3 (ie all one offensive event)
+        {
+          val (current_clump, before_clumps) = clump_scenario_builder(
+            Events.made_ft1_team :: Events.orb_team :: Events.made_ft2_team :: Events.made_ft2_team :: Nil,
+            Nil,
+            10.0, 5.0
+          )
+          val (is_scramble_builder, debug_category) = is_scramble(current_clump, before_clumps, team_event_filter, player_version = false)
+          debug_category ==> "2ab"
+          current_clump.evs.map(is_scramble_builder) ==> List(false, false, false, false)
+        }
+        // 2ab.3: Like 1ab.1 but no misses in prev clump, so first event can't be a rebound either
+        {
+          val (current_clump, before_clumps) = clump_scenario_builder(
+            Events.turnover_team :: Events.made_team :: Events.missed_ftp1_team :: Nil,
+            Events.made_team :: Nil,
+            10.0, 5.0
+          )
+          val (is_scramble_builder, debug_category) = is_scramble(current_clump, before_clumps, team_event_filter, player_version = false)
+          debug_category ==> "2ab"
+          current_clump.evs.map(is_scramble_builder) ==> List(false, false, false)
+        }
 
-        //TODO
-
-        // Finally we run a sample scenario through "enrich_stats_with_clump" to prove is_scramble is called
+        // Finally we run a sample scenario through "enrich_stats" to prove is_scramble is called
         // (team version and player version)
 
-        //TODO
+        {
+          val (current_clump, before_clumps) = clump_scenario_builder(
+            Events.orb_team :: Events.missed_rim_team :: Events.orb_team :: Events.made_team :: Nil,
+            Events.missed_rim_team :: Nil,
+            10.0, 5.0
+          )
+          val test_case_lineup = base_lineup.copy(raw_game_events =
+            before_clumps.flatMap(_.evs) ++ current_clump.evs
+          )
+          val zero_stats = LineupEventStats()
 
-        //TODO: don't forget to turn the debug flag off when you're done
+          TestUtils.inside(
+            enrich_stats(
+              test_case_lineup, team_event_filter, Some((p: String) => (p == "Eric Carter", "not_used"))
+            )(zero_stats)
+          ) {
+            case stats =>
+              stats ==> zero_stats
+                .modify(_.fg.attempts.total).setTo(2)
+                .modify(_.fg_rim.attempts.total).setTo(2)
+                .modify(_.fg_2p.attempts.total).setTo(2)
+                .modify(_.fg.attempts.orb).setTo(Some(1))
+                .modify(_.fg_rim.attempts.orb).setTo(Some(1))
+                .modify(_.fg_2p.attempts.orb).setTo(Some(1))
+          }
+          TestUtils.inside(
+            enrich_stats(
+              test_case_lineup, team_event_filter, None
+            )(zero_stats)
+          ) {
+            case stats =>
+              stats ==> zero_stats
+                .modify(_.orb.atOrElse(emptyShotClock).total).setTo(2)
+                .modify(_.fg.attempts.total).setTo(3)
+                .modify(_.fg.made.total).setTo(1)
+                .modify(_.fg_rim.attempts.total).setTo(2)
+                .modify(_.fg_2p.attempts.total).setTo(2)
+                .modify(_.fg_3p.attempts.total).setTo(1)
+                .modify(_.fg_3p.made.total).setTo(1)
+                .modify(_.fg.attempts.orb).setTo(Some(2))
+                .modify(_.fg.made.orb).setTo(Some(1))
+                .modify(_.fg_rim.attempts.orb).setTo(Some(1))
+                .modify(_.fg_2p.attempts.orb).setTo(Some(1))
+                .modify(_.fg_3p.attempts.orb).setTo(Some(1))
+                .modify(_.fg_3p.made.orb).setTo(Some(1))
+          }
+        }
       }
       //TODO: commenting this out since it needs rework following move to optionals
       // but this is low prio because it's just a debug function

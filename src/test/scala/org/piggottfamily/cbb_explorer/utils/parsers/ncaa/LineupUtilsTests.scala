@@ -683,6 +683,44 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
           }
         }
       }
+
+      "is_end_of_game_fouling" - {
+        val team_dir = LineupEvent.RawGameEvent.Direction.Team
+        val oppo_dir = LineupEvent.RawGameEvent.Direction.Opponent
+        val team_event_filter = LineupEvent.RawGameEvent.PossessionEvent(team_dir)
+        val oppo_event_filter = LineupEvent.RawGameEvent.PossessionEvent(oppo_dir)
+        val sub_score = (new_score: String) => (ev: LineupEvent.RawGameEvent) => {
+          val sub_score_str = (s: String) => {
+            s.split(",").toList match {
+              case min :: score :: rest => (min :: new_score :: rest).mkString(",")
+              case _ => s
+            }
+          }
+          ev.copy(
+            team = ev.team.map(sub_score_str),
+            opponent = ev.opponent.map(sub_score_str),
+            min = ev.min
+          )
+        }
+        List(
+          (team_event_filter, 2.5, "60-58", Events.made_team :: Nil, false),
+          (team_event_filter, 1.8, "60-58", Events.made_ft_team :: Nil, true),
+          (team_event_filter, 1.8, "60-58", Events.made_team :: Nil, false),
+          (team_event_filter, 1.8, "60-58", Events.made_ft_opponent :: Nil, false),
+          (team_event_filter, 1.8, "58-60", Events.made_ft_team :: Nil, false),
+          (team_event_filter, 1.8, "70-58", Events.made_team :: Nil, false),
+          (oppo_event_filter, 1.8, "60-58", Events.made_ft_opponent :: Nil, false),
+          (oppo_event_filter, 1.8, "58-60", Events.made_ft_opponent :: Nil, true)
+        ).foreach {
+          case (filter, min, score, pre_evs, result) =>
+            val evs = pre_evs.map(sub_score(score))
+            TestUtils.inside(evs) {
+              case _ =>
+                is_end_of_game_fouling(Concurrency.ConcurrentClump(evs), filter) ==> result
+            }
+        }
+      }
+
       //TODO: commenting this out since it needs rework following move to optionals
       // but this is low prio because it's just a debug function
       /**

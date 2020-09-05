@@ -435,9 +435,7 @@ trait LineupUtils {
     curr_clump: Concurrency.ConcurrentClump,
     event_parser: LineupEvent.RawGameEvent.PossessionEvent
   ): Boolean = {
-    def near_end_of_game(min: Double) = //(go as far as 5OT!)
-        (min > 38 && min <= 40) || (min > 43 && min <= 45) || (min > 48 && min <= 50) ||
-        (min > 53 && min <= 55) || (min > 58 && min <= 60) || (min > 63 && min <= 65)
+    def near_end_of_game(min: Double) = (min < 2)
 
     def scores_close_but_behind(ev: LineupEvent.RawGameEvent) = {
       // Attacking team must be ahead by <=10
@@ -447,7 +445,7 @@ trait LineupUtils {
       } else {
         s2 - s1
       }
-      diff <= 10
+      diff <= 10 &&  diff > 0
     }
     curr_clump.evs.iterator.collect {
       case ev @ event_parser.AttackingTeam(EventUtils.ParseFreeThrowAttempt(_))

@@ -684,7 +684,7 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
         }
       }
 
-      "is_end_of_game_fouling" - {
+      "is_end_of_game_fouling_vs_fastbreak" - {
         val team_dir = LineupEvent.RawGameEvent.Direction.Team
         val oppo_dir = LineupEvent.RawGameEvent.Direction.Opponent
         val team_event_filter = LineupEvent.RawGameEvent.PossessionEvent(team_dir)
@@ -703,22 +703,42 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
           )
         }
         List(
-          (team_event_filter, 2.5, "60-58", Events.made_team :: Nil, false),
-          (team_event_filter, 1.8, "60-58", Events.made_ft_team :: Nil, true),
-          (team_event_filter, 1.8, "60-58", Events.made_team :: Nil, false),
-          (team_event_filter, 1.8, "60-58", Events.made_ft_opponent :: Nil, false),
-          (team_event_filter, 1.8, "58-60", Events.made_ft_team :: Nil, false),
-          (team_event_filter, 1.8, "70-58", Events.made_team :: Nil, false),
-          (oppo_event_filter, 1.8, "60-58", Events.made_ft_opponent :: Nil, false),
-          (oppo_event_filter, 1.8, "58-60", Events.made_ft_opponent :: Nil, true)
+          // Basic logic:
+          (team_event_filter, 37.5, "60-58", Events.made_team :: Nil, false),
+          (team_event_filter, 38.1, "60-58", Events.made_ft_team :: Nil, true),
+          (team_event_filter, 38.1, "60-58", Events.made_team :: Nil, false),
+          (team_event_filter, 38.1, "60-58", Events.made_ft_opponent :: Nil, false),
+          (team_event_filter, 38.1, "58-60", Events.made_ft_team :: Nil, false),
+          (team_event_filter, 38.1, "70-58", Events.made_team :: Nil, false),
+
+          // Opponents:
+          (oppo_event_filter, 38.1, "60-58", Events.made_ft_opponent :: Nil, false),
+          (oppo_event_filter, 38.1, "58-60", Events.made_ft_opponent :: Nil, true),
+
+          //OTs:
+          (team_event_filter, 42.0, "60-58", Events.made_ft_team :: Nil, false),
+          (team_event_filter, 43.2, "60-58", Events.made_ft_team :: Nil, true),
+          (team_event_filter, 45.1, "60-58", Events.made_ft_team :: Nil, false),
+          (team_event_filter, 49.5, "60-58", Events.made_ft_team :: Nil, true),
+          (team_event_filter, 51.1, "60-58", Events.made_ft_team :: Nil, false),
+          (team_event_filter, 55.0, "60-58", Events.made_ft_team :: Nil, true),
+          (team_event_filter, 57.1, "60-58", Events.made_ft_team :: Nil, false),
+          (team_event_filter, 59.0, "60-58", Events.made_ft_team :: Nil, true),
+          (team_event_filter, 63.0, "60-58", Events.made_ft_team :: Nil, false),
+          (team_event_filter, 64.9, "60-58", Events.made_ft_team :: Nil, true),
+
         ).foreach {
           case (filter, min, score, pre_evs, result) =>
-            val evs = pre_evs.map(sub_score(score))
+            val evs = pre_evs.map(sub_score(score)).map(_.copy(min = min))
             TestUtils.inside(evs) {
               case _ =>
-                is_end_of_game_fouling(Concurrency.ConcurrentClump(evs), filter) ==> result
+                is_end_of_game_fouling_vs_fastbreak(Concurrency.ConcurrentClump(evs), filter) ==> result
             }
         }
+      }
+
+      "is_transition" - {
+        //TODO: once done don't forget to turn debug off
       }
 
       //TODO: commenting this out since it needs rework following move to optionals

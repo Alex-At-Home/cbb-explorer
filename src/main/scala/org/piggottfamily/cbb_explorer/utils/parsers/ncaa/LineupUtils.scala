@@ -430,12 +430,21 @@ trait LineupUtils {
     }
   }
 
-  /** Check for intentional fouling to prolong the game */
-  def is_end_of_game_fouling(
+  /** Check for intentional fouling to prolong the game - SPECIFICALLY in the context of
+   *  NOT including such possessions as fast breaks, which enables the detection to
+   *  be much simpler
+  */
+  def is_end_of_game_fouling_vs_fastbreak(
     curr_clump: Concurrency.ConcurrentClump,
     event_parser: LineupEvent.RawGameEvent.PossessionEvent
   ): Boolean = {
-    def near_end_of_game(min: Double) = (min < 2)
+    /** (as noted above, actually you'd need to take the score differential into account
+         but I think it's reasonable to count any "quick fouls" in such situations
+         as "effectively intentional" (at least rather than being the leading team pushing the pace)
+    */
+    def near_end_of_game(min: Double) = //(go as far as 5OT!)
+         (min > 38 && min <= 40) || (min > 43 && min <= 45) || (min > 48 && min <= 50) ||
+         (min > 53 && min <= 55) || (min > 58 && min <= 60) || (min > 63 && min <= 65)
 
     def scores_close_but_behind(ev: LineupEvent.RawGameEvent) = {
       // Attacking team must be ahead by <=10
@@ -454,61 +463,186 @@ trait LineupUtils {
     }.hasNext
   }
 
-  /**TODO Check out:
-  <b>Jalen Smith,</b> 2pt dunk 2ndchance;fromturnover;pointsinthepaint;fastbreak  made</td>
+  /** Figure out if the last action was part of a transition offense
+  * 2014-2018 Maryland stats: TODO
+  * 2018/9 stats: 0a: 50, 1a.a: 16283, 1a.b: 461, 1b.a: 167, 1b.b: 92, 1b.X: 73, 1X: 164
   */
-
-  /** Figure out if the last action was part of a transition offense */
   def is_transition(
     curr_clump: Concurrency.ConcurrentClump,
     prev_clumps: List[Concurrency.ConcurrentClump],
     event_parser: LineupEvent.RawGameEvent.PossessionEvent,
     player_version: Boolean
-  ): LineupEvent.RawGameEvent => Boolean = prev_clumps match {
-    case Nil =>
-      (ev: LineupEvent.RawGameEvent) => {
-        //(if a lineup change has occurred we don't include it as transition by policy)
-        false
+  ): ((LineupEvent.RawGameEvent, Boolean) => Boolean, String) = {
+
+    // A] Debug infra for transition:
+
+    val play_type_debug_transition = true && !player_version
+
+    /** New format events - look for cases where we disagree with the format */
+    def check_for_fastbreak(
+      ev: LineupEvent.RawGameEvent, is_transition: Boolean,
+      curr_clump: Concurrency.ConcurrentClump,
+      prev_clump: Concurrency.ConcurrentClump
+    ) = {
+      if (play_type_debug_transition && !is_transition && ev.info.contains("fastbreak")) {
+        val special_case = ev.info.contains("freethrow 1of1") //(see this all over the place, some weird PbP error)
+        if (!special_case) {
+          println("!!!TRANSITION-ERROR---------------: " + ev.info)
+          println("-----------------------------------")
+          prev_clump.evs.foreach(ev => println(ev.show_dir + ev.info))
+          println("+++++++++++++++++++++++++++++++++++")
+          curr_clump.evs.foreach(ev => println(ev.show_dir + ev.info))
+          println("===================================")
+        }
       }
+    }
 
-    case _ if is_end_of_game_fouling(curr_clump, event_parser) =>
-      (ev: LineupEvent.RawGameEvent) => {
-        false
+    def debug_transition_context(
+      context_info_lines: List[String],
+      curr_clump: Concurrency.ConcurrentClump,
+      prev_clump: Concurrency.ConcurrentClump
+    ) = {
+      if (play_type_debug_transition) {
+        println("---TRANSITION-ANALYSIS-------------")
+        context_info_lines.foreach(println)
+        println("-----------------------------------")
+        prev_clump.evs.foreach(ev => println(ev.show_dir + ev.info))
+        println("+++++++++++++++++++++++++++++++++++")
+        curr_clump.evs.foreach(ev => println(ev.show_dir + ev.info))
+        println("===================================")
       }
+    }
 
-    // If there are multiple concurrent "possession-terminating" attacking events, then
-    // 1) must be ORB-separated
-    // 2) I think it's fine to tag them all as transition
-    // (so in conclusion we won't process the current clump)
+    // B] Transition logic:
 
-    // Timeout complexities
-    // 1) normally works fine because the timeout will be the only thing in the previous clump
-    // 2) BUT
-    // 2a) prev clump could be Timeout/Opp-Shot or Opp-Shot/Timeout ... I think it's fine to treat
-    //     both of these as transition, but it's a bit inconsistent because won't treat it as
-    //     transition if there was ALSO a lineup change :(
-    // 2b) curr clump could be My-Shot/Timeout (_is_ transition) or Timeout/My-Shot (_not_ transition)
-    //     it's not ideal, but it's _OK_ to treat both of these as transition (again - lineup change inconsistency)
+    prev_clumps match {
+      case Nil =>
+        ((ev: LineupEvent.RawGameEvent, is_scramble: Boolean) => {
+          //(if a lineup change has occurred we don't include it as transition by policy)
+          false
+        }, "N/A")
 
-    case prev_clump :: _ =>
-      val shotMade = prev_clump.evs.iterator.collect {
-        case ev @ event_parser.DefendingTeam(EventUtils.ParseTurnover(_)) => ev
-        case ev @ event_parser.DefendingTeam(EventUtils.ParseShotMade(_)) => ev
-        case ev @ event_parser.DefendingTeam(EventUtils.ParseFreeThrowAttempt(_)) =>
-          ev
-      }.toStream
-      val missAndRebound = prev_clump.evs.iterator.collect {
-        case ev @ event_parser.AttackingTeam(EventUtils.ParseDefensiveRebound(_)) => ev
-      }.toStream
-      val candidates = shotMade.headOption.orElse(missAndRebound.headOption)
+      case prev_clump :: Nil if is_end_of_game_fouling_vs_fastbreak(curr_clump, event_parser) =>
+        // 0a
+        debug_transition_context(
+          "0a] pre-reject due to end-of-game-fouling scenario" :: Nil, curr_clump, prev_clump
+        )
+        ((ev: LineupEvent.RawGameEvent, is_scramble: Boolean) => {
+          false
+        }, "0a")
+
+      // If there are multiple concurrent "possession-terminating" attacking events, then
+      // B1) must be ORB-separated
+      // B2) I think it's fine to tag them all as transition
+      //    (in practice if an event gets independently categorized as a scramble we will ignore its
+      //     transition categorization)
+      // (so in conclusion we won't process the current clump)
+
+      // Timeout complexities
+      // T1) normally works fine because the timeout will be the only thing in the previous clump
+      // T2) BUT
+      // T2a) prev clump could be Timeout/Opp-Shot or Opp-Shot/Timeout ... I think it's fine to treat
+      //     both of these as transition, but it's a bit inconsistent because won't treat it as
+      //     transition if there was ALSO a lineup change :(
+      // T2b) curr clump could be My-Shot/Timeout (_is_ transition) or Timeout/My-Shot (_not_ transition)
+      //     it's not ideal, but it's _OK_ to treat both of these as transition (again - lineup change inconsistency)
+
+      // Another complexity: can't tell the difference between "turnover in transition" and "donkey turnover
+      // at the start of the shot clock" ... but a decent amount of these are probably caused by pressure
+      // so we'll reluctantly call them transition still
+
+      case prev_clump :: _ =>
       val threshold = 10.0/60.0 //10s
-      val is_transition_event = candidates.exists(ev => {
-        (ev.min - curr_clump.min.getOrElse(0.0)) < threshold
-      })
 
-      (ev: LineupEvent.RawGameEvent) => {
-        is_transition_event
-      }
+        // Two criteria: either shot taken quickly, OR (new format) the events are marked as fastbreak
+        // (we have a bunch of exceptions in the second case due to quirks of the gen2 play by play)
+
+        // Category 1a:
+
+        val oppo_shot_or_team_rebound = prev_clump.evs.iterator.collect {
+          // Made shot or turnover
+          case ev @ event_parser.DefendingTeam(EventUtils.ParseTurnover(_)) => ev
+          case ev @ event_parser.DefendingTeam(EventUtils.ParseShotMade(_)) => ev
+          case ev @ event_parser.DefendingTeam(EventUtils.ParseFreeThrowAttempt(_)) => ev
+          // Miss and rebound:
+          case ev @ event_parser.AttackingTeam(EventUtils.ParseDefensiveRebound(_)) => ev
+        }.toStream
+        val candidate = oppo_shot_or_team_rebound.headOption //(1a.a)
+
+        // Special case (1a.b): we do sometimes see the miss and the rebound being in different clumps
+        val rebound_special_case = if (candidate.isEmpty && curr_clump.evs.exists {
+          case ev @ event_parser.AttackingTeam(EventUtils.ParseDefensiveRebound(_)) => true
+          case _ => false
+        }) {
+          prev_clump.evs.iterator.collect {
+            case ev @ event_parser.DefendingTeam(EventUtils.ParseShotMissed(_)) => ev
+          }.toStream.headOption
+        } else None
+
+        val quick_shot_taken = candidate.orElse(rebound_special_case).exists(ev => {
+          (curr_clump.min.getOrElse(0.0) - ev.min) < threshold
+        })
+
+        // Category 1b:
+
+        val first_team_offense = (clump: Concurrency.ConcurrentClump) => clump.evs.iterator.collect {
+          case ev @ event_parser.AttackingTeam(EventUtils.ParseOffensiveEvent(_)) => ev.info
+        }.toStream.headOption
+        val first_off_ev = first_team_offense(curr_clump)
+        val play_is_fastbreak = first_off_ev.exists(_.contains("fastbreak"))
+          //(don't require candidate.nonEmpty because the existence of the fastbreak in _1st_ event trumps that
+          // ...but will block certain prev clump categories, see is_fastbreak_override_allowed)
+
+        // Where format includes "fastbreak" indicator, we allow there to be no defense in prev clump
+        // BUT not for there ALSO to be specifically offense (if there's both we'll let the
+        // scramble vs transition disambiguation sort it out!)
+        val is_fastbreak_override_allowed = candidate.nonEmpty || first_team_offense(prev_clump).isEmpty
+
+        val is_transition_event_standard =
+          (quick_shot_taken && first_off_ev.nonEmpty) || //(1b.a)
+            //^(ignore possessions with no offensive events, obviously)
+            (play_is_fastbreak && is_fastbreak_override_allowed) //(1b.b, see above)
+
+        // Special case (also see it in scramble analysis) where the 2nd half of a FT pair
+        val is_transition_event_dangling_ft = candidate.isEmpty && curr_clump.evs.iterator.collect {
+          case ev @ event_parser.AttackingTeam(EventUtils.ParseFreeThrowEventAttemptGen2(_, attempt, total))
+            if ev.info.contains("fastbreak") => attempt > 1 || total == 1
+              //(if attempts==1 should be 1b if anything, unless it's an +1)
+        }.toStream.headOption.contains(true)
+
+        // Handle the different categories:
+
+        val is_transition_event = is_transition_event_standard || is_transition_event_dangling_ft
+
+        val debug_context = () match {
+          case _ if is_transition_event_standard && quick_shot_taken
+            && rebound_special_case.nonEmpty => "1a.b" // short gap (RB in wrong clump)
+          case _ if is_transition_event_standard && quick_shot_taken => "1a.a" // short gap
+
+          case _ if is_transition_event_standard && !is_transition_event_dangling_ft => "1b.a" // play is fast break
+          case _ if is_transition_event_dangling_ft => "1b.b" // "dangling FT" special case
+
+          case _ if !is_transition_event_standard && play_is_fastbreak => "1b.X" //(fastbreak override REJECTED)
+          case _ => "NOT" // not a transition event
+        }
+        if (is_transition_event || debug_context.contains("X")) {
+          debug_transition_context(
+            s"$debug_context]" :: Nil, curr_clump, prev_clump
+          )
+        }
+        ((ev: LineupEvent.RawGameEvent, is_scramble: Boolean) => {
+          if (!debug_context.contains("X")) { //(otherwise we've already logged the error)
+            check_for_fastbreak(ev, is_transition_event, curr_clump, prev_clump)
+          }
+          if (is_scramble && is_transition_event) {
+            debug_transition_context(
+              s"1X] Ignore scramble 'transition' event: ${ev.info}" :: Nil,
+              curr_clump, prev_clump
+            )
+          }
+          !is_scramble && is_transition_event
+        }, debug_context)
+    }
   }
 
   /** Takes a unfiltered set of game events
@@ -528,7 +662,7 @@ trait LineupUtils {
       val player_filter = player_filter_coder.map { f => (s: String) => f(s)._1 }
       val player_coder = player_filter_coder.map { f => (s: String) => f(s)._2 }
 
-      val is_transition_builder = is_transition(clump, prev_clumps, event_parser, player_filter_coder.nonEmpty)
+      val (is_transition_builder, _) = is_transition(clump, prev_clumps, event_parser, player_filter_coder.nonEmpty)
       val (is_scramble_builder, _) = is_scramble(clump, prev_clumps, event_parser, player_filter_coder.nonEmpty)
 
       // A bunch of Lensy plumbing to allow us to increment stats anywhere in the large object
@@ -540,9 +674,12 @@ trait LineupUtils {
       val shotclock_selectors = List(selector_shotclock_total)
       def shot_clock_selector_builder = (ev: LineupEvent.RawGameEvent) => {
         //(will use this for shots, FTs, assists, TOs)
-        shotclock_selectors ++
-          (if (is_transition_builder(ev)) List(selector_shotclock_transition) else List()) ++
-          (if (is_scramble_builder(ev)) List(selector_shotclock_scramble) else List())
+        shotclock_selectors ++ {
+          val is_scramble = is_scramble_builder(ev)
+          val is_transition = is_transition_builder(ev, is_scramble)
+          (if (is_scramble) List(selector_shotclock_scramble) else List()) ++
+            (if (is_transition) List(selector_shotclock_transition) else List())
+        }
       }
 
       def increment_misc_count(

@@ -568,7 +568,7 @@ object EventUtils {
 
   // Useful
 
-  /** An offensive event that tells us who is which side in a possession */
+  /** A primary offensive event (eg not assists) that directly tells us who is which side in a possession */
   object ParseOffensiveEvent {
     def unapply(x: String): Option[String] = x match {
       case ParseFreeThrowMade(x) => Some(x)

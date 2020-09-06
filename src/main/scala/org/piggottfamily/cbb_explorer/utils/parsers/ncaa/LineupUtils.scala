@@ -446,26 +446,32 @@ trait LineupUtils {
          (min > 38 && min <= 40) || (min > 43 && min <= 45) || (min > 48 && min <= 50) ||
          (min > 53 && min <= 55) || (min > 58 && min <= 60) || (min > 63 && min <= 65)
 
-    def scores_close_but_behind(ev: LineupEvent.RawGameEvent) = {
+    def scores_close_but_behind(ev: LineupEvent.RawGameEvent, last_shot_made: Boolean) = {
       // Attacking team must be ahead by <=10
       val (s1, s2) = score_to_tuple(ev.score_str)
-      val diff = if (event_parser.dir == LineupEvent.RawGameEvent.Direction.Team) {
+      val extra = if (last_shot_made) 1 else 0
+      val diff = (if (event_parser.dir == LineupEvent.RawGameEvent.Direction.Team) {
         s1 - s2
       } else {
         s2 - s1
-      }
+      }) - extra
+
+      // (handy debug print)
+      //println(s"??? $s1 vs $s2 vs ${event_parser.dir} ... $extra: $diff")
+
       diff <= 10 &&  diff > 0
     }
     curr_clump.evs.iterator.collect {
-      case ev @ event_parser.AttackingTeam(EventUtils.ParseFreeThrowAttempt(_))
-        if scores_close_but_behind(ev) && near_end_of_game(ev.min)
-      =>
-    }.hasNext
+      case ev @ event_parser.AttackingTeam(EventUtils.ParseFreeThrowMissed(_)) =>
+        near_end_of_game(ev.min) && scores_close_but_behind(ev, last_shot_made = false)
+      case ev @ event_parser.AttackingTeam(EventUtils.ParseFreeThrowMade(_)) =>
+        near_end_of_game(ev.min) && scores_close_but_behind(ev, last_shot_made = true)
+    }.toStream.headOption.contains(true)
   }
 
   /** Figure out if the last action was part of a transition offense
-  * 2014-2018 Maryland stats: TODO
-  * 2018/9 stats: 0a: 50, 1a.a: 16283, 1a.b: 461, 1b.a: 167, 1b.b: 92, 1b.X: 73, 1X: 164
+  * 2014-2018 Maryland stats: 0a: 124, 1a.a: 3045, 1a.b: 17, 1X: 13
+  * 2018/9 stats: 0a: 411, 1a.a: 16100, 1a.b: 432, 1b.a: 151, 1b.b: 87, 1b.X: 73, 1X: 158
   */
   def is_transition(
     curr_clump: Concurrency.ConcurrentClump,
@@ -503,7 +509,7 @@ trait LineupUtils {
       prev_clump: Concurrency.ConcurrentClump
     ) = {
       if (play_type_debug_transition) {
-        println("---TRANSITION-ANALYSIS-------------")
+        println("---TRANSITION-ANALYSIS-------------: " + event_parser.dir)
         context_info_lines.foreach(println)
         println("-----------------------------------")
         prev_clump.evs.foreach(ev => println(ev.show_dir + ev.info))
@@ -522,7 +528,7 @@ trait LineupUtils {
           false
         }, "N/A")
 
-      case prev_clump :: Nil if is_end_of_game_fouling_vs_fastbreak(curr_clump, event_parser) =>
+      case prev_clump :: _ if is_end_of_game_fouling_vs_fastbreak(curr_clump, event_parser) =>
         // 0a
         debug_transition_context(
           "0a] pre-reject due to end-of-game-fouling scenario" :: Nil, curr_clump, prev_clump
@@ -552,7 +558,7 @@ trait LineupUtils {
       // so we'll reluctantly call them transition still
 
       case prev_clump :: _ =>
-      val threshold = 10.0/60.0 //10s
+        val threshold = 10.0/60.0 //10s
 
         // Two criteria: either shot taken quickly, OR (new format) the events are marked as fastbreak
         // (we have a bunch of exceptions in the second case due to quirks of the gen2 play by play)

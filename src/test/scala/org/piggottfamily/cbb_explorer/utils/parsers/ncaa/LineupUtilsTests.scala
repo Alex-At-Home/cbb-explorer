@@ -710,6 +710,9 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
           (team_event_filter, 38.1, "60-58", Events.made_ft_opponent :: Nil, false),
           (team_event_filter, 38.1, "58-60", Events.made_ft_team :: Nil, false),
           (team_event_filter, 38.1, "70-58", Events.made_team :: Nil, false),
+          // Check account for the score increase on made FTs:
+          (team_event_filter, 38.1, "60-59", Events.made_ft_team :: Nil, false),
+          (team_event_filter, 38.1, "60-59", Events.missed_ft_team :: Nil, true),
 
           // Opponents:
           (oppo_event_filter, 38.1, "60-58", Events.made_ft_opponent :: Nil, false),
@@ -726,6 +729,8 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
           (team_event_filter, 59.0, "60-58", Events.made_ft_team :: Nil, true),
           (team_event_filter, 63.0, "60-58", Events.made_ft_team :: Nil, false),
           (team_event_filter, 64.9, "60-58", Events.made_ft_team :: Nil, true),
+
+//TODO: 1pt game diff between FTM and FTm
 
         ).foreach {
           case (filter, min, score, pre_evs, result) =>

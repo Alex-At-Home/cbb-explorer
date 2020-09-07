@@ -683,25 +683,25 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
           }
         }
       }
-
+      /** Handy util to sub scores in for end of game situations */
+      val sub_score = (new_score: String) => (ev: LineupEvent.RawGameEvent) => {
+        val sub_score_str = (s: String) => {
+          s.split(",").toList match {
+            case min :: score :: rest => (min :: new_score :: rest).mkString(",")
+            case _ => s
+          }
+        }
+        ev.copy(
+          team = ev.team.map(sub_score_str),
+          opponent = ev.opponent.map(sub_score_str),
+          min = ev.min
+        )
+      }
       "is_end_of_game_fouling_vs_fastbreak" - {
         val team_dir = LineupEvent.RawGameEvent.Direction.Team
         val oppo_dir = LineupEvent.RawGameEvent.Direction.Opponent
         val team_event_filter = LineupEvent.RawGameEvent.PossessionEvent(team_dir)
         val oppo_event_filter = LineupEvent.RawGameEvent.PossessionEvent(oppo_dir)
-        val sub_score = (new_score: String) => (ev: LineupEvent.RawGameEvent) => {
-          val sub_score_str = (s: String) => {
-            s.split(",").toList match {
-              case min :: score :: rest => (min :: new_score :: rest).mkString(",")
-              case _ => s
-            }
-          }
-          ev.copy(
-            team = ev.team.map(sub_score_str),
-            opponent = ev.opponent.map(sub_score_str),
-            min = ev.min
-          )
-        }
         List(
           // Basic logic:
           (team_event_filter, 37.5, "60-58", Events.made_team :: Nil, false),
@@ -730,8 +730,6 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
           (team_event_filter, 63.0, "60-58", Events.made_ft_team :: Nil, false),
           (team_event_filter, 64.9, "60-58", Events.made_ft_team :: Nil, true),
 
-//TODO: 1pt game diff between FTM and FTm
-
         ).foreach {
           case (filter, min, score, pre_evs, result) =>
             val evs = pre_evs.map(sub_score(score)).map(_.copy(min = min))
@@ -743,6 +741,71 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
       }
 
       "is_transition" - {
+        val team_dir = LineupEvent.RawGameEvent.Direction.Team
+        val oppo_dir = LineupEvent.RawGameEvent.Direction.Opponent
+        val team_event_filter = LineupEvent.RawGameEvent.PossessionEvent(team_dir)
+        val oppo_event_filter = LineupEvent.RawGameEvent.PossessionEvent(oppo_dir)
+
+        /** (will make all clumps close in score and then use mins to keep them apart) */
+        val sub_score_clump = (clump: Concurrency.ConcurrentClump) => {
+          clump.copy(evs = clump.evs.map(sub_score("60-58")))
+        }
+
+        // (for completeness, check empty case that is optimized out)
+        val (_, debug_category) = is_transition(
+          Concurrency.ConcurrentClump(Nil), Nil, team_event_filter, player_version = false
+        )
+        debug_category ==> "N/A"
+
+        // 0a: check end of game fouling
+        // 1a.*: result depends on gap
+        List((9.0, true), (11.0, false)).foreach {  case (gap, should_be_transition) =>
+          // 1a.a.1: opponent miss + team DRB
+          {
+            val (current_clump, before_clumps) = clump_scenario_builder(
+              Events.made_team :: Nil,
+              Events.missed_opponent :: Events.drb_team :: Nil,
+              39*60 + gap, 39*60 //(won't be 0a because no FTs involved)
+            )
+            val (is_transition_builder, debug_category) = is_transition(
+              sub_score_clump(current_clump), before_clumps, team_event_filter, player_version = false
+            )
+            debug_category ==> (if (should_be_transition) "1a.a" else "NOT")
+            current_clump.evs.map(ev => is_transition_builder(ev, false)) ==> current_clump.evs.map(_ => should_be_transition)
+            current_clump.evs.map(ev => is_transition_builder(ev, true)) ==> current_clump.evs.map(_ => false)
+          }
+          // 1a.a.2: opponent make
+          //TODO
+          // 1a.b.1: opponent miss, next clump has DRB
+          //TODO
+
+          // 0a: check end of game fouling
+          {
+            val (current_clump, before_clumps) = clump_scenario_builder(
+              Events.made_ft_team :: Nil,
+              Events.missed_opponent :: Events.drb_team :: Nil,
+              39*60 + gap, 39*60
+            )
+            val (is_transition_builder, debug_category) = is_transition(
+              sub_score_clump(current_clump), before_clumps, team_event_filter, player_version = false
+            )
+            debug_category ==> "0a"
+            current_clump.evs.map(ev => is_transition_builder(ev, false)) ==> current_clump.evs.map(_ => false)
+          }
+        }
+        // 1b.*: result does _not_ depend on gap
+        List((11.0, true), (9.0, true)).foreach {  case (gap, should_be_transition) =>
+          // 1b.a.1: nothing then fast break
+          //TODO
+          // 1b.b.1: dangling FT scenario
+          //TODO
+          // 1b.X.2: my offense then fast break - should be excluded
+          //TODO
+        }
+
+        //TODO: run enrich_stats and check transition/scrable cases are handled correctly
+        // (see is_scramble test code)
+
         //TODO: once done don't forget to turn debug off
       }
 

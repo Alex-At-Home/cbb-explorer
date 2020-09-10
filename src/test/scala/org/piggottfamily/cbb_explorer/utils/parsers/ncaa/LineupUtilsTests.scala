@@ -747,8 +747,13 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
         val oppo_event_filter = LineupEvent.RawGameEvent.PossessionEvent(oppo_dir)
 
         /** (will make all clumps close in score and then use mins to keep them apart) */
-        val sub_score_clump = (clump: Concurrency.ConcurrentClump) => {
-          clump.copy(evs = clump.evs.map(sub_score("60-58")))
+        def sub_score_clump(clump: Concurrency.ConcurrentClump, add_fast_break: Boolean = false) = {
+          def add_fastbreak(s: String) = {
+            s.replaceAll(" missed", " fastbreak missed").replaceAll(" made", " fastbreak made")
+          }
+          clump.copy(evs = clump.evs.map(ev => sub_score("60-58")(ev.copy(
+            team = if (add_fast_break) ev.team.map(add_fastbreak) else ev.team
+          ))))
         }
 
         // (for completeness, check empty case that is optimized out)
@@ -775,10 +780,33 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
             current_clump.evs.map(ev => is_transition_builder(ev, true)) ==> current_clump.evs.map(_ => false)
           }
           // 1a.a.2: opponent make
-          //TODO
+          {
+            val (current_clump, before_clumps) = clump_scenario_builder(
+              Events.made_team :: Nil,
+              Events.made_opponent :: Nil,
+              39*60 + gap, 39*60 //(won't be 0a because no FTs involved)
+            )
+            val (is_transition_builder, debug_category) = is_transition(
+              sub_score_clump(current_clump), before_clumps, team_event_filter, player_version = false
+            )
+            debug_category ==> (if (should_be_transition) "1a.a" else "NOT")
+            current_clump.evs.map(ev => is_transition_builder(ev, false)) ==> current_clump.evs.map(_ => should_be_transition)
+            current_clump.evs.map(ev => is_transition_builder(ev, true)) ==> current_clump.evs.map(_ => false)
+          }
           // 1a.b.1: opponent miss, next clump has DRB
-          //TODO
-
+          {
+            val (current_clump, before_clumps) = clump_scenario_builder(
+              Events.made_team :: Events.drb_team :: Nil,
+              Events.missed_opponent :: Nil,
+              39*60 + gap, 39*60 //(won't be 0a because no FTs involved)
+            )
+            val (is_transition_builder, debug_category) = is_transition(
+              sub_score_clump(current_clump), before_clumps, team_event_filter, player_version = false
+            )
+            debug_category ==> (if (should_be_transition) "1a.b" else "NOT")
+            current_clump.evs.map(ev => is_transition_builder(ev, false)) ==> current_clump.evs.map(_ => should_be_transition)
+            current_clump.evs.map(ev => is_transition_builder(ev, true)) ==> current_clump.evs.map(_ => false)
+          }
           // 0a: check end of game fouling
           {
             val (current_clump, before_clumps) = clump_scenario_builder(
@@ -793,20 +821,126 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
             current_clump.evs.map(ev => is_transition_builder(ev, false)) ==> current_clump.evs.map(_ => false)
           }
         }
+
         // 1b.*: result does _not_ depend on gap
-        List((11.0, true), (9.0, true)).foreach {  case (gap, should_be_transition) =>
-          // 1b.a.1: nothing then fast break
-          //TODO
-          // 1b.b.1: dangling FT scenario
-          //TODO
-          // 1b.X.2: my offense then fast break - should be excluded
-          //TODO
+        List((11.0, true), (9.0, true)).foreach {  case (gap, should_be_transition_p1) =>
+          List(true, false).foreach { is_fastbreak =>
+            val should_be_transition = should_be_transition_p1 && is_fastbreak
+
+            // 1b.a.1: nothing then fast break
+            {
+              val (current_clump, before_clumps) = clump_scenario_builder(
+                Events.made_team :: Nil,
+                Events.jump_won_team :: Nil, //(any misc event)
+                39*60 + gap, 39*60 //(won't be 0a because no FTs involved)
+              )
+              val (is_transition_builder, debug_category) = is_transition(
+                sub_score_clump(current_clump, is_fastbreak), before_clumps, team_event_filter, player_version = false
+              )
+              debug_category ==> (if (should_be_transition) "1b.a" else "NOT")
+              current_clump.evs.map(ev => is_transition_builder(ev, false)) ==> current_clump.evs.map(_ => should_be_transition)
+              current_clump.evs.map(ev => is_transition_builder(ev, true)) ==> current_clump.evs.map(_ => false)
+            }
+            // 1b.b.1: dangling FT scenario
+            {
+              val (current_clump, before_clumps) = clump_scenario_builder(
+                Events.missed_ft2_team :: Nil,
+                Events.missed_ft1_team :: Nil,
+                17*60 + gap, 17*60
+              )
+              val (is_transition_builder, debug_category) = is_transition(
+                sub_score_clump(current_clump, is_fastbreak), before_clumps, team_event_filter, player_version = false
+              )
+              debug_category ==> (if (should_be_transition) "1b.b" else "NOT")
+              current_clump.evs.map(ev => is_transition_builder(ev, false)) ==> current_clump.evs.map(_ => should_be_transition)
+              current_clump.evs.map(ev => is_transition_builder(ev, true)) ==> current_clump.evs.map(_ => false)
+            }
+            // 1b.b.2: +1 dangling FT scenario
+            {
+              val (current_clump, before_clumps) = clump_scenario_builder(
+                Events.made_ftp1_team :: Nil,
+                Events.made_team :: Nil,
+                17*60 + gap, 17*60
+              )
+              val (is_transition_builder, debug_category) = is_transition(
+                sub_score_clump(current_clump, is_fastbreak), before_clumps, team_event_filter, player_version = false
+              )
+              debug_category ==> (if (should_be_transition) "1b.b" else "NOT")
+              current_clump.evs.map(ev => is_transition_builder(ev, false)) ==> current_clump.evs.map(_ => should_be_transition)
+              current_clump.evs.map(ev => is_transition_builder(ev, true)) ==> current_clump.evs.map(_ => false)
+            }
+            // 1b.X.2: my offense then fast break - should be excluded
+            {
+              val (current_clump, before_clumps) = clump_scenario_builder(
+                Events.made_team :: Nil,
+                Events.made_team :: Nil,
+                39*60 + gap, 39*60 //(won't be 0a because no FTs involved)
+              )
+              val (is_transition_builder, debug_category) = is_transition(
+                sub_score_clump(current_clump, is_fastbreak), before_clumps, team_event_filter, player_version = false
+              )
+              debug_category ==> (if (should_be_transition) "1b.X" else "NOT")
+              current_clump.evs.map(ev => is_transition_builder(ev, false)) ==> current_clump.evs.map(_ => false)
+              current_clump.evs.map(ev => is_transition_builder(ev, true)) ==> current_clump.evs.map(_ => false)
+            }
+          }
         }
 
         //TODO: run enrich_stats and check transition/scrable cases are handled correctly
         // (see is_scramble test code)
 
-        //TODO: once done don't forget to turn debug off
+        // Finally we run a sample scenario through "enrich_stats" to prove is_transition is called
+        // and that it is overridden by is_scramble
+        // (team version and player version)
+
+        {
+          val (current_clump, before_clumps) = clump_scenario_builder(
+            Events.missed_team :: //(ie this is transition)
+              Events.orb_team :: Events.missed_mid_team :: Nil,
+            Events.made_opponent :: Nil,
+            10.0, 5.0
+          )
+          val test_case_lineup = base_lineup.copy(raw_game_events =
+            before_clumps.flatMap(_.evs) ++ current_clump.evs
+          )
+          val zero_stats = LineupEventStats()
+
+          TestUtils.inside(
+            enrich_stats(
+              test_case_lineup, team_event_filter, Some((p: String) => (p == "Eric Ayala", "not_used"))
+            )(zero_stats)
+          ) {
+            case stats =>
+              stats ==> zero_stats
+                .modify(_.fg.attempts.total).setTo(2)
+                .modify(_.fg_mid.attempts.total).setTo(1)
+                .modify(_.fg_2p.attempts.total).setTo(1)
+                .modify(_.fg_3p.attempts.total).setTo(1)
+                .modify(_.fg.attempts.orb).setTo(Some(1))
+                .modify(_.fg_mid.attempts.orb).setTo(Some(1))
+                .modify(_.fg_2p.attempts.orb).setTo(Some(1))
+                .modify(_.fg.attempts.early).setTo(Some(1))
+                .modify(_.fg_3p.attempts.early).setTo(Some(1))
+          }
+          TestUtils.inside(
+            enrich_stats(
+              test_case_lineup, team_event_filter, None
+            )(zero_stats)
+          ) {
+            case stats =>
+              stats ==> zero_stats
+                .modify(_.orb.atOrElse(emptyShotClock).total).setTo(1)
+                .modify(_.fg.attempts.total).setTo(2)
+                .modify(_.fg_mid.attempts.total).setTo(1)
+                .modify(_.fg_2p.attempts.total).setTo(1)
+                .modify(_.fg_3p.attempts.total).setTo(1)
+                .modify(_.fg.attempts.orb).setTo(Some(1))
+                .modify(_.fg_mid.attempts.orb).setTo(Some(1))
+                .modify(_.fg_2p.attempts.orb).setTo(Some(1))
+                .modify(_.fg.attempts.early).setTo(Some(1))
+                .modify(_.fg_3p.attempts.early).setTo(Some(1))
+          }
+        }
       }
 
       //TODO: commenting this out since it needs rework following move to optionals

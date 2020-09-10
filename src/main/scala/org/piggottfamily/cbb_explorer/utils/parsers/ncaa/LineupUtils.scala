@@ -482,7 +482,7 @@ trait LineupUtils {
 
     // A] Debug infra for transition:
 
-    val play_type_debug_transition = true && !player_version
+    val play_type_debug_transition = false && !player_version
 
     /** New format events - look for cases where we disagree with the format */
     def check_for_fastbreak(

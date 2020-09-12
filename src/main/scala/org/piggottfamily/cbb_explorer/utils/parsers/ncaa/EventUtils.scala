@@ -9,6 +9,10 @@ object EventUtils {
 
   /////////////////////////////////////////////////
 
+  def is_gen2(ev: LineupEvent.RawGameEvent): Boolean = {
+    ev.info.contains(", ")
+  }
+
   // Date-time parser
 
   /** Gets the game time from the raw event */

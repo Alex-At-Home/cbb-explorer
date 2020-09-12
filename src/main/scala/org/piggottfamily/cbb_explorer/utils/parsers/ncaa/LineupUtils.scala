@@ -470,8 +470,13 @@ trait LineupUtils {
   }
 
   /** Figure out if the last action was part of a transition offense
+  * Some breakdowns (using threshold of 10s, not the current 7.5/9.5)
   * 2014-2018 Maryland stats: 0a: 124, 1a.a: 3045, 1a.b: 17, 1X: 13
   * 2018/9 stats: 0a: 411, 1a.a: 16100, 1a.b: 432, 1b.a: 151, 1b.b: 87, 1b.X: 73, 1X: 158
+  * Some other stats from examining some MD years in hoop-explorer:
+  * 2019/20: 500 poss = 316 FGA / 83 TO / 100 FTp (Syn: 393 poss = 279 FGA / 62 TO / 52 FTp; HM 27%)
+  * 2015/6 (9.5 thresh): 393 Poss = 257 FGA / 77 TO / 60 FTp (Syn: 372 poss = 273 FGA / 50 TO / 49 FTp; HM 23%)
+  * 2015/6 (10.5 thresh): 444 Poss = 288 FGA / 89 TO / 68 FTp 
   */
   def is_transition(
     curr_clump: Concurrency.ConcurrentClump,
@@ -516,6 +521,13 @@ trait LineupUtils {
         println("+++++++++++++++++++++++++++++++++++")
         curr_clump.evs.foreach(ev => println(ev.show_dir + ev.info))
         println("===================================")
+
+        //(use this to estimate the fast break treshhold)
+        if (curr_clump.evs.exists(ev => {
+          ev.team.nonEmpty && ev.info.contains("freethrow 2") && ev.info.contains("fastbreak")
+        }) && prev_clump.min.nonEmpty && !context_info_lines.headOption.exists(_.contains("X"))) {
+          println("GAP,\t" + (curr_clump.min.getOrElse(0.0) - prev_clump.min.getOrElse(0.0))*60)
+        }
       }
     }
 
@@ -531,11 +543,11 @@ trait LineupUtils {
       case prev_clump :: _ if is_end_of_game_fouling_vs_fastbreak(curr_clump, event_parser) =>
         // 0a
         debug_transition_context(
-          "0a] pre-reject due to end-of-game-fouling scenario" :: Nil, curr_clump, prev_clump
+          "0a.X] pre-reject due to end-of-game-fouling scenario" :: Nil, curr_clump, prev_clump
         )
         ((ev: LineupEvent.RawGameEvent, is_scramble: Boolean) => {
           false
-        }, "0a")
+        }, "0a.X")
 
       // If there are multiple concurrent "possession-terminating" attacking events, then
       // B1) must be ORB-separated
@@ -558,7 +570,10 @@ trait LineupUtils {
       // so we'll reluctantly call them transition still
 
       case prev_clump :: _ =>
-        val threshold = 10.0/60.0 //10s
+
+        val threshold = (if (curr_clump.evs.headOption.exists(EventUtils.is_gen2)) 7.5 else 10.5)/60.0
+          // Based on analysis of events marked as fastbreak, this shouldbe in the 7-9 range
+          // we'll be more conservative if we have fastbreak indications
 
         // Two criteria: either shot taken quickly, OR (new format) the events are marked as fastbreak
         // (we have a bunch of exceptions in the second case due to quirks of the gen2 play by play)

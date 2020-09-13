@@ -93,6 +93,15 @@ trait LineupUtils {
   ).mapValues(to => (to._1.asJson.toString, to._2.asJson.toString))
   */
 
+  /** Adds tiny deltas to the times of raw gave events within a clump to ensure they don't just use info for == */
+  protected def ensure_ev_uniqueness(in: Concurrency.ConcurrentClump) = {
+    in.copy(
+      evs = (in.evs.zipWithIndex.map { case (ev, ii) =>
+        ev.copy(min = ev.min + 1.0e-6*ii)
+      })
+    )
+  }
+
   /** Takes a unfiltered set of game events
    *  builds all the counting stats
    */
@@ -102,7 +111,7 @@ trait LineupUtils {
     player_filter_coder: Option[String => (Boolean, String)] = None
   ): LineupEventStats => LineupEventStats = { case stats: LineupEventStats =>
 
-    val game_events_as_clumps = Concurrency.lineup_as_raw_clumps(lineup).toStream
+    val game_events_as_clumps = Concurrency.lineup_as_raw_clumps(lineup).toStream.map(ensure_ev_uniqueness)
 
     case class StatsBuilder(curr_stats: LineupEventStats, prev_clumps: List[Concurrency.ConcurrentClump])
 
@@ -176,6 +185,10 @@ trait LineupUtils {
     player_version: Boolean
   ): (LineupEvent.RawGameEvent => Boolean, String) = {
 
+    /** TODO - would like to categorize ORBs as scramble/normal/early, but that requires a
+               whole bunch more logic so leaving for now
+    */
+
     // A] Debug infra for scrambles:
 
     val play_type_debug_scramble = false && !player_version
@@ -246,7 +259,7 @@ trait LineupUtils {
     */
     def get_first_off_ev_set(off_evs: List[LineupEvent.RawGameEvent], allow_tos: Boolean, skip_2nd_chance: Boolean)
       :
-    (Set[String], List[String], String) = {
+    (Set[LineupEvent.RawGameEvent], List[String], String) = {
       /** TO can't be the first of a multi-pseudo-possession clump */
       val is_to_or_maybe_2ndchance: LineupEvent.RawGameEvent => Boolean = {
         case ev if skip_2nd_chance && ev.info.contains("2ndchance") => true
@@ -293,8 +306,8 @@ trait LineupUtils {
         case (Nil, _) if !allow_tos => // try again but allowing TOs this time
           get_first_off_ev_set(off_evs, allow_tos = true, skip_2nd_chance)
         case (ev_list, debug_context) =>
-          val ev_info_list = ev_list.map(_.info).toList
-          (ev_info_list.toSet, ev_info_list, debug_context)
+          val ev_info_list = ev_list.toList
+          (ev_info_list.toSet, ev_info_list.map(_.info), debug_context)
       }
     }
 
@@ -358,7 +371,7 @@ trait LineupUtils {
             // Look for dangling FT - ignore if so, timing error in PbP
             val (first_off_ev_set_ftfix, first_off_ev_list_ftfix) = first_off_ev_list match {
               case EventUtils.ParseFreeThrowAttempt(_) :: Nil =>
-                (Set[String](), List[String]()) //special case: empty the set
+                (Set[LineupEvent.RawGameEvent](), List[String]()) //special case: empty the set
               case _ =>
                 (first_off_ev_set, first_off_ev_list)
             }
@@ -371,7 +384,7 @@ trait LineupUtils {
               curr_clump, maybe_prev_clump
             )
             Some(((ev: LineupEvent.RawGameEvent) => {
-              val was_scramble = first_off_ev_set_ftfix(ev.info)
+              val was_scramble = first_off_ev_set_ftfix(ev)
               was_scramble
             }, "1ab"))
         }
@@ -394,7 +407,7 @@ trait LineupUtils {
         get_first_off_ev_set(off_evs, allow_tos = false, skip_2nd_chance)
 
       val has_multiple_distinct_off_evs = off_evs.iterator.filterNot(
-        ev => first_off_ev_set(ev.info)
+        ev => first_off_ev_set(ev)
       ).collect(get_off_ev).nonEmpty
 
       if (curr_clump_has_orb && has_multiple_distinct_off_evs) { // Multiple offensive events so need to do some more scramble analysis
@@ -412,7 +425,7 @@ trait LineupUtils {
           curr_clump, maybe_prev_clump
         )
         ((ev: LineupEvent.RawGameEvent) => {
-          val was_scramble = !first_off_ev_set(ev.info)
+          val was_scramble = !first_off_ev_set(ev)
           was_scramble
         }, debug_case)
       } else { // Just have one offensive option so can return simpler method
@@ -469,6 +482,7 @@ trait LineupUtils {
     }.toStream.headOption.contains(true)
   }
 
+
   /** Figure out if the last action was part of a transition offense
   * Some breakdowns (using threshold of 10s, not the current 7.5/9.5)
   * 2014-2018 Maryland stats: 0a: 124, 1a.a: 3045, 1a.b: 17, 1X: 13
@@ -476,7 +490,7 @@ trait LineupUtils {
   * Some other stats from examining some MD years in hoop-explorer:
   * 2019/20: 500 poss = 316 FGA / 83 TO / 100 FTp (Syn: 393 poss = 279 FGA / 62 TO / 52 FTp; HM 27%)
   * 2015/6 (9.5 thresh): 393 Poss = 257 FGA / 77 TO / 60 FTp (Syn: 372 poss = 273 FGA / 50 TO / 49 FTp; HM 23%)
-  * 2015/6 (10.5 thresh): 444 Poss = 288 FGA / 89 TO / 68 FTp 
+  * 2015/6 (10.5 thresh): 444 Poss = 288 FGA / 89 TO / 68 FTp
   */
   def is_transition(
     curr_clump: Concurrency.ConcurrentClump,
@@ -523,11 +537,11 @@ trait LineupUtils {
         println("===================================")
 
         //(use this to estimate the fast break treshhold)
-        if (curr_clump.evs.exists(ev => {
-          ev.team.nonEmpty && ev.info.contains("freethrow 2") && ev.info.contains("fastbreak")
-        }) && prev_clump.min.nonEmpty && !context_info_lines.headOption.exists(_.contains("X"))) {
-          println("GAP,\t" + (curr_clump.min.getOrElse(0.0) - prev_clump.min.getOrElse(0.0))*60)
-        }
+        // if (curr_clump.evs.exists(ev => {
+        //   ev.team.nonEmpty && ev.info.contains("freethrow 2") && ev.info.contains("fastbreak")
+        // }) && prev_clump.min.nonEmpty && !context_info_lines.headOption.exists(_.contains("X"))) {
+        //   println("GAP,\t" + (curr_clump.min.getOrElse(0.0) - prev_clump.min.getOrElse(0.0))*60)
+        // }
       }
     }
 

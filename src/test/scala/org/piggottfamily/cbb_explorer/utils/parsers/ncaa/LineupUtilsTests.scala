@@ -460,7 +460,7 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
         }
       }
 
-      /** Builds 2 clumps of events with a specified time difference */
+      /** Builds 2 clumps of events with a specified time difference - also tests "ensure_ev_uniqueness" */
       def clump_scenario_builder(
         current: List[LineupEvent.RawGameEvent], before: List[LineupEvent.RawGameEvent],
         current_sec: Double, before_sec: Double
@@ -472,10 +472,12 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
         val before_clump = if (before.isEmpty) None else Some(Concurrency.ConcurrentClump(
           before.map(_.copy(min = before_sec*sec_to_min))
         ))
-        (current_clump, before_clump.toList ++ Nil)
+        (ensure_ev_uniqueness(current_clump), before_clump.toList.map(ensure_ev_uniqueness) ++ Nil)
       }
 
       "is_scramble" - {
+        //(also tests "ensure_ev_uniqueness")
+
         val team_dir = LineupEvent.RawGameEvent.Direction.Team
         val team_event_filter = LineupEvent.RawGameEvent.PossessionEvent(team_dir)
 
@@ -485,14 +487,14 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
         //  - IGNORE made shot with assist: 1b.2
         //  - made shot with +1: 0a.1
         //  - FT attempt (old format, with rebound): 2aa.1
-        //  - FT attempt (new format, ignores rebounds): 2ab.2
+        //  - FT attempt (new format, ignores rebounds): 2ab.2, 0a.3
         //  - missed shots: 1aa.1, 1b.1, 2ab.1
         //  - TOs then missed shot (TO allowed): 1ab.1
         //  - TOs then missed shot (TO _not_ allowed): 0a.2
         //  - 2nd chance event is first event, concurrent with an earlier missed shot: 2aa.2
         //  - dangling FT case: FT miss, (gap), FT made: 1ab.2
 
-        // 0a: (no prev clump, ORBs present, multiple events): 0a.1, 0a.2
+        // 0a: (no prev clump, ORBs present, multiple events): 0a.1, 0a.2, 0a.3 (<- checks emsure_ev_uniqueness)
         // 1aa: (small gap between off clumps, ORBs present, multiple events): 1aa.1
         // 1ab: (small gap between off clumps, no ORBs present, multiple events): 1ab.1, 1ab.2 (+ special case: 2ab.3)
         // 1b: (large gap between off clumps, ORBs present, multiple events): 1b.1, 1b.2
@@ -612,13 +614,25 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
         // 2ab.2: (nothing), small gap, FT1, FT2, ORB, FT3 (ie all one offensive event)
         {
           val (current_clump, before_clumps) = clump_scenario_builder(
-            Events.made_ft1_team :: Events.orb_team :: Events.made_ft2_team :: Events.made_ft2_team :: Nil,
+            Events.made_ft1_team :: Events.orb_team :: Events.made_ft2_team :: Nil,
             Nil,
             10.0, 5.0
           )
           val (is_scramble_builder, debug_category) = is_scramble(current_clump, before_clumps, team_event_filter, player_version = false)
           debug_category ==> "2ab"
-          current_clump.evs.map(is_scramble_builder) ==> List(false, false, false, false)
+          current_clump.evs.map(is_scramble_builder) ==> List(false, false, false)
+        }
+        // Also test - ensure_ev_uniqueness
+        // 0a.3: like 2ab.2 but the second "made_ft2_team" won't be treated as duplicate because of ensure_ev_uniqueness
+        {
+          val (current_clump, before_clumps) = clump_scenario_builder(
+            Events.made_ft1_team :: Events.orb_team :: Events.made_ft2_team :: Events.made_ft2_team :: Nil,
+            Nil,
+            10.0, 5.0
+          )
+          val (is_scramble_builder, debug_category) = is_scramble(current_clump, before_clumps, team_event_filter, player_version = false)
+          debug_category ==> "0a"
+          current_clump.evs.map(is_scramble_builder) ==> List(false, true, false, true)
         }
         // 2ab.3: Like 1ab.1 but no misses in prev clump, so first event can't be a rebound either
         {
@@ -763,8 +777,8 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
         debug_category ==> "N/A"
 
         // 0a: check end of game fouling
-        // 1a.*: result depends on gap
-        List((9.0, true), (11.0, false)).foreach {  case (gap, should_be_transition) =>
+        // 1a.*: result depends on gap (max gap depends on whether it's next gen format which includes fastbreak indicator)
+        List((7.0, true), (10.0, true), (11.0, false)).foreach {  case (gap, should_be_transition) =>
           // 1a.a.1: opponent miss + team DRB
           {
             val (current_clump, before_clumps) = clump_scenario_builder(
@@ -793,6 +807,21 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
             current_clump.evs.map(ev => is_transition_builder(ev, false)) ==> current_clump.evs.map(_ => should_be_transition)
             current_clump.evs.map(ev => is_transition_builder(ev, true)) ==> current_clump.evs.map(_ => false)
           }
+          // 1a.a.3: opponent make - shorter gap required because new format and not fast break
+          {
+            val (current_clump, before_clumps) = clump_scenario_builder(
+              Events.made_rim_team :: Nil,
+              Events.made_opponent :: Nil,
+              39*60 + gap, 39*60 //(won't be 0a because no FTs involved)
+            )
+            val (is_transition_builder, debug_category) = is_transition(
+              sub_score_clump(current_clump), before_clumps, team_event_filter, player_version = false
+            )
+            val should_be_transition_nextgen = should_be_transition && (gap < 9.0)
+            debug_category ==> (if (should_be_transition_nextgen) "1a.a" else "NOT")
+            current_clump.evs.map(ev => is_transition_builder(ev, false)) ==> current_clump.evs.map(_ => should_be_transition_nextgen)
+            current_clump.evs.map(ev => is_transition_builder(ev, true)) ==> current_clump.evs.map(_ => false)
+          }
           // 1a.b.1: opponent miss, next clump has DRB
           {
             val (current_clump, before_clumps) = clump_scenario_builder(
@@ -817,7 +846,7 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
             val (is_transition_builder, debug_category) = is_transition(
               sub_score_clump(current_clump), before_clumps, team_event_filter, player_version = false
             )
-            debug_category ==> "0a"
+            debug_category ==> "0a.X"
             current_clump.evs.map(ev => is_transition_builder(ev, false)) ==> current_clump.evs.map(_ => false)
           }
         }

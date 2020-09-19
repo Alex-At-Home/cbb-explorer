@@ -28,7 +28,8 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
 
     val made_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,SMITH,JALEN made Three Point Jumper")
     val made_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = made_team.team.get)
-    val missed_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "02:28:00,27-38,Eric Ayala, 3pt jumpshot 2ndchance missed")
+    val missed_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "02:28:00,27-38,Eric Ayala, 3pt jumpshot missed")
+    val missed_team_2ndchance = LineupEvent.RawGameEvent.team(min = 0.0, s = "02:28:00,27-38,Eric Ayala, 3pt jumpshot 2ndchance missed")
     val missed_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = missed_team.team.get)
     val made_ft_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "10:00,51-60,DREAD,MYLES made Free Throw")
     val made_ft_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = made_ft_team.team.get)
@@ -42,6 +43,10 @@ object PossessionUtilsTests extends TestSuite with PossessionUtils {
     val missed_ft1_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = missed_ft1_team.team.get)
     val missed_ft2_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,55-68,Kevin Anderson, freethrow 2of2 missed")
     val missed_ft2_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = missed_ft2_team.team.get)
+    val made_ftp1_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,56-68,Kevin Anderson, freethrow 1of1 made")
+    val made_ftp1_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = made_ft1_team.team.get)
+    val missed_ftp1_team = LineupEvent.RawGameEvent.team(min = 0.0, s = "05:10,56-68,Kevin Anderson, freethrow 1of1 missed")
+    val missed_ftp1_opponent = LineupEvent.RawGameEvent.opponent(min = 0.0, s = made_ft1_team.team.get)
     // other shots:
     val made_3p_team = made_team
     val missed_3p_team = missed_team

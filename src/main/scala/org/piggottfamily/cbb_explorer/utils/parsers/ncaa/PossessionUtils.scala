@@ -19,6 +19,7 @@ trait PossessionUtils {
   import org.piggottfamily.cbb_explorer.models.ncaa.LineupEvent.RawGameEvent.PossessionEvent
 
   /** Debug flags */
+  protected val print_debug_info = false
   protected val show_end_of_raw_calcs = true
   protected val log_lineup_fixes = true
 
@@ -335,15 +336,6 @@ trait PossessionUtils {
     Also only works with new format
     */
 
-    /** Converts score to a number so don't get bitten by number of digits in lexi ordering */
-    def score_to_tuple(str: String): (Int, Int) = {
-      val regex = "([0-9]+)-([[0-9]+])".r
-      str match {
-        case regex(s1, s2) => (s1.toInt, s2.toInt) //(ints by construction)
-        case _ => (0, 0)
-      }
-    }
-
     // (explained in the block comment above)
     val recent_dead_ft_misses = List(prev.evs, clump.evs).flatten.collect {
       case ev @ attacking_team(EventUtils.ParseFreeThrowMade(_)) => ev
@@ -479,7 +471,7 @@ trait PossessionUtils {
     }
 
     /** Debug util */
-    def log_lineup_fix(dir: String, stats: LineupEventStats, l: List[LineupEvent]): Unit = {
+    def log_lineup_fix(dir: String, stats: LineupEventStats, l: List[LineupEvent]): Unit = if (print_debug_info) {
       println(
         s"""
         ************Possession fix required [$dir]: [${stats.num_possessions}]:
@@ -567,7 +559,7 @@ trait PossessionUtils {
     } match {
       case FoldStateComplete(_, lineups) =>
         /** Debug util */
-        def summarize_state(label: String, state: PossState): Unit = {
+        def summarize_state(label: String, state: PossState): Unit = if (print_debug_info) {
           println(s"--------$label------------")
           println(s"[${state.team_stats.summary}]")
           println(s"[${state.opponent_stats.summary}]")

@@ -306,6 +306,15 @@ object EventUtilsTests extends TestSuite {
           ) =>
         }
       }
+      "ParseLiveOffensiveRebound" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseLiveOffensiveRebound(name) => name
+        }) {
+          case List(
+          "Jalen Smith1", "Team", "SMITH,JALEN2", //(like above but missing that one deadball rebound)
+          ) =>
+        }
+      }
       //(defensive)
       val drbs = List(
         "Darryl Morsell", "HARRAR,JOHN", "Team"
@@ -376,6 +385,23 @@ object EventUtilsTests extends TestSuite {
           case EventUtils.ParseFreeThrowAttempt(name) => name
         }) {
           case `fts_attempt` =>
+        }
+      }
+
+      val fts_made_gen2 = List(
+        ("Kevin Anderson0M", 1, 1), ("Kevin Anderson1M", 1, 2),
+        ("Kevin Anderson", 2, 2), ("Kevin Anderson3M", 1, 3),
+      )
+      val fts_missed_gen2 = List(
+        ("Kevin Anderson0m", 1, 1), ("Kevin Anderson1", 1, 2), ("Kevin Anderson2", 2, 2),
+        ("Kevin Anderson3", 1, 3), ("Kevin Anderson4", 2, 3), ("Kevin Anderson5", 3, 3)
+      )
+      val fts_attempt_gen2 = fts_made_gen2 ++ fts_missed_gen2
+      "ParseFreeThrowEventAttemptGen2" - {
+        TestUtils.inside(all_test_cases.collect {
+          case EventUtils.ParseFreeThrowEventAttemptGen2(name) => name
+        }) {
+          case `fts_attempt_gen2` =>
         }
       }
 

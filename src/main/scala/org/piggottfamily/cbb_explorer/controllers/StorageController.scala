@@ -20,7 +20,9 @@ object StorageController {
   val default_teams_cache: String = ".teams" //TODO include year for easy upload?
   val default_lineup_cache: String = s".lineups.ndjson"
   val default_player_cache: String = s".player_events.ndjson"
-  
+
+  val printer = Printer.noSpaces.copy(dropNullValues = true)
+
   /** Dependency injection */
   case class Dependencies(
     logger: LogUtils = LogUtils,
@@ -145,7 +147,7 @@ class StorageController(d: StorageController.Dependencies = StorageController.De
     file_name: String = default_player_cache
   ): Unit = {
     d.file_manager.write_lines_to_file(
-      file_root / file_name, player_events.map(_.asJson.noSpaces)
+      file_root / file_name, player_events.map(p => printer.pretty(p.asJson))
     )
   }
 

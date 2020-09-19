@@ -20,8 +20,8 @@ fi
 
 export CURR_TIME=${CURR_TIME:=$(date +"%s")}
 
-export CURR_YEAR=${CURR_YEAR:="2019"}
 export CURR_YEAR_STR=${CURR_YEAR_STR:="2019_20"}
+export CURR_YEAR=$(echo $CURR_YEAR_STR | cut -c1-4)
 
 export CONFS=${CONFS:="acc american atlanticten bigeast bigten bigtwelve pactwelve sec misc_conf women_acc women_american women_bigten women_bigtwelve women_pactwelve women_sec"}
 #export CONFS=${CONFS:="acc american atlanticten bigeast bigten bigtwelve pactwelve sec misc_conf"}

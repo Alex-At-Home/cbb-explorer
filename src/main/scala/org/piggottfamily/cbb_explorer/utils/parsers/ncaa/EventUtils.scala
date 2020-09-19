@@ -9,6 +9,10 @@ object EventUtils {
 
   /////////////////////////////////////////////////
 
+  def is_gen2(ev: LineupEvent.RawGameEvent): Boolean = {
+    ev.info.contains(", ")
+  }
+
   // Date-time parser
 
   /** Gets the game time from the raw event */
@@ -375,6 +379,14 @@ object EventUtils {
     }
   }
 
+  /** In new format gives you non-deadball RBs (in old format, identical to ORB) */
+  object ParseLiveOffensiveRebound {
+    def unapply(x: String): Option[String] =
+      ParseOffensiveRebound.unapply(x).filter { _ =>
+        ParseOffensiveDeadballRebound.unapply(x).isEmpty
+      }
+  }
+
   // Free throws
 
   /** Any made free throw */
@@ -416,18 +428,23 @@ object EventUtils {
 
   /** Presence of 1+ FTs in a possession (old format - will double count if split across clumps) */
   object ParseFreeThrowEvent {
-    private val ft_start1_regex_new = "[^,]+,[^,]+,(.+), +freethrow 1of1 .*".r
-    private val ft_start2_regex_new = "[^,]+,[^,]+,(.+), +freethrow 1of2 .*".r
-    private val ft_start3_regex_new = "[^,]+,[^,]+,(.+), +freethrow 1of3 .*".r
+    private val ft_start_regex_new = "[^,]+,[^,]+,(.+), +freethrow 1of[123] .*".r
     private val ft_missed_regex = "[^,]+,[^,]+,(.+) missed +Free Throw".r
     private val ft_made_regex = "[^,]+,[^,]+,(.+) made +Free Throw".r
 
     def unapply(x: String): Option[String] = Option(x) match {
-      case Some(ft_start1_regex_new(player)) => Some(player)
-      case Some(ft_start2_regex_new(player)) => Some(player)
-      case Some(ft_start3_regex_new(player)) => Some(player)
+      case Some(ft_start_regex_new(player)) => Some(player)
       case Some(ft_missed_regex(player)) => Some(player)
       case Some(ft_made_regex(player)) => Some(player)
+      case _ => None
+    }
+  }
+
+  /** In new format (henceforth "gen2"), tells me if it's the final FT */
+  object ParseFreeThrowEventAttemptGen2 {
+    private val ft_regex_new = "[^,]+,[^,]+,(.+), +freethrow ([123])of([123]) .*".r
+    def unapply(x: String): Option[(String, Int, Int)] = Option(x) match {
+      case Some(ft_regex_new(player, f1, f2)) => Some((player, f1.toInt, f2.toInt))
       case _ => None
     }
   }
@@ -555,7 +572,7 @@ object EventUtils {
 
   // Useful
 
-  /** An offensive event that tells us who is which side in a possession */
+  /** A primary offensive event (eg not assists) that directly tells us who is which side in a possession */
   object ParseOffensiveEvent {
     def unapply(x: String): Option[String] = x match {
       case ParseFreeThrowMade(x) => Some(x)

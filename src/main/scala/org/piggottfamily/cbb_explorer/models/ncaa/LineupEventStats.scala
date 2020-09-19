@@ -7,6 +7,8 @@ case class LineupEventStats(
   num_events: Int = 0,
   num_possessions: Int = 0,
 
+  // Leave: fg, fg_3p, fg_2p, ft, to as non-optional because they are used commonly
+
   fg: LineupEventStats.FieldGoalStats = LineupEventStats.FieldGoalStats(),
   fg_rim: LineupEventStats.FieldGoalStats = LineupEventStats.FieldGoalStats(),
   fg_mid: LineupEventStats.FieldGoalStats = LineupEventStats.FieldGoalStats(),
@@ -14,19 +16,19 @@ case class LineupEventStats(
   fg_3p: LineupEventStats.FieldGoalStats = LineupEventStats.FieldGoalStats(),
   ft: LineupEventStats.FieldGoalStats = LineupEventStats.FieldGoalStats(),
 
-  orb: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
-  drb: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
+  orb: Option[LineupEventStats.ShotClockStats] = None,
+  drb: Option[LineupEventStats.ShotClockStats] = None,
 
   to: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
-  stl: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
-  blk: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
+  stl: Option[LineupEventStats.ShotClockStats] = None,
+  blk: Option[LineupEventStats.ShotClockStats] = None,
 
-  assist: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
-  ast_rim: LineupEventStats.AssistInfo = LineupEventStats.AssistInfo(),
-  ast_mid: LineupEventStats.AssistInfo = LineupEventStats.AssistInfo(),
-  ast_3p: LineupEventStats.AssistInfo = LineupEventStats.AssistInfo(),
+  assist: Option[LineupEventStats.ShotClockStats] = None,
+  ast_rim: Option[LineupEventStats.AssistInfo] = None,
+  ast_mid: Option[LineupEventStats.AssistInfo] = None,
+  ast_3p: Option[LineupEventStats.AssistInfo] = None,
 
-  foul: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
+  foul: Option[LineupEventStats.ShotClockStats] = None,
 
   pts: Int = 0,
   plus_minus: Int = 0
@@ -45,10 +47,10 @@ object LineupEventStats {
    */
   case class ShotClockStats(
     total: Int = 0,
-    early: Int = 0,
-    mid: Int = 0,
-    late: Int = 0,
-    orb: Int = 0
+    early: Option[Int] = None,
+    mid: Option[Int] = None,
+    late: Option[Int] = None,
+    orb: Option[Int] = None
   )
 
   /**
@@ -70,7 +72,7 @@ object LineupEventStats {
   case class FieldGoalStats(
     attempts: ShotClockStats = ShotClockStats(),
     made: ShotClockStats = ShotClockStats(),
-    ast: ShotClockStats = ShotClockStats(),
+    ast: Option[ShotClockStats] = None,
   )
 
   /**
@@ -81,8 +83,8 @@ object LineupEventStats {
    */
   case class AssistInfo(
     counts: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
-    target: List[AssistEvent] = Nil,
-    source: List[AssistEvent] = Nil
+    target: Option[List[AssistEvent]] = None,
+    source: Option[List[AssistEvent]] = None
   )
 
 }

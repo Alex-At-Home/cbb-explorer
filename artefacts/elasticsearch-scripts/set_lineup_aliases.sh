@@ -13,17 +13,17 @@ if [ "$YEAR" == "" ]; then
   YEAR="20[1-9][0-9]"
 fi
 
-export INDICES=$(curl -u "$ELASTIC_USER:$ELASTIC_PASS" "https://$ELASTIC_URL/_cat/indices"| grep -E "_${YEAR}(_lping|_lpong|\\$)?" | awk  '{ print $3 }' | sort -u)
+export INDICES=$(curl -u "$ELASTIC_USER:$ELASTIC_PASS" "https://$ELASTIC_URL/_cat/indices"| grep -E "_${YEAR}(_lping|_lpong|\\$)?" | grep -v "ltest" | awk  '{ print $3 }' | sort -u)
 
 for INDEX in $INDICES; do
   ROOT=$(echo "$INDEX" | sed -E s/'_(lping|lpong)'/''/)
   echo ""
-  echo "Updating alias for $ROOT from $PONG to $PING"
+  echo "Updating alias for $ROOT from $PONG to $PING [$BUILD_ONLY]"
   INDEX_TO="${ROOT}_${PING}"
   INDEX_FROM="${ROOT}_${PONG}"
   ALIAS="${ROOT}"
 
-  if [ $BUILD_ONLY="yes" ]; then
+  if [ "$BUILD_ONLY" = "yes" ]; then
     #(just adds the alias to the specified PING)
     curl -XPOST -H 'Content-Type: application/json' -u "$ELASTIC_USER:$ELASTIC_PASS" "https://$ELASTIC_URL/_aliases" -d "{
       \"actions\": [

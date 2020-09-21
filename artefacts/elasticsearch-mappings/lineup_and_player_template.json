@@ -1,0 +1,20 @@
+//(need this to have correct mapping of numbers)
+//PUT _index_template/cbb_field_template
+{
+  "index_patterns": ["*_lping", "*_lpong", "*_ltest"],
+  "template": {
+    "mappings": {
+      "dynamic_templates": [
+        {
+          "mins_are_float": {
+            "match_pattern": "regex",
+            "match": "^.*_mins?$",
+            "mapping": {
+              "type": "double"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

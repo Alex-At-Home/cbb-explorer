@@ -12,6 +12,10 @@ object DataQualityIssues {
     "hamilton, jared", "jared hamilton", "hamilton,jared",
     "hamilton, jairus", "jairus hamilton", "hamilton,jairus",
 
+    // Wisconsin team-mates, leave Jordan with Jo and Jonathan gets Jn
+    //"davis, jordan", "jordan davis", "davis,jordan",
+    "davis, jonathan", "jonathan davis", "davis,jonathan",
+
 // These two have the same name regardless of strategy! Use misspellings to tuncate Jaev's name
     "cumberland, jaev", "jaev cumberland", "cumberland,jaev",
     "cumberland, jarron", "jarron cumberland", "cumberland,jarron",

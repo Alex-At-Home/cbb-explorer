@@ -5,7 +5,7 @@
 #ROOT_URL=TODO
 #(to get the team navigate to https://$PBP_ROOT_URL/reports/attendance?id=17900
 # pick the team, select the year, then the team id is the last bit of the URL)
-YEAR=2019
+YEAR=2020
 CONF=sec
 array=(
 '505475::South+Carolina'

@@ -55,7 +55,8 @@ class LineupController(d: Dependencies = Dependencies())
     }
 
     val lineups = for {
-      game <- d.file_manager.list_files(root_dir / play_by_play_dir, Some("html"), file_filter).iterator
+      //(early in the season games might not exist)
+      game <- Try(d.file_manager.list_files(root_dir / play_by_play_dir, Some("html"), file_filter)).getOrElse(Nil).iterator
 
       game_id = game.last.split("[.]")(0)
       if game_id_filter.forall(_.findFirstIn(game_id).isDefined)

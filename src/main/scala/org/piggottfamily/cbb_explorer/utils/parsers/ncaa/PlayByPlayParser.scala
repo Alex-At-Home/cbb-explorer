@@ -36,8 +36,8 @@ trait PlayByPlayParser {
   // Holds all the HTML parsing logic
   protected object builders {
 
-    def team_finder(doc: Document): List[String] =
-      (doc >?> elementList("div#contentarea table.mytable[width=50%] td a[href]"))
+    def team_finder(doc: Document): List[String] = //2020+ is 40%, 2019- is 50%
+      (doc >?> elementList("div#contentarea table.mytable[width=50%],table.mytable[width=40%] td a[href]"))
         .getOrElse(Nil).map(_.text)
 
     def event_finder(doc: Document): List[Element] =

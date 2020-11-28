@@ -5,7 +5,7 @@
 #EFF_ROOT_URL=$2
 
 # Check if we have a valid cookie:
-if ! curl --cookie $PWD/cookies.txt -I "https://$EFF_ROOT_URL/summary.php" | grep "HTTP/2 200"; then
+if ! curl --cookie $PWD/cookies.txt -I "https://$EFF_ROOT_URL/summary.php" | grep "HTTP/[0-9.]* 200"; then
   echo "[ERROR] You must create an authentication context first"
   exit -1
 fi

@@ -60,7 +60,18 @@ object BuildEfficiency {
     // Check the right number has been processed:
     if (maybe_team_selector.isEmpty) {
       val expected_per_year = Map(
-        Year(2020) -> 353
+        Year(2011) -> 346,
+        Year(2012) -> 347,
+        Year(2013) -> 347,
+        Year(2014) -> 352,
+        Year(2015) -> 351,
+        Year(2015) -> 351,
+        Year(2016) -> 351,
+        Year(2017) -> 352,
+        Year(2018) -> 351,
+        Year(2019) -> 353,
+        Year(2020) -> 353,
+        Year(2021) -> 348
       )
       if (eff.size != expected_per_year(Year(year_int))) {
         println(s"[ERROR] Built [${eff.size}] vs expected [${expected_per_year(Year(year_int))}]")

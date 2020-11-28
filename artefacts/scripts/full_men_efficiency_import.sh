@@ -1,7 +1,8 @@
 #!/bin/bash
+# Call with --skip-download to bypass the download and just process/upload
 
 export CURR_TIME=${CURR_TIME:=$(date +"%s")}
-export CURR_YEAR=${CURR_YEAR:="2020"}
+export CURR_YEAR=${CURR_YEAR:="2021"}
 
 if [ -z "$COOKIE" ]; then
   echo "It is necessary to include the auth cookie as env var COOKIE"
@@ -15,16 +16,18 @@ mv $PBP_OUT_DIR/*.ndjson $PBP_OUT_DIR/archive
 
 rm -f $PBP_OUT_DIR/efficiency_logs_${CURR_TIME}.log
 
-export COOKIE_FRAGMENT=$(echo "$COOKIE" | grep -E -o "[a-z0-9]{26}" )
-sed s/COOKIE_FRAGMENT/"$COOKIE_FRAGMENT"/ $PWD/cookies_template.txt > $PWD/cookies.txt
-echo "Using [$COOKIE_FRAGMENT] for authentication"
+if [ "$1" != "--skip-download" ]; then
+  export COOKIE_FRAGMENT=$(echo "$COOKIE" | grep -E -o "[a-z0-9]{26}" )
+  sed s/COOKIE_FRAGMENT/"$COOKIE_FRAGMENT"/ $PWD/cookies_template.txt > $PWD/cookies.txt
+  echo "Using [$COOKIE_FRAGMENT] for authentication"
 
-$PBP_SRC_ROOT/artefacts/httrack-scripts/efficiency-cli-curryear.sh || exit -1
+  $PBP_SRC_ROOT/artefacts/httrack-scripts/efficiency-cli-curryear.sh || exit -1
 
-# Can't easily detect failures so just always retry
-echo "Retrying x1 to catch any stragglers (after 1min pause)"
-sleep 60
-$PBP_SRC_ROOT/artefacts/httrack-scripts/efficiency-cli-curryear.sh --retry || exit -1
+  # Can't easily detect failures so just always retry
+  echo "Retrying x1 to catch any stragglers (after 1min pause)"
+  sleep 60
+  $PBP_SRC_ROOT/artefacts/httrack-scripts/efficiency-cli-curryear.sh --retry || exit -1
+fi
 
 java -cp "$PBP_SRC_ROOT/target/scala-2.12/cbb-explorer-assembly-0.1-deps.jar:$PBP_SRC_ROOT/target/scala-2.12/cbb-explorer_2.12-0.1.jar" \
     org.piggottfamily.cbb_explorer.BuildEfficiency \

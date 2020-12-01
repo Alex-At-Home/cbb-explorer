@@ -35,10 +35,12 @@ trait BoxscoreParser {
   // Holds all the HTML parsing logic
   protected object builders {
 
+    //TODO: this doesn't work on 2019- any more, need to remove the 50% line
     def team_finder(doc: Document): List[String] = //2020+ is 40%, 2019- is 50%
       (doc >?> elementList("div#contentarea table.mytable[width=50%],table.mytable[width=40%] td a[href]"))
         .getOrElse(Nil).map(_.text)
 
+    //TODO: this doesn't work on 2019- any more, need to remove the 50% line
     def score_finder(doc: Document): List[String] = //2020+ is 40%, 2019- is 50%
       (doc >?> elementList("div#contentarea table.mytable[width=50%],table.mytable[width=40%] td[align=right]"))
         .getOrElse(Nil).map(_.text)

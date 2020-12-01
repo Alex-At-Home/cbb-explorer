@@ -59,7 +59,7 @@ trait TeamIdParser {
   }
 
   /** Extract a list of triples for team, NCAA team id, and conference */
-  def get_team_triples(filename: String, in: String):
+  def get_team_triples(filename: String, in: String, adjustFor2020: Boolean = false):
     Either[List[ParseError], List[(TeamId, String, ConferenceId)]] =
   {
     val doc_request_builder = ParseUtils.build_request[Document](`ncaa.get_team_ids`, filename) _
@@ -74,7 +74,15 @@ trait TeamIdParser {
         builders.team_conference_finder(row)
       ) match {
         case (Some(name), Some(id), Some(conf)) =>
-          List((TeamId(name), id, ConferenceId(conf)))
+          val adjusted_id = if (adjustFor2020) { //Uses 2019 ids and adjusted based on some random rule I guessed at
+            val id_as_int = id.toInt
+            val adjustment = (if (id_as_int < 486990) 18820 else 18840)
+            val adjusted_id_as_int = id_as_int + adjustment
+            s"$adjusted_id_as_int"
+          } else {
+            id
+          }
+          List((TeamId(name), adjusted_id, ConferenceId(conf)))
         case _ => //(didn't find one of the required fields, skip the row)
           Nil
       }

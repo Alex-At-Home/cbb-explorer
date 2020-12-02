@@ -138,7 +138,7 @@ object ExtractorUtils {
 
       case _ =>
       Left(ParseUtils.build_sub_error("team")(
-        s"Could not find/match team names (target=[$target_team]): $teams"
+        s"Could not find/match team names (target=[$target_team]): ${teams.mkString("/")}"
       ))
     }
   }

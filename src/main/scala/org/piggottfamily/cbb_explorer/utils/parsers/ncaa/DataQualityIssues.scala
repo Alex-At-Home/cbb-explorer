@@ -73,6 +73,13 @@ object DataQualityIssues {
       "WRIGHT,KORNEILA" -> "WRIGHT, KAY KAY",
     ),
 
+    // B1G
+
+    Option(TeamId("Iowa")) -> Map(
+      // PbP error W 2020/21
+      "Lauren Jense" -> "Lauren Jensen",
+    ),
+
     // B12:
 
     Option(TeamId("Oklahoma St.")) -> Map(

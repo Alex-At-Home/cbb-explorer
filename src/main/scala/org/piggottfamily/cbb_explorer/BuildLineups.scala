@@ -71,9 +71,9 @@ object BuildLineups {
     val subdirs = ls! Path(in_dir)
     val (good_games, lineup_errors, player_events) = subdirs.map { subdir =>
       //TODO: add some error validation
-      val get_team_id = "(.*)_([0-9]+)$".r
+      val get_team_id = "(.*)_([0-9.]+)$".r
       subdir.last match {
-        case get_team_id(team_name, team_id)
+        case get_team_id(team_name, _)
           if maybe_team_selector.forall(sel => team_name.contains(sel))
         =>
           val team_dir =  subdir/ "stats.ncaa.org"

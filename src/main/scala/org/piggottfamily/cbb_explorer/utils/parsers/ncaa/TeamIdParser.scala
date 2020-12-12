@@ -40,15 +40,22 @@ trait TeamIdParser {
     def team_row_finder(doc: Document): List[Element] =
       (doc >?> elementList("tr:has(td:has(a.skipMask))")).getOrElse(Nil)
 
-    val id_regex = "/teams/([0-9]+)".r
+    val id_regex_old = "/teams/([0-9]+)".r
+    val id_regex_new = "/team/([0-9.]+)/[0-9]+".r
 
     def team_id_finder(e: Element): Option[String] =
       (e >?> element("a.skipMask")).flatMap(e => Option(e.attr("href"))).collect {
-        case id_regex(id) => id
+        case id_regex_new(id) => id
+        case id_regex_old(id) => id
       }
 
-    def team_name_finder(e: Element): Option[String] =
-      (e >?> element("a.skipMask")).map(_.text)
+    val team_conf_regex = "^(.*) \\(([A-Za-z0-9 .'-]+)\\)$".r
+
+    def team_name_finder(e: Element, old_format: Boolean): Option[Either[String, (String, String)]] =
+      (e >?> element("a.skipMask")).map(_.text).collect {
+        case s if old_format => Left(s)
+        case team_conf_regex(team, conf) => Right((team, conf))
+      }
 
     val conference_regex = "([A-Za-z].*)".r
 
@@ -59,7 +66,7 @@ trait TeamIdParser {
   }
 
   /** Extract a list of triples for team, NCAA team id, and conference */
-  def get_team_triples(filename: String, in: String, adjustFor2020: Boolean = false):
+  def get_team_triples(filename: String, in: String, old_format: Boolean = false):
     Either[List[ParseError], List[(TeamId, String, ConferenceId)]] =
   {
     val doc_request_builder = ParseUtils.build_request[Document](`ncaa.get_team_ids`, filename) _
@@ -68,21 +75,15 @@ trait TeamIdParser {
     for {
       doc <- doc_request_builder(browser.parseString(in))
     } yield builders.team_row_finder(doc).flatMap { row =>
-
-      (builders.team_name_finder(row),
+      (builders.team_name_finder(row, old_format),
         builders.team_id_finder(row),
         builders.team_conference_finder(row)
       ) match {
-        case (Some(name), Some(id), Some(conf)) =>
-          val adjusted_id = if (adjustFor2020) { //Uses 2019 ids and adjusted based on some random rule I guessed at
-            val id_as_int = id.toInt
-            val adjustment = (if (id_as_int < 486990) 18820 else 18840)
-            val adjusted_id_as_int = id_as_int + adjustment
-            s"$adjusted_id_as_int"
-          } else {
-            id
-          }
-          List((TeamId(name), adjusted_id, ConferenceId(conf)))
+        case (Some(Right((name, conf))), Some(id), _) => // new format, the conf is in the name
+          List((TeamId(name), id, ConferenceId(conf)))
+
+        case (Some(Left(name)), Some(id), Some(conf)) => //old format, separate name
+          List((TeamId(name), id, ConferenceId(conf)))
         case _ => //(didn't find one of the required fields, skip the row)
           Nil
       }

@@ -23,6 +23,11 @@ object DataQualityIssues {
   val misspellings: Map[Option[TeamId], Map[String, String]] = Map( // pairs - full name in box score, and also name for PbP
 
     // ACC:
+    Option(TeamId("Virginia")) -> Map(
+      //PbP tidy game from W 2020/21
+      "Ti Stojsavlevic" -> "Ti Stojsavljevic",
+    ),
+
     Option(TeamId("Duke")) -> Map(
       //Box tidy complicated game from W 2018/9
       "Akinbode-James, O." -> "James, Onome",
@@ -71,6 +76,13 @@ object DataQualityIssues {
       // PbP error W 2018/19
       "Korneila Wright" -> "Kay Kay Wright",
       "WRIGHT,KORNEILA" -> "WRIGHT, KAY KAY",
+    ),
+
+    // Big East
+
+    Option(TeamId("Creighton")) -> Map(
+      // PbP error W 2020/21
+      "Dee Dee Pryor" -> "DeArica Pryor",
     ),
 
     // B1G

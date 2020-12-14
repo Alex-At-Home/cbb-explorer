@@ -59,6 +59,9 @@ output.elasticsearch:
     - index: "women_american_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/women_american_[0-9]+(_.*)?.ndjson"
+    - index: "women_bigeast_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_bigeast_[0-9]+(_.*)?.ndjson"
     - index: "women_bigten_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/women_bigten_[0-9]+(_.*)?.ndjson"
@@ -121,6 +124,9 @@ output.elasticsearch:
     - index: "player_events_women_american_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_women_american_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_bigeast_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_bigteast_[0-9]+(_.*)?.ndjson"
     - index: "player_events_women_bigten_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_women_bigten_[0-9]+(_.*)?.ndjson"

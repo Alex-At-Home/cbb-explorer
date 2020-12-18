@@ -5,10 +5,10 @@
 #ROOT_URL=TODO
 #(to get the team navigate to https://$PBP_ROOT_URL/reports/attendance?id=XXX (couln)
 # pick the team, select the year, then the team id is the last bit of the URL)
-YEAR=2020
-CONF=women_misc_conf
+YEAR=__YEAR_HERE__
+CONF=__CONF_HERE__
 array=(
-'649.0/15500::South+Dakota+St.'
+__TEAMIDS_HERE__
 )
 
 #TODO add TEAM filter

@@ -41,7 +41,7 @@ trait TeamIdParser {
       (doc >?> elementList("tr:has(td:has(a.skipMask))")).getOrElse(Nil)
 
     val id_regex_old = "/teams/([0-9]+)".r
-    val id_regex_new = "/team/([0-9.]+)/[0-9]+".r
+    val id_regex_new = "/team/([0-9.]+/[0-9]+)".r
 
     def team_id_finder(e: Element): Option[String] =
       (e >?> element("a.skipMask")).flatMap(e => Option(e.attr("href"))).collect {

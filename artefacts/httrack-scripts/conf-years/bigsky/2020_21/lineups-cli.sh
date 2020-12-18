@@ -6,9 +6,19 @@
 #(to get the team navigate to https://$PBP_ROOT_URL/reports/attendance?id=XXX (couln)
 # pick the team, select the year, then the team id is the last bit of the URL)
 YEAR=2020
-CONF=women_misc_conf
+CONF=bigsky
 array=(
-'649.0/15500::South+Dakota+St.'
+   '440.0/15480::Montana+St.'
+   '102.0/15480::Sacramento+St.'
+   '667.0/15480::Southern+Utah'
+   '758.0/15480::Weber+St.'
+   '502.0/15480::Northern+Colo.'
+   '550.0/15480::Portland+St.'
+   '441.0/15480::Montana'
+   '207.0/15480::Eastern+Wash.'
+   '294.0/15480::Idaho+St.'
+   '295.0/15480::Idaho'
+   '501.0/15480::Northern+Ariz.'
 )
 
 #TODO add TEAM filter

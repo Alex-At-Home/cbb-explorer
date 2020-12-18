@@ -6,9 +6,20 @@
 #(to get the team navigate to https://$PBP_ROOT_URL/reports/attendance?id=XXX (couln)
 # pick the team, select the year, then the team id is the last bit of the URL)
 YEAR=2020
-CONF=women_misc_conf
+CONF=mac
 array=(
-'649.0/15500::South+Dakota+St.'
+   '5.0/15480::Akron'
+   '519.0/15480::Ohio'
+   '71.0/15480::Bowling+Green'
+   '331.0/15480::Kent+St.'
+   '86.0/15480::Buffalo'
+   '129.0/15480::Central+Mich.'
+   '204.0/15480::Eastern+Mich.'
+   '709.0/15480::Toledo'
+   '47.0/15480::Ball+St.'
+   '414.0/15480::Miami+%28OH%29'
+   '774.0/15480::Western+Mich.'
+   '503.0/15480::Northern+Ill.'
 )
 
 #TODO add TEAM filter

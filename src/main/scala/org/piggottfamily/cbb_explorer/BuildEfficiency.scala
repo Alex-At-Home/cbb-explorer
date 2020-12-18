@@ -18,7 +18,7 @@ object BuildEfficiency {
     if (args.length == 0) {
       println("""
         |--in=<<in-dir-from-crawler>>
-        |--out=<<out-dir-in-which-file-us-placed>>
+        |--out=<<out-dir-in-which-file-is-placed>>
         |[--team]=<<only include teams matching this regex>>
         |[--year]=<<year-extracted-default-2020>>
         """)

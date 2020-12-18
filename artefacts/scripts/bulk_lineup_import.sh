@@ -23,9 +23,9 @@ export CURR_TIME=${CURR_TIME:=$(date +"%s")}
 export CURR_YEAR_STR=${CURR_YEAR_STR:="2020_21"}
 export CURR_YEAR=$(echo $CURR_YEAR_STR | cut -c1-4)
 
-export CONFS=${CONFS:="acc american atlanticten bigeast bigten bigtwelve pactwelve sec misc_conf women_acc women_american women_bigeast women_bigten women_bigtwelve women_pactwelve women_sec"}
+export CONFS=${CONFS:="acc american atlanticten bigeast bigten bigtwelve pactwelve sec misc_conf women_acc women_american women_bigeast women_bigten women_bigtwelve women_pactwelve women_sec women_misc_conf"}
 #export CONFS=${CONFS:="acc american atlanticten bigeast bigten bigtwelve pactwelve sec misc_conf"}
-#export CONFS=${CONFS:="women_acc women_american women_bigeast women_bigten women_bigtwelve women_pactwelve women_sec"}
+#export CONFS=${CONFS:="women_acc women_american women_bigeast women_bigten women_bigtwelve women_pactwelve women_sec women_misc_conf"}
 
 echo ">>>>>>> Extracting from [$CURR_TIME] for [$CURR_YEAR]/[$CURR_YEAR_STR] on [$CONFS] with [$TEAM_FILTER]"
 sleep 2

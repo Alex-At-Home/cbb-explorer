@@ -9,6 +9,7 @@ filebeat.inputs:
 
     - ./women_acc_20*.ndjson
     - ./women_american_20*.ndjson
+    - ./women_bigeast_20*.ndjson
     - ./women_bigten_20*.ndjson
     - ./women_bigtwelve_20*.ndjson
     - ./women_pactwelve_20*.ndjson
@@ -22,6 +23,17 @@ filebeat.inputs:
     - ./bigtwelve_20*.ndjson
     - ./pactwelve_20*.ndjson
     - ./sec_20*.ndjson
+
+    - ./wcc_20*.ndjson
+    - ./mountainwest_20*.ndjson
+    - ./mvc_20*.ndjson
+    - ./conferenceusa_20*.ndjson
+    - ./mac_20*.ndjson
+    - ./socon_20*.ndjson
+    - ./sunbelt_20*.ndjson
+    - ./bigsky_20*.ndjson
+    - ./colonial_20*.ndjson
+    - ./summit_20*.ndjson
 
     - ./bad_lineups_*_20*.ndjson
 
@@ -75,6 +87,7 @@ output.elasticsearch:
       when.regexp:
         log.file.path: ".*/women_sec_[0-9]+(_.*)?.ndjson"
 
+    # High/mid majors
     - index: "acc_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/acc_[0-9]+(_.*)?.ndjson"
@@ -99,6 +112,38 @@ output.elasticsearch:
     - index: "sec_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/sec_[0-9]+(_.*)?.ndjson"
+
+    # Mid-mid majors
+    - index: "wcc_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/wcc_[0-9]+(_.*)?.ndjson"
+    - index: "mountainwest_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/mountainwest_[0-9]+(_.*)?.ndjson"
+    - index: "mvc_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/mvc_[0-9]+(_.*)?.ndjson"
+    - index: "conferenceusa_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/conferenceusa_[0-9]+(_.*)?.ndjson"
+    - index: "mac_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/mac_[0-9]+(_.*)?.ndjson"
+    - index: "socon_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/socon_[0-9]+(_.*)?.ndjson"
+    - index: "sunbelt_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/sunbelt_[0-9]+(_.*)?.ndjson"
+    - index: "bigsky_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/bigsky_[0-9]+(_.*)?.ndjson"
+    - index: "colonial_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/colonial_[0-9]+(_.*)?.ndjson"
+    - index: "summit_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/summit_[0-9]+(_.*)?.ndjson"
 
     # (order of these 2 matter:)
     - index: "bad_lineups_women_%{[team.year]}_${PING}"
@@ -126,7 +171,7 @@ output.elasticsearch:
         log.file.path: ".*/player_events_women_american_[0-9]+(_.*)?.ndjson"
     - index: "player_events_women_bigeast_%{[team.year]}_${PING}"
       when.regexp:
-        log.file.path: ".*/player_events_women_bigteast_[0-9]+(_.*)?.ndjson"
+        log.file.path: ".*/player_events_women_bigeast_[0-9]+(_.*)?.ndjson"
     - index: "player_events_women_bigten_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_women_bigten_[0-9]+(_.*)?.ndjson"
@@ -140,6 +185,7 @@ output.elasticsearch:
       when.regexp:
         log.file.path: ".*/player_events_women_sec_[0-9]+(_.*)?.ndjson"
 
+    # High/mid majors
     - index: "player_events_men_acc_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_acc_[0-9]+(_.*)?.ndjson"
@@ -164,6 +210,39 @@ output.elasticsearch:
     - index: "player_events_men_sec_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/player_events_sec_[0-9]+(_.*)?.ndjson"
+
+    # Mid-mid majors
+    - index: "player_events_men_wcc_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_wcc_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_men_mountainwest_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_mountainwest_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_men_mvc_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_mvc_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_men_conferenceusa_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_conferenceusa_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_men_mac_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_mac_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_men_socon_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_socon_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_men_sunbelt_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_sunbelt_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_men_bigsky_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_bigsky_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_men_colonial_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_colonial_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_men_summit_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_summit_[0-9]+(_.*)?.ndjson"
+
 
 setup.template.enabled: false
 

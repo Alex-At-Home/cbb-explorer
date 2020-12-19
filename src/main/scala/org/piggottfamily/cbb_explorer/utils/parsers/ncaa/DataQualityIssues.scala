@@ -131,6 +131,25 @@ object DataQualityIssues {
       "longpr??" -> "longpre"
     ),
 
+    // C-USA
+
+    Option(TeamId("Fla. Atlantic")) -> Map(
+      // Bring PbP in line with box (2020)
+      "B.J. Greenlee" -> "Bryan Greenlee"
+    ),
+
+    Option(TeamId("Middle Tenn.")) -> Map(
+      // Bring PbP in line with box (2020)
+      "CRISS,JV" -> "MILLNER-CRISS,JO"
+    ),
+
+    // MWC
+
+    Option(TeamId("Wyoming")) -> Map(
+      // PBP has this the wrong way round compared to box score
+      "LaMont Drew" -> "Drew LaMont"
+    ),
+
     // PAC-12
 
     Option(TeamId("Washington")) -> Map(

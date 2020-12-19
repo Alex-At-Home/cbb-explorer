@@ -13,6 +13,7 @@ array=(
 '505598::BYU'
 '505837::San+Diego+St.'
 '505518::Utah+St.'
+'505649::ETSU'
 )
 
 #TODO add TEAM filter

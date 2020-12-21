@@ -18,8 +18,8 @@ object BuildIngestPipeline {
 
   val h2ncaa_conf_map = Map(
     "acc" -> "ACC",
-    "american" -> "AAC",
     "americaeast" -> "America East",
+    "american" -> "AAC",
     "atlanticsun" -> "ASUN",
     "atlanticten" -> "Atlantic 10",
     "bigeast" -> "Big East",
@@ -28,8 +28,8 @@ object BuildIngestPipeline {
     "bigten" -> "Big Ten",
     "bigtwelve" -> "Big 12",
     "bigwest" -> "Big West",
-    "conferenceusa" -> "C-USA",
     "colonial" -> "CAA",
+    "conferenceusa" -> "C-USA",
     "horizon" -> "Horizon",
     "ivy" -> "Ivy League",
     "maac" -> "MAAC",

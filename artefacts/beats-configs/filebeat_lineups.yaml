@@ -44,7 +44,7 @@ filebeat.inputs:
     - ./ovc_20*.ndjson
     - ./patriot_20*.ndjson
     - ./socon_20*.ndjson
-    - ./waac_20*.ndjson
+    - ./wac_20*.ndjson
     # Men low majors
     - ./americaeast_20*.ndjson
     - ./atlanticsun_20*.ndjson

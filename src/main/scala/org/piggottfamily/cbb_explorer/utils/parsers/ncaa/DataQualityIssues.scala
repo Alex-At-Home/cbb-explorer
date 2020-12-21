@@ -78,6 +78,12 @@ object DataQualityIssues {
       "WRIGHT,KORNEILA" -> "WRIGHT, KAY KAY",
     ),
 
+    // America East
+    Option(TeamId("Binghamton")) -> Map(
+      // PbP error 2020/21
+      "Ocheneyole Akuwovo" -> "Ogheneyole Akuwovo",
+    ),
+
     // Big East
 
     Option(TeamId("Creighton")) -> Map(
@@ -143,11 +149,40 @@ object DataQualityIssues {
       "CRISS,JV" -> "MILLNER-CRISS,JO"
     ),
 
+    // MEAC
+
+    Option(TeamId("Morgan St.")) -> Map(
+      // PBP name difference 2020/21
+      "DEVONISH,SHERWYN" -> "DEVONISH-PRINCE,SHERWYN"
+    ),
+
+    Option(TeamId("South Carolina St.")) -> Map(
+      // Box is wrong, unusually 2020/21
+      "JR., RIDEAU" -> "RIDEAU, FLOYD",
+      "RIDEAU JR." -> "FLOYD RIDEAU"
+    ),
+
     // MWC
 
     Option(TeamId("Wyoming")) -> Map(
-      // PBP has this the wrong way round compared to box score
+      // PBP has this the wrong way round compared to box score 2020/21
       "LaMont Drew" -> "Drew LaMont"
+    ),
+
+    // NEC
+
+    Option(TeamId("LIU")) -> Map(
+      // PBP name difference 2020/21
+      "Anthony Cabala" -> "Anthony Kabala"
+    ),
+    Option(TeamId("Sacred Heart")) -> Map(
+      "Quest Harrist" -> "Quest Harris"
+    ),
+
+    // OVC
+    Option(TeamId("Eastern Ky.")) -> Map(
+      // PBP name difference 2020/21
+      "CRUIKSHANK,RUSSHARD" -> "CRUICKSHANK,RUSSHARD"
     ),
 
     // PAC-12

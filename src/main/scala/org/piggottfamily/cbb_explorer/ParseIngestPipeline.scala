@@ -20,37 +20,41 @@ object ParseIngestPipeline {
 
   val ncaa_conf_map = Map( //(need to come up with a mid vs low-mid strategy, fill in XXXs when done!)
     "acc" -> "high",
-    "american" -> "high",
-    "americaeast" -> "XXX",
-    "atlanticsun" -> "XXX",
-    "atlanticten" -> "midhigh",
     "bigeast" -> "high",
-    "bigsky" -> "mid",
-    "bigsouth" -> "XXX",
     "bigten" -> "high",
     "bigtwelve" -> "high",
-    "bigwest" -> "XXX",
+    "pactwelve" -> "high",
+    "sec" -> "high",
+
+    "american" -> "midhigh",
+    "atlanticten" -> "midhigh",
+    "mountainwest" -> "midhigh",
+    "wcc" -> "midhigh",
+
+    "bigwest" -> "mid",
     "conferenceusa" -> "mid",
     "colonial" -> "mid",
     "horizon" -> "mid",
-    "ivy" -> "XXX",
-    "maac" -> "XXX",
+    "ivy" -> "mid",
     "mac" -> "mid",
-    "meac" -> "XXX",
-    "mountainwest" -> "midhigh",
     "mvc" -> "mid",
-    "nec" -> "XXX",
-    "ovc" -> "XXX",
-    "pactwelve" -> "high",
-    "patriot" -> "mid",
-    "sec" -> "high",
-    "socon" -> "mid",
-    "southland" -> "XXX",
     "summit" -> "mid",
     "sunbelt" -> "mid",
-    "swac" -> "XXX",
-    "wac" -> "XXX",
-    "wcc" -> "midhigh",
+
+    "bigsky" -> "midlow",
+    "maac" -> "midlow",
+    "ovc" -> "midlow",
+    "patriot" -> "midlow",
+    "socon" -> "midlow",
+    "wac" -> "midlow",
+
+    "americaeast" -> "low",
+    "atlanticsun" -> "low",
+    "bigsouth" -> "low",
+    "meac" -> "low",
+    "nec" -> "low",
+    "southland" -> "low",
+    "swac" -> "low",
 
     "misc_conf" -> "midhigh" //(treat as midhigh even if not true)
   )
@@ -86,7 +90,9 @@ object ParseIngestPipeline {
       case men_path_regex(conf, year, team) => TeamInfo("Men", conf, year, URLDecoder.decode(team, "UTF-8"))
     }
 
-    val sorter = (t2: (String, Seq[TeamInfo])) => s"${t2._2.headOption.map(_.conf)} ${t2._1}"
+    // Sort by team not conf then team:
+    //val sorter = (t2: (String, Seq[TeamInfo])) => s"${t2._2.headOption.map(_.conf)} ${t2._1}"
+    val sorter = (t2: (String, Seq[TeamInfo])) => s"${t2._1}"
     teams.groupBy(_.team).toList.sortBy(sorter).foreach { case (key, vals) =>
       println(s"""  "$key": [""")
       vals.filter(team => year_mapper.get(team.year).nonEmpty).sortBy(t => t.gender + t.year).foreach {

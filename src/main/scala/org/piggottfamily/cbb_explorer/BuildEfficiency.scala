@@ -71,7 +71,7 @@ object BuildEfficiency {
         Year(2018) -> 351,
         Year(2019) -> 353,
         Year(2020) -> 353,
-        Year(2021) -> 348
+        Year(2021) -> 347
       )
       if (eff.size != expected_per_year(Year(year_int))) {
         println(s"[ERROR] Built [${eff.size}] vs expected [${expected_per_year(Year(year_int))}]")

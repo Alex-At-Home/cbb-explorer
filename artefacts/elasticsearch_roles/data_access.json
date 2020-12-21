@@ -1,0 +1,61 @@
+{
+    "cluster" : [ ],
+    "indices" : [
+      {
+        "names" : [
+          "maryland_*",
+          "women_bigten_*",
+          "misc_conf_*",
+          "bigten_*",
+          "acc_*",
+          "american_*",
+          "bigeast_*",
+          "bigtwelve_*",
+          "pactwelve_*",
+          "sec_*",
+          "atlanticten_*",
+          "women_acc_*",
+          "women_bigtwelve_*",
+          "women_sec_*",
+          "women_pactwelve_*",
+          "women_american_*",
+          "player_events_*",
+          "*_ltest",
+          "women_bigeast_*",
+          "women_misc_conf_*",
+          "wcc_*",
+          "mountainwest_*",
+          "mvc_*",
+          "conferenceusa_*",
+          "mac_*",
+          "socon_*",
+          "sunbelt_*",
+          "bigsky_*",
+          "colonial_*",
+          "summit_*",
+          "americaeast_*",
+          "atlanticsun_*",
+          "bigsouth_*",
+          "horizon_*",
+          "maac_*",
+          "meac_*",
+          "nec_*",
+          "ovc_*",
+          "patriot_*",
+          "southland_*",
+          "swac_*",
+          "wac_*"
+        ],
+        "privileges" : [
+          "read"
+        ],
+        "field_security" : {
+          "grant" : [
+            "*"
+          ]
+        },
+        "allow_restricted_indices" : false
+      }
+    ],
+    "applications" : [ ]
+  }

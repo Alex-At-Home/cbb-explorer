@@ -1,0 +1,6 @@
+    - index: "XXX_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/XXX_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_men_XXX_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_XXX_[0-9]+(_.*)?.ndjson"

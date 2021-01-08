@@ -174,7 +174,8 @@ trait PlayByPlayParser {
             Some(event),
             ascend_minutes(event, state.period) :: Nil
           )
-        case Some(next_event) if event.min > next_event.min => // game break!
+        case Some(next_event) if event.min > next_event.min + 1.1 =>
+          // game break! (+1.1 for safety - sometimes events are mildly out of order, eg end of 2019/20 Florida-Missouri 1st half)
           val game_break = Model.GameBreakEvent(duration_from_period(state.period), event.score)
           val new_period = state.period + 1
           State(new_period,

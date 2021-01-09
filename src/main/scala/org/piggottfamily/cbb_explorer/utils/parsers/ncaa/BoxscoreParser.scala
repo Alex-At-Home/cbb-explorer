@@ -107,8 +107,8 @@ trait BoxscoreParser {
     } yield LineupEvent(
       date,
       location_type,
-      start_min = start_time_from_period(period),
-      end_min = start_time_from_period(period),
+      start_min = start_time_from_period(period, is_women_game = false), //(doesn't matter which)
+      end_min = start_time_from_period(period, is_women_game = false),
       duration_mins = 0.0,
       score_info = LineupEvent.ScoreInfo(Game.Score(0, 0), final_score, 0, 0),
       team = TeamSeasonId(TeamId(team), year),

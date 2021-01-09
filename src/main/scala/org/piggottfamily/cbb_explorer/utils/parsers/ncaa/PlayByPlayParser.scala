@@ -155,8 +155,10 @@ trait PlayByPlayParser {
     in: List[Model.PlayByPlayEvent]
   ): List[Model.PlayByPlayEvent] =
   {
+    val is_women_game = in.headOption.exists(_.min <= 10);
+
     def ascend_minutes(ev: Model.PlayByPlayEvent, period: Int): Model.PlayByPlayEvent = {
-      val total_duration = duration_from_period(period)
+      val total_duration = duration_from_period(period, is_women_game)
       val new_min = total_duration - ev.min
       ev.with_min(new_min)
     }
@@ -176,7 +178,7 @@ trait PlayByPlayParser {
           )
         case Some(next_event) if event.min > next_event.min + 1.1 =>
           // game break! (+1.1 for safety - sometimes events are mildly out of order, eg end of 2019/20 Florida-Missouri 1st half)
-          val game_break = Model.GameBreakEvent(duration_from_period(state.period), event.score)
+          val game_break = Model.GameBreakEvent(duration_from_period(state.period, is_women_game), event.score)
           val new_period = state.period + 1
           State(new_period,
             Some(event),
@@ -190,7 +192,7 @@ trait PlayByPlayParser {
       }
     }
     Model.GameEndEvent(
-      duration_from_period(end_state.period),
+      duration_from_period(end_state.period, is_women_game),
       end_state.last.map(_.score).getOrElse(Game.Score(0, 0))
     ) :: end_state.game_events
   }

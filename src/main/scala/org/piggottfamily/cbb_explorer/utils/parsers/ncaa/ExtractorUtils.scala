@@ -144,14 +144,18 @@ object ExtractorUtils {
   }
 
   /** Gets the start time from the period - ie 2x 20 minute halves, then 5m overtimes */
-  def start_time_from_period(period: Int): Double = (period - 1) match {
-    case n if n < 2 => n*20.0
-    case m => 40.0 + (m - 2)*5.0
-  }
+  def start_time_from_period(period: Int, is_women_game: Boolean): Double =
+    if (is_women_game) (period - 1) match {
+      case n if n < 4 => n*10.0
+      case m => 40.0 + (m - 4)*5.0
+    } else (period - 1) match {
+      case n if n < 2 => n*20.0
+      case m => 40.0 + (m - 2)*5.0
+    }
   /** Gets the end time (ie game duration to date) from the period
   *   - ie 2x 20 minute halves, then 5m overtimes
   */
-  def duration_from_period(period: Int): Double = start_time_from_period(period + 1)
+  def duration_from_period(period: Int, is_women_game: Boolean): Double = start_time_from_period(period + 1, is_women_game)
 
   /** Builds a player code out of the name, with various formats supported */
   def build_player_code(in_name: String, team: Option[TeamId]): LineupEvent.PlayerCodeId = {

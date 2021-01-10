@@ -176,7 +176,7 @@ trait PlayByPlayParser {
             Some(event),
             ascend_minutes(event, state.period) :: Nil
           )
-        case Some(next_event) if event.min > next_event.min + 1.1 =>
+        case Some(prev_event) if event.min > prev_event.min + 1.1 =>
           // game break! (+1.1 for safety - sometimes events are mildly out of order, eg end of 2019/20 Florida-Missouri 1st half)
           val game_break = Model.GameBreakEvent(duration_from_period(state.period, is_women_game), event.score)
           val new_period = state.period + 1
@@ -184,11 +184,26 @@ trait PlayByPlayParser {
             Some(event),
             ascend_minutes(event, new_period) :: game_break :: state.game_events
           )
-        case _ =>
-          State(state.period,
-            Some(event),
-            ascend_minutes(event, state.period) :: state.game_events
-          )
+
+        case Some(prev_event) =>
+          val half_or_quarter_thresh =
+            duration_from_period(state.period, is_women_game) - duration_from_period(state.period - 1, is_women_game) - 0.5
+
+          if ((event.min == 0) && (prev_event.min >= half_or_quarter_thresh)) {
+            //(this is a rare corruption, the initial block of 2nd half results has 0s in the middle of it)
+            //examples: 2020/21 N.C A&T (vs Alabama St.) / Jackson St. (vs South Carolina St.)
+            val adjusted_event = event.with_min(prev_event.min)
+            State(state.period,
+              Some(adjusted_event),
+              ascend_minutes(adjusted_event, state.period) :: state.game_events
+            )
+
+          } else {
+            State(state.period,
+              Some(event),
+              ascend_minutes(event, state.period) :: state.game_events
+            )
+          }
       }
     }
     Model.GameEndEvent(

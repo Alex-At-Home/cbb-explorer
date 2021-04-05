@@ -170,7 +170,9 @@ object DataQualityIssues {
       // PBP and box name difference 2020/21
       "DEVONISH,SHERWYN" -> "DEVONISH-PRINCE,SHERWYN",
       "Devonish, Sherwyn" -> "Devonish-Prince, Sherwyn",
+      "Devonish-Prince Jr., Sherwyn" -> "Devonish-Prince, Sherwyn",
       "Sherwyn Devonish" -> "Sherwyn Devonish-Prince",
+      "Sherwyn Devonish-Prince Jr." -> "Sherwyn Devonish-Prince",
       "Lapri Pace" -> "Lapri McCray-Pace"
     ),
 

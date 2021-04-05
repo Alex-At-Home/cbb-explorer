@@ -57,7 +57,7 @@ trait BoxscoreParser {
   }
 
   /** Gets the boxscore lineup from the HTML page */
-  def get_box_lineup(filename: String, in: String, team: TeamId, neutral_game_dates: Set[String] = Set())
+  def get_box_lineup(filename: String, in: String, team_id: TeamId, neutral_game_dates: Set[String] = Set())
     : Either[List[ParseError], LineupEvent] =
   {
     val browser = JsoupBrowser()
@@ -73,7 +73,7 @@ trait BoxscoreParser {
                   .left.map(single_error_completer)
 
       team_info <- parse_team_name(
-        builders.team_finder(doc), team
+        builders.team_finder(doc), team_id
       ).left.map(single_error_completer)
 
       (team, opponent, target_team_first) = team_info //SI-5589
@@ -100,8 +100,13 @@ trait BoxscoreParser {
         builders.boxscore_finder(doc, target_team_first)
       ).left.map(single_error_completer)
 
+      starting_lineup_set = starting_lineup.toSet
+      starting_lineup_plus = starting_lineup ++
+        DataQualityIssues.players_missing_from_boxscore
+          .getOrElse(TeamId(team), Map()).getOrElse(year, List()).filterNot(starting_lineup_set)
+
       validated_lineup <- validate_box_score(
-        TeamId(team), starting_lineup
+        TeamId(team), starting_lineup_plus
       ).left.map(single_error_completer)
 
     } yield LineupEvent(

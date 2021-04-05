@@ -1,8 +1,19 @@
 package org.piggottfamily.cbb_explorer.utils.parsers.ncaa
 
 import org.piggottfamily.cbb_explorer.models.TeamId
+import org.piggottfamily.cbb_explorer.models.Year
 
 object DataQualityIssues {
+
+  /** Will be in format "LASTNAME,FIRSTNAME" or "Lastname, Firstname" */
+  val players_missing_from_boxscore: Map[TeamId, Map[Year, List[String]]] = Map(
+    TeamId("Morgan St.") -> Map(
+      Year(2020) -> List("McCray-Pace, Lapri")
+    ),
+    TeamId("South Carolina St.") -> Map(
+      Year(2020) -> List("Butler, Rashamel")
+    )
+  )
 
   /** Use first and last letters from first name for these players */
   val players_with_duplicate_names = Set(
@@ -20,6 +31,10 @@ object DataQualityIssues {
     "cumberland, jaev", "jaev cumberland", "cumberland,jaev",
     "cumberland, jarron", "jarron cumberland", "cumberland,jarron",
   )
+
+  /** Will be in format "LASTNAME,FIRSTNAME" (old box, pbp) or "Lastname, Firstname" (new box)
+   *  "Firstname Lastname" (new pbp)
+   */
   val misspellings: Map[Option[TeamId], Map[String, String]] = Map( // pairs - full name in box score, and also name for PbP
 
     // ACC:
@@ -152,14 +167,18 @@ object DataQualityIssues {
     // MEAC
 
     Option(TeamId("Morgan St.")) -> Map(
-      // PBP name difference 2020/21
-      "DEVONISH,SHERWYN" -> "DEVONISH-PRINCE,SHERWYN"
+      // PBP and box name difference 2020/21
+      "DEVONISH,SHERWYN" -> "DEVONISH-PRINCE,SHERWYN",
+      "Devonish, Sherwyn" -> "Devonish-Prince, Sherwyn",
+      "Sherwyn Devonish" -> "Sherwyn Devonish-Prince",
+      "Lapri Pace" -> "Lapri McCray-Pace"
     ),
 
     Option(TeamId("South Carolina St.")) -> Map(
       // Box is wrong, unusually 2020/21
       "JR., RIDEAU" -> "RIDEAU, FLOYD",
-      "RIDEAU JR." -> "FLOYD RIDEAU"
+      "RIDEAU JR." -> "FLOYD RIDEAU",
+      "BULTER,RASHAMEL" -> "BUTLER,RASHAMEL"
     ),
 
     // MWC

@@ -12,6 +12,30 @@ object DataQualityIssues {
     ),
     TeamId("South Carolina St.") -> Map(
       Year(2020) -> List("Butler, Rashamel")
+    ),
+    TeamId("Charleston So.") -> Map(
+      Year(2020) -> List("Bowser, Sadarius")
+    ),
+    TeamId("High Point") -> Map(
+      Year(2020) -> List("Ranleman, Bryant")
+    ),
+    TeamId("Longwood") -> Map(
+      Year(2020) -> List("Nkereuwem, Leslie", "Stefanovic, Ilija")
+    ),
+    TeamId("Presbyterian") -> Map(
+      Year(2020) -> List("Graham, Zeb")
+    ),
+    TeamId("Alcorn") -> Map(
+      Year(2020) -> List("Pierce, David")
+    ),
+    TeamId("Ark.-Pine Bluff") -> Map(
+      Year(2020) -> List("Stredic Jr., Alvin", "Stokes, Kshun", "Doss Jr., Shaun")
+    ),
+    TeamId("Mississippi Val.") -> Map(
+      Year(2020) -> List("Gordon, Devin")
+    ),
+    TeamId("Southern U.") -> Map(
+      Year(2020) -> List("Henderson, Harrison", "Williams Jr., Terrell")
     )
   )
 
@@ -204,6 +228,44 @@ object DataQualityIssues {
     Option(TeamId("Eastern Ky.")) -> Map(
       // PBP name difference 2020/21
       "CRUIKSHANK,RUSSHARD" -> "CRUICKSHANK,RUSSHARD"
+    ),
+
+    // Big South
+    Option(TeamId("Charleston So.")) -> Map(
+      // Wrong in the PBP, 2020/21
+      "SADARIUS,BOWSER" -> "BOWSER,SADARIUS",
+      "PORTER,TJ" -> "PORTER JR.,TERENCE"
+    ),
+    Option(TeamId("Longwood")) -> Map(
+      // Wrong in the PBP, 2020/21
+      "NKEREUWEM" -> "NKEREUWEM,LESLIE",
+      "STEFANOVIC,LLIJA" -> "STEFANOVIC,ILIJA",
+      "O'CONNER,CAMERON" -> "O'CONNOR,CAMERON"
+    ),
+
+    //SWAC
+    Option(TeamId("Southern U.")) -> Map(
+      "SHIVERS,ASHANTE" -> "SHIVERS,AHSANTE"
+    ),
+    Option(TeamId("Alcorn")) -> Map(
+      // Wrong in the PBP, 2020/21
+      "10" -> "WILSON,KOBE"
+    ),
+    Option(TeamId("Ark.-Pine Bluff")) -> Map(
+      // Wrong in the PBP, 2020/21
+      "DOOITTLE,TRAVONTA" -> "DOOLITTLE,TRAVONTA",
+      "PATTERSON,OMAR" -> "PARCHMAN,OMAR",
+      ",ALVIN STREDIC JR" -> "STREDIC JR, ALVIN",
+      ",SHAUN DOSS JR" -> "DOSS JR, SHAUN"
+    ),
+    Option(TeamId("Grambling")) -> Map(
+      // Wrong in the PBP, 2020/21
+      "SARION,MCGEE" -> "MCGEE,SARION"
+    ),
+    Option(TeamId("Mississippi Val.")) -> Map(
+      // Wrong in the PBP, 2020/21
+      "Jonathan Fanard" -> "Donalson Fanord",
+      "WALDON,QUOIREN" -> "WALDEN,QUOIREN"
     ),
 
     // PAC-12

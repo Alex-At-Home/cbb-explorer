@@ -51,7 +51,7 @@ object DataQualityIssues {
     //"davis, jordan", "jordan davis", "davis,jordan",
     "davis, jonathan", "jonathan davis", "davis,jonathan",
 
-// These two have the same name regardless of strategy! Use misspellings to tuncate Jaev's name
+    // These two have the same name regardless of strategy! Use misspellings to tuncate Jaev's name
     "cumberland, jaev", "jaev cumberland", "cumberland,jaev",
     "cumberland, jarron", "jarron cumberland", "cumberland,jarron",
   )
@@ -61,38 +61,67 @@ object DataQualityIssues {
    */
   val misspellings: Map[Option[TeamId], Map[String, String]] = Map( // pairs - full name in box score, and also name for PbP
 
-    // ACC:
-    Option(TeamId("Virginia")) -> Map(
-      //PbP tidy game from W 2020/21
-      "Ti Stojsavlevic" -> "Ti Stojsavljevic",
+    //////////////////////////////////////////////////////////////////
+
+    // PBP Mispellings:
+
+    /////////////////////////////////
+
+    // Too hard to resolve
+
+    Option(TeamId("Alcorn")) -> Map( //(SWAC)
+      // Wrong in the PBP, 2020/21
+      "10" -> "WILSON,KOBE"
     ),
 
-    Option(TeamId("Duke")) -> Map(
+    Option(TeamId("Ark.-Pine Bluff")) -> Map( //(SWAC)
+      // Wrong in the PBP, 2020/21
+      "PATTERSON,OMAR" -> "PARCHMAN,OMAR",
+    ),
+
+    Option(TeamId("Mississippi Val.")) -> Map( //(SWAC)
+      // Wrong in the PBP, 2020/21
+      "Jonathan Fanard" -> "Donalson Fanord",
+    ),
+
+    /////////////////////////////////
+
+    // BOX Mispellings
+
+    Option(TeamId("Duke")) -> Map( //(ACC)
       //Box tidy complicated game from W 2018/9
       "Akinbode-James, O." -> "James, Onome",
     ),
 
-    Option(TeamId("Florida St.")) -> Map(
-      // PBP errors (see also generic misspellings, which doesn't work for player events
-      // because it doesn't change the tidy name, only fixes the code)
-      "Willliams, Patrick" -> "Williams, Patrick",
-      "Osbrone, Malik" -> "Osborne, Malik"
+    Option(TeamId("La Salle")) -> Map( //(A10)
+      // Wrong in the box
+      "Sullivan, Key" -> "Sullivan, Cian"
     ),
 
-    Option(TeamId("Georgia Tech")) -> Map(
-      //PBP fix complicated game from W 2019/20
-      "Nerea Hermosa Monreal" -> "Nerea Hermosa",
-      // PBP 2018/9
-      "DIXON,LIZ" -> "DIXON,ELIZABETH"
+    Option(TeamId("TCU")) -> Map( //(B12)
+      // (wrong in box score only)
+      "Ascieris, Owen" -> "Aschieris, Owen",
     ),
 
-    Option(TeamId("Syracuse")) -> Map(
+    Option(TeamId("Texas")) -> Map( //(B12)
+      // (wrong in box score only)
+      "Ostekowski, Dylan" -> "Osetkowski, Dylan",
+    ),
+
+    /////////////////////////////////
+
+    // Both PBP and BOX
+
+    Option(TeamId("Syracuse")) -> Map( //(ACC)
       //Box tidy complicated game from W 2019/20
       "Finklea-Guity, Amaya" -> "Guity, Amaya",
+      // PBP incorrectness
       "FINKLEA,AMAYA" -> "GUITY,AMAYA"
     ),
 
-    // American
+    /////////////////////////////////
+
+    // Hack to workaround duplicate name
 
     Option(TeamId("Cincinnati")) -> Map(
       // The Cumberlands have caused quite a mess!
@@ -101,218 +130,12 @@ object DataQualityIssues {
       "Cumberland, Jaevin" -> "Cumberland, Jaev",
       "CUMBERLAND,JAEVIN" -> "CUMBERLAND,JAEV",
       "Jaevin Cumberland" -> "Jaev Cumberland"
-    ),
-
-    Option(TeamId("East Carolina")) -> Map(
-      // PbP error
-      "BARUIT,BITUMBA" -> "BARUTI,BITUMBA",
-      //Box/PBP remove 2nd name
-      "Doumbia, Ibrahim Famouke" -> "Doumbia, Ibrahim",
-      "Ibrahim Famouke Doumbia" -> "Ibrahim Doumbia"
-    ),
-
-    Option(TeamId("UCF")) -> Map(
-      // PbP error W 2018/19
-      "Korneila Wright" -> "Kay Kay Wright",
-      "WRIGHT,KORNEILA" -> "WRIGHT, KAY KAY",
-    ),
-
-    // America East
-    Option(TeamId("Binghamton")) -> Map(
-      // PbP error 2020/21
-      "Ocheneyole Akuwovo" -> "Ogheneyole Akuwovo",
-    ),
-
-    // Big East
-
-    Option(TeamId("Creighton")) -> Map(
-      // PbP error W 2020/21
-      "Dee Dee Pryor" -> "DeArica Pryor",
-    ),
-
-    // B1G
-
-    Option(TeamId("Iowa")) -> Map(
-      // PbP error W 2020/21
-      "Lauren Jense" -> "Lauren Jensen",
-    ),
-
-    // B12:
-
-    Option(TeamId("Oklahoma St.")) -> Map(
-      //PBP fix complicated game from W 2019/20
-      "DELAPP,KASSIDY" -> "DE LAPP,KASSIDY",
-      // PBP fix
-      "DESOUSA,CLITAN" -> "DE SOUSA,CLITAN"
-    ),
-
-    Option(TeamId("Texas")) -> Map(
-      // (wrong in box score only, but easy enough to add a fix for any box score typos)
-      "Ostekowski, Dylan" -> "Osetkowski, Dylan",
-      "ostekowski" -> "osetkowski"
-    ),
-
-    // (wrong in box score only, but easy enough to add a fix for any box score typos)
-    Option(TeamId("TCU")) -> Map(
-      "Ascieris, Owen" -> "Aschieris, Owen",
-      "ascieris" -> "aschieris"
-    ),
-
-    // A10:
-
-    Option(TeamId("La Salle")) -> Map(
-      // Wrong in the box
-      "Sullivan, Key" -> "Sullivan, Cian"
-    ),
-
-    // Wrong in the PbP, box score is correct
-    Option(TeamId("Davidson")) -> Map(
-      "gudmunsson" -> "gudmundsson"
-    ),
-
-    // Wrong in the PbP, box score is correct
-    //(sufficient for getting the box score correct)
-    Option(TeamId("Saint Joseph's")) -> Map(
-      "longpr??" -> "longpre"
-    ),
-
-    // C-USA
-
-    Option(TeamId("Fla. Atlantic")) -> Map(
-      // Bring PbP in line with box (2020)
-      "B.J. Greenlee" -> "Bryan Greenlee"
-    ),
-
-    Option(TeamId("Middle Tenn.")) -> Map(
-      // Bring PbP in line with box (2020)
-      "CRISS,JV" -> "MILLNER-CRISS,JO"
-    ),
-
-    // MEAC
-
-    Option(TeamId("Morgan St.")) -> Map(
-      // PBP and box name difference 2020/21
-      "DEVONISH,SHERWYN" -> "DEVONISH-PRINCE,SHERWYN",
-      "Devonish, Sherwyn" -> "Devonish-Prince, Sherwyn",
-      "Devonish-Prince Jr., Sherwyn" -> "Devonish-Prince, Sherwyn",
-      "Sherwyn Devonish" -> "Sherwyn Devonish-Prince",
-      "Sherwyn Devonish-Prince Jr." -> "Sherwyn Devonish-Prince",
-      "Lapri Pace" -> "Lapri McCray-Pace"
-    ),
-
-    Option(TeamId("South Carolina St.")) -> Map(
-      // Box is wrong, unusually 2020/21
-      "JR., RIDEAU" -> "RIDEAU, FLOYD",
-      "RIDEAU JR." -> "FLOYD RIDEAU",
-      "BULTER,RASHAMEL" -> "BUTLER,RASHAMEL"
-    ),
-
-    // MWC
-
-    Option(TeamId("Wyoming")) -> Map(
-      // PBP has this the wrong way round compared to box score 2020/21
-      "LaMont Drew" -> "Drew LaMont"
-    ),
-
-    // NEC
-
-    Option(TeamId("LIU")) -> Map(
-      // PBP name difference 2020/21
-      "Anthony Cabala" -> "Anthony Kabala"
-    ),
-    Option(TeamId("Sacred Heart")) -> Map(
-      "Quest Harrist" -> "Quest Harris"
-    ),
-
-    // OVC
-    Option(TeamId("Eastern Ky.")) -> Map(
-      // PBP name difference 2020/21
-      "CRUIKSHANK,RUSSHARD" -> "CRUICKSHANK,RUSSHARD"
-    ),
-
-    // Big South
-    Option(TeamId("Charleston So.")) -> Map(
-      // Wrong in the PBP, 2020/21
-      "SADARIUS,BOWSER" -> "BOWSER,SADARIUS",
-      "PORTER,TJ" -> "PORTER JR.,TERENCE"
-    ),
-    Option(TeamId("Longwood")) -> Map(
-      // Wrong in the PBP, 2020/21
-      "NKEREUWEM" -> "NKEREUWEM,LESLIE",
-      "STEFANOVIC,LLIJA" -> "STEFANOVIC,ILIJA",
-      "O'CONNER,CAMERON" -> "O'CONNOR,CAMERON"
-    ),
-
-    //SWAC
-    Option(TeamId("Southern U.")) -> Map(
-      "SHIVERS,ASHANTE" -> "SHIVERS,AHSANTE"
-    ),
-    Option(TeamId("Alcorn")) -> Map(
-      // Wrong in the PBP, 2020/21
-      "10" -> "WILSON,KOBE"
-    ),
-    Option(TeamId("Ark.-Pine Bluff")) -> Map(
-      // Wrong in the PBP, 2020/21
-      "DOOITTLE,TRAVONTA" -> "DOOLITTLE,TRAVONTA",
-      "PATTERSON,OMAR" -> "PARCHMAN,OMAR",
-      ",ALVIN STREDIC JR" -> "STREDIC JR, ALVIN",
-      ",SHAUN DOSS JR" -> "DOSS JR, SHAUN"
-    ),
-    Option(TeamId("Grambling")) -> Map(
-      // Wrong in the PBP, 2020/21
-      "SARION,MCGEE" -> "MCGEE,SARION"
-    ),
-    Option(TeamId("Mississippi Val.")) -> Map(
-      // Wrong in the PBP, 2020/21
-      "Jonathan Fanard" -> "Donalson Fanord",
-      "WALDON,QUOIREN" -> "WALDEN,QUOIREN"
-    ),
-
-    // PAC-12
-
-    Option(TeamId("Washington")) -> Map(
-      // PBP errors (W 2019/20)
-      "BANBERGER,ALI" -> "BAMBERGER,ALI",
-      "WALKINS,TT" -> "WATKINS,TT"
-    ),
-
-    Option(TeamId("California")) -> Map(
-      // PBP errors (W 2019/20)
-      "SCHIPH,EVELIEN LUTJE" -> "SCHIPHOLT,EVELIEN LUTJE"
-    ),
-
-    Option(TeamId("Colorado")) -> Map(
-      // PBP errors (W 2018/19)
-      "TUITELE,SIRENA" -> "TUITELE,PEANUT",
-      "Sirena Tuitele" -> "Peanut Tuitele",
-      "HOLLINSHED,MYA" -> "HOLLINGSHED,MYA"
-    ),
-
-    Option(TeamId("Oregon")) -> Map(
-      // Was handled by generic misspellings but that doesn't work for player analysis, see below:
-      "CAHVEZ,TAYLOR" -> "CHAVEZ,TAYLOR"
-    ),
-
-    // SEC:
-
-    // Wrong in the PBP
-    Option(TeamId("Arkansas")) -> Map(
-      "Jordan Philips" -> "Jordan Phillips",
-      "PHILIPS,JORDAN" -> "PHILLIPS,JORDAN"
-    ),
-
-    Option(TeamId("South Carolina")) -> Map(
-      "HERBERT HARRIGAN,M" -> "HERBERT HARRIGAN,MIKIAH",
-      "HARRIGAN,M HERBERT" -> "HERBERT HARRIGAN,MIKIAH",
-    ),
+    )
 
   ).mapValues(
     _ ++ generic_misspellings
   ).withDefault(_ => generic_misspellings)
-  /** common mispellings */
-  val generic_misspellings: Map[String, String] = Map(
-    //TODO: using this doesn't fix the name, only the code, which is problematic
-    // Seen in PbP data for FSU 2019/20
-    // So for now I've removed all the entries and added them to the known cases to the misspellings map
-  )
+
+  /** common mispellings - currently none */
+  val generic_misspellings: Map[String, String] = Map()
 }

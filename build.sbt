@@ -142,6 +142,8 @@ val nameOfVersion = "1.0.3"
 
 libraryDependencies += "com.github.dwickern" %% "scala-nameof" % nameOfVersion % "provided"
 
+libraryDependencies += "me.xdrop" % "fuzzywuzzy" % "1.3.1"
+
 // Assembly for shell:
 // sbt assembly
 // java -jar ,/target/scala-2.12/cbb-explorer.jar
@@ -156,6 +158,7 @@ mainClass in assembly := Some("org.piggottfamily.cbb_explorer.Main")
 
 // Or for faster code-compile cycles (can't get 'sbt run' to work):
 // sbt assemblyPackageDependency
+// (note need to restart sbt or refresh if changing this file)
 // (edit code as long as no new libs are imported)
 // sbt compile package
 // java -cp './target/scala-2.12/cbb-explorer-assembly-0.1-deps.jar:target/scala-2.12/cbb-explorer_2.12-0.1.jar' org.piggottfamily.cbb_explorer.Main

@@ -27,7 +27,7 @@ object DataQualityIssuesTest extends TestSuite {
   val tests = Tests {
     "DataQualityIssues" - {
 
-      legacy_misspellings.map {
+      val cannot_resolve = legacy_misspellings.map {
         case (_, misspelling_map) =>
           misspelling_map.flatMap {
             case (bad_name, good_name) =>
@@ -47,12 +47,14 @@ object DataQualityIssuesTest extends TestSuite {
               else
                 List()
           }
-      }.filter(_.nonEmpty) ==> List(
-        Map("FINKLEA,AMAYA" -> "GUITY, AMAYA"),
-        Map("Akinbode-James, O." -> "James, Onome"),
-        Map("Jonathan Fanard" -> "Donalson Fanord"),
-        Map("PATTERSON,OMAR" -> "PARCHMAN,OMAR"),
-        Map("10" -> "WILSON,KOBE")
+      }.map(_.headOption).filter(_.nonEmpty)
+
+      cannot_resolve ==> List(
+        Some("FINKLEA,AMAYA" -> "GUITY,AMAYA"),
+        Some("Akinbode-James, O." -> "James, Onome"),
+        Some("Jonathan Fanard" -> "Donalson Fanord"),
+        Some("PATTERSON,OMAR" -> "PARCHMAN,OMAR"),
+        Some("10" -> "WILSON,KOBE")
       )
     }
   }

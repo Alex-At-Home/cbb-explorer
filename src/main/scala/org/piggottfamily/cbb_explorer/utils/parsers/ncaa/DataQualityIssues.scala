@@ -3,6 +3,9 @@ package org.piggottfamily.cbb_explorer.utils.parsers.ncaa
 import org.piggottfamily.cbb_explorer.models.TeamId
 import org.piggottfamily.cbb_explorer.models.Year
 
+import me.xdrop.fuzzywuzzy.FuzzySearch
+import me.xdrop.fuzzywuzzy.model.ExtractedResult
+
 object DataQualityIssues {
 
   /** Will be in format "LASTNAME,FIRSTNAME" or "Lastname, Firstname" */
@@ -138,4 +141,17 @@ object DataQualityIssues {
 
   /** common mispellings - currently none */
   val generic_misspellings: Map[String, String] = Map()
+
+  /** Given a list of candidate typos for a non-matching name, see if we can resolve it */
+  def resolve_misspellings(misspelling: String, candidates: String): Either[List[String -> Integer], String] = {
+    val candidate_scores = candidates.map { candidate =>
+      candidate -> FuzzySearch.tokenSetRatio(misspelling, candidate)
+    }
+    val maybe_viable_candidate = candidate_scores.filter { case (_, score) => score >= 70 }.headOption
+    val spoiler_candidates = candidate_scores.filter { case (_, score) => score >= 30 }
+    maybe_viable_candidate match {
+      case Some(viable_candidate) if spoiler_candidates.isEmpty => Right(viable_candidate)
+      case _ => Left(spoiler_candidates)
+    }
+  }
 }

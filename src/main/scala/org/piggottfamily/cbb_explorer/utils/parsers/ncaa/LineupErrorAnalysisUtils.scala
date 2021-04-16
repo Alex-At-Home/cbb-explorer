@@ -83,6 +83,13 @@ object LineupErrorAnalysisUtils {
           case _ => None
         }
 
+      }.orElse { // OK if we're done to here, let's get creative:
+        if (p != "Team" && p != "TEAM") DataQualityIssues.Fixer.fuzzy_box_match(
+          p, ctx.all_players_map.values.toList, ctx.box_lineup.team.team.name
+        ) match {
+          case Right(box_name) => Some(box_name)
+          case Left(_) => None
+        } else None
       }.getOrElse(p) //(this will get rejected later on, in validate_lineup)
   }
 

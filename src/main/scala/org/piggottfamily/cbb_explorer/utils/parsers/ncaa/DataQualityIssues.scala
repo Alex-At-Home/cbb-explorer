@@ -14,7 +14,7 @@ object DataQualityIssues {
       Year(2020) -> List("McCray-Pace, Lapri")
     ),
     TeamId("South Carolina St.") -> Map(
-      Year(2020) -> List("Butler, Rashamel")
+      Year(2020) -> List("Butler, Rashamel", "Wright, Jadakiss", "Nelson, Quamain", "Manning, Brandynn")
     ),
     TeamId("Charleston So.") -> Map(
       Year(2020) -> List("Bowser, Sadarius")
@@ -123,6 +123,14 @@ object DataQualityIssues {
 
     // Both PBP and BOX
 
+    Option(TeamId("South Carolina St.")) -> Map(
+      // Box is wrong, unusually 2020/21
+      "JR., RIDEAU" -> "Rideau Jr., Floyd",
+      // PBP:
+      "23" -> "WRIGHT,JADAKISS"
+    ),
+
+
 /**TODO: may not be needed?
 
     Option(TeamId("Syracuse")) -> Map( //(ACC)
@@ -162,22 +170,30 @@ object DataQualityIssues {
     val min_surname_score = 80
     val min_first_name_score = 75
     val min_overall_score = 70
+    val min_useful_surname_len = 4
+    val min_useful_first_name_len = 3
 
     /** Given a PbP name and a single box name, determine how close they are to fitting */
-    def box_aware_compare(candidate: String, box_name: String): MatchResult = {
-      val min_useful_name_len = 4
+    def box_aware_compare(candidate_in: String, box_name_in: String): MatchResult = {
+      val candidate = candidate_in.toLowerCase
+      val box_name = box_name_in.toLowerCase
+
+      def remove_jr(s: String) = s != "jr."
 
       val box_name_decomp = box_name.split("\\s*,\\s*", 2) // (box is always in "surname-set, other-name-set")
       val longest_surname_fragment =
-        box_name_decomp(0).split(" ").toList.sortWith(_.length > _.length).headOption.getOrElse("unknown")
+        box_name_decomp(0).split(" ").toList
+          .filter(remove_jr).sortWith(_.length > _.length).headOption.getOrElse("unknown")
 
-      val candidate_frags = candidate.split("[, ]+")
+      val candidate_frags = candidate.split("[, ]+").filter(remove_jr)
 
       val candidate_frag_scores = candidate_frags.map { frag =>
         frag -> FuzzySearch.weightedRatio(frag, longest_surname_fragment)
       }
       val best_frag_score = candidate_frag_scores.filter {
-        case (frag, score) if score > min_surname_score && frag.length >= min_useful_name_len => true
+        case (frag, _) if (longest_surname_fragment == frag) && frag.length >= (min_useful_surname_len - 1) => true
+          //(more permissive if they are actually ==)
+        case (frag, score) if score > min_surname_score && frag.length >= min_useful_surname_len => true
         case _ => false
       }.sortWith(_._2 > _._2).headOption
 
@@ -185,25 +201,26 @@ object DataQualityIssues {
         case Some((frag, _)) =>
           val overall_score = FuzzySearch.weightedRatio(candidate, box_name)
           if (overall_score >= min_overall_score)
-            StrongSurnameMatch(box_name, overall_score)
+            StrongSurnameMatch(box_name_in, overall_score)
           else
-            WeakSurnameMatch(box_name, overall_score, s"[$candidate] vs [$box_name]: " +
+            WeakSurnameMatch(box_name_in, overall_score, s"[$candidate] vs [$box_name]: " +
               s"Matched [$longest_surname_fragment] with [$best_frag_score], but overall score was [$overall_score]"
             )
         case None => // We will record cases where there is a strong first name match
           //(note we don't bother recording the surname strength in this case since empirically they seem a bit random below 60ish)
           val candidate_frag_set = candidate_frags.toSet
-          val box_first_names = box_name_decomp.toList.drop(1).headOption.map(_.split("[ ]+").toList)
+          val box_first_names = box_name_decomp.toList.drop(1).headOption.map(_.split("[, ]+").toList.filter(remove_jr))
           val maybe_exact_first_name = box_first_names.collect {
             case List(single_first_name) //needs to be strong enough and match
-              if single_first_name.length >= min_useful_name_len && candidate_frag_set(single_first_name) => single_first_name
+              if single_first_name.length >= min_useful_first_name_len && candidate_frag_set(single_first_name) => single_first_name
           }
           val maybe_near_first_name = box_first_names match {
             case _ if maybe_exact_first_name.nonEmpty => None
-            case Some(List(single_first_name)) if single_first_name.length >= min_useful_name_len =>
+            case Some(List(single_first_name)) if single_first_name.length >= min_useful_first_name_len =>
               candidate_frags.filter(FuzzySearch.weightedRatio(_, single_first_name) >= min_first_name_score).headOption
+            case _ => None
           }
-          NoSurnameMatch(box_name, maybe_exact_first_name, maybe_near_first_name, s"[$candidate] vs [$box_name]: " +
+          NoSurnameMatch(box_name_in, maybe_exact_first_name, maybe_near_first_name, s"[$candidate] vs [$box_name]: " +
             s"Failed to find a fragment matching [$longest_surname_fragment], candidates=${candidate_frag_scores.mkString(";")}"
           )
       }
@@ -212,6 +229,7 @@ object DataQualityIssues {
     /** Only used to reduce diagnosis prints */
     var fixes_for_debug: Map[String, (String, String, Boolean)] = Map()
 
+    /** The top level method for finding a reliable box score name for a mis-spelled PbP name */
     def fuzzy_box_match(candidate: String, unassigned_box_names: List[String], team_context: String): Either[String, String] = {
 
       val matches = unassigned_box_names.map(box_aware_compare(candidate, _))
@@ -234,11 +252,11 @@ object DataQualityIssues {
         fixes_for_debug.get(key) match {
           case Some((_, _, true)) => //(always do nothing here)
           case Some((curr_result, curr_context, false)) if result != curr_result =>
-            println(s"$prefix: ERROR.X: [$result] vs [$curr_result] ([$context] vs [$curr_context]) (key=[$key])")
+            println(s"$prefix: ERROR.X: [$result] vs [$curr_result] ([$context] vs [$curr_context]) (key=[$key], box=[$unassigned_box_names])")
             fixes_for_debug = fixes_for_debug + (key -> (curr_result, context, true)) //(overwrite so only display this error once)
           case Some((`result`, _, _)) => // nothing to do
           case _ =>
-            println(s"$prefix: $result (key=[$key])")
+            println(s"$prefix: [$result] [$context] (key=[$key], box=[$unassigned_box_names])")
             fixes_for_debug = fixes_for_debug + (key -> (result, context, true))
         }
       }
@@ -272,18 +290,18 @@ object DataQualityIssues {
           }
         case (Nil, Nil, l @ (first_name_only :: other_first_name_only), l2) =>
           if (other_first_name_only.nonEmpty) {
-            val context_string = s"ERROR.2A: multiple first name matches: [$candidate] vs [$l]"
+            val context_string = s"ERROR.3A: multiple first name matches: [$candidate] vs [$l]"
             log_info(None, context_string)
             Left(context_string)
           } else if (l2.exists(_.near_first_name.nonEmpty)) {
             // We have to do one final check: are there any _fuzzy_ matches to the first name
             // (we're being pretty cautious in our recklessness here!!)
             val bad_l2 = l2.filter(_.near_first_name.nonEmpty)
-            val context_string = s"ERROR.2A: multiple near first name matches: [$candidate] vs [$bad_l2]"
+            val context_string = s"ERROR.3B: multiple near first name matches: [$candidate] vs [$bad_l2]"
             log_info(None, context_string)
             Left(context_string)
           } else {
-            val context_string = s"SUCCESS.2C: 'first name only' match: [$first_name_only]"
+            val context_string = s"SUCCESS.3C: 'first name only' match: [$first_name_only]"
             log_info(Some(first_name_only.box_name), context_string)
             Right(first_name_only.box_name)
           }

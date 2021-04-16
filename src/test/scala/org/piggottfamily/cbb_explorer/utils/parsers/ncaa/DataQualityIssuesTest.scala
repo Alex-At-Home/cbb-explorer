@@ -21,60 +21,146 @@ object DataQualityIssuesTest extends TestSuite {
   val tests = Tests {
     "DataQualityIssues" - {
 
-      val not_trivial_resolves = legacy_misspellings.flatMap {
-        case (maybe_team_info, misspelling_map) =>
-          misspelling_map.map {
-            case (bad_name, good_name) =>
-              //println("!!! " + DataQualityIssues.Fixer.box_aware_compare(bad_name, good_name))
-              //println(s"[$bad_name -> $good_name]: $ratios ${if (token_set_ratio < 70) "****" else ""}")
-              DataQualityIssues.Fixer.box_aware_compare(bad_name, good_name)
-          }
-      }.filter {
-        case p1: DataQualityIssues.Fixer.StrongSurnameMatch =>
-          p1.score < DataQualityIssues.Fixer.min_overall_score
-        case _ => true
-      }
+      "Fixer.box_aware_compare" -  {
 
-      not_trivial_resolves ==> List(
-          DataQualityIssues.Fixer.NoSurnameMatch(
-            "GUITY,AMAYA", Some("AMAYA"),None,
-            "[FINKLEA,AMAYA] vs [GUITY,AMAYA]: Failed to find a fragment matching [GUITY], candidates=(FINKLEA,17);(AMAYA,20)"
-          ),
-          DataQualityIssues.Fixer.WeakSurnameMatch(
-            "Osborne, John",59,
-            "[Osbrone, Malik] vs [Osborne, John]: Matched [Osborne] with [Some((Osbrone,86))], but overall score was [59]"
-          ),
-          DataQualityIssues.Fixer.NoSurnameMatch(
-            "Osborne, John",Some("John"),None,
-            "[Stranger, John] vs [Osborne, John]: Failed to find a fragment matching [Osborne], candidates=(Stranger,53);(John,45)"
-          ),
-          DataQualityIssues.Fixer.WeakSurnameMatch(
-            "Tuitele, Peanut",67,
-            "[Sirena Tuitele] vs [Tuitele, Peanut]: Matched [Tuitele] with [Some((Tuitele,100))], but overall score was [67]"
-          ),
-          DataQualityIssues.Fixer.WeakSurnameMatch(
-            "James, Onome",64,
-            "[Akinbode-James, O.] vs [James, Onome]: Matched [James] with [Some((Akinbode-James,90))], but overall score was [64]"
-          ),
-          DataQualityIssues.Fixer.WeakSurnameMatch(
-            "Pryor, DeArica",69,
-            "[Dee Dee Pryor] vs [Pryor, DeArica]: Matched [Pryor] with [Some((Pryor,100))], but overall score was [69]"
-          ),
-          DataQualityIssues.Fixer.WeakSurnameMatch(
-            "Fanord, Donalson",38,
-            "[Jonathan Fanard] vs [Fanord, Donalson]: Matched [Fanord] with [Some((Fanard,83))], but overall score was [38]"
-          ),
-          DataQualityIssues.Fixer.NoSurnameMatch(
-            "PARCHMAN,OMAR",Some("OMAR"),None,
-            "[PATTERSON,OMAR] vs [PARCHMAN,OMAR]: Failed to find a fragment matching [PARCHMAN], candidates=(PATTERSON,47);(OMAR,45)"
-          ),
-          DataQualityIssues.Fixer.NoSurnameMatch(
-            "WILSON,KOBE",None,None,
-            "[10] vs [WILSON,KOBE]: Failed to find a fragment matching [WILSON], candidates=(10,0)"
-          )
-      )
+        val not_trivial_resolves = legacy_misspellings.flatMap {
+          case (maybe_team_info, misspelling_map) =>
+            misspelling_map.map {
+              case (bad_name, good_name) =>
+                //println("!!! " + DataQualityIssues.Fixer.box_aware_compare(bad_name, good_name))
+                //println(s"[$bad_name -> $good_name]: $ratios ${if (token_set_ratio < 70) "****" else ""}")
+                DataQualityIssues.Fixer.box_aware_compare(bad_name, good_name)
+            }
+        }.filter {
+          case p1: DataQualityIssues.Fixer.StrongSurnameMatch =>
+            p1.score < DataQualityIssues.Fixer.min_overall_score
+          case _ => true
+        }
+
+        //println(not_trivial_resolves.mkString("\n\n"))
+
+        not_trivial_resolves ==> List(
+            DataQualityIssues.Fixer.NoSurnameMatch(
+              "GUITY,AMAYA", Some("amaya"),None,
+              "[finklea,amaya] vs [guity,amaya]: Failed to find a fragment matching [guity], candidates=(finklea,17);(amaya,20)"
+            ),
+            DataQualityIssues.Fixer.WeakSurnameMatch(
+              "Tuitele, Peanut",67,
+              "[sirena tuitele] vs [tuitele, peanut]: Matched [tuitele] with [Some((tuitele,100))], but overall score was [67]"
+            ),
+            DataQualityIssues.Fixer.WeakSurnameMatch(
+              "Osborne, John",59,
+              "[osbrone, malik] vs [osborne, john]: Matched [osborne] with [Some((osbrone,86))], but overall score was [59]"
+            ),
+            DataQualityIssues.Fixer.NoSurnameMatch(
+              "Osborne, John",Some("john"),None,
+              "[stranger, john] vs [osborne, john]: Failed to find a fragment matching [osborne], candidates=(stranger,53);(john,45)"
+            ),
+            DataQualityIssues.Fixer.NoSurnameMatch(
+              "Khalil, Ali, Jr.",Some("ali"),None,
+              "[ali] vs [khalil, ali, jr.]: Failed to find a fragment matching [khalil], candidates=(ali,90)"
+            ),
+            DataQualityIssues.Fixer.WeakSurnameMatch(
+              "James, Onome",64,
+              "[akinbode-james, o.] vs [james, onome]: Matched [james] with [Some((akinbode-james,90))], but overall score was [64]"
+            ),
+            DataQualityIssues.Fixer.WeakSurnameMatch(
+              "Pryor, DeArica",69,
+              "[dee dee pryor] vs [pryor, dearica]: Matched [pryor] with [Some((pryor,100))], but overall score was [69]"
+            ),
+            DataQualityIssues.Fixer.WeakSurnameMatch(
+              "Fanord, Donalson",38,
+              "[jonathan fanard] vs [fanord, donalson]: Matched [fanord] with [Some((fanard,83))], but overall score was [38]"
+            ),
+            DataQualityIssues.Fixer.NoSurnameMatch(
+              "PARCHMAN,OMAR",Some("omar"),None,
+              "[patterson,omar] vs [parchman,omar]: Failed to find a fragment matching [parchman], candidates=(patterson,47);(omar,45)"
+            ),
+            DataQualityIssues.Fixer.NoSurnameMatch(
+              "WILSON,KOBE",None,None,
+              "[10] vs [wilson,kobe]: Failed to find a fragment matching [wilson], candidates=(10,0)"
+            )
+        )
+      }
+      "Fixer.fuzzy_box_match" -  {
+
+        // Works: strong match, even if there are weak matches
+        TestUtils.inside(DataQualityIssues.Fixer.fuzzy_box_match(
+          "sirena tuitele",
+          List("Suitele, Sirena", "Tuitele, Peanut", "Guity, Amaya", "Pryor, DeArica", "Guity, Robison"),
+          "test1b"
+        )) {
+          case Right("Suitele, Sirena") =>
+        }
+
+        // Multiple strong matches, so will error
+        TestUtils.inside(DataQualityIssues.Fixer.fuzzy_box_match(
+          "sirena tuitele",
+          List("Suitele, Sirena", "Tuitele, Irena", "Guity, Amaya", "Pryor, DeArica", "Guity, Robison"),
+          "test1b"
+        )) {
+          case Left(err) if err.contains("ERROR.1A") =>
+        }
+
+        // Works: single weak match (even three is a matching first name)
+        TestUtils.inside(DataQualityIssues.Fixer.fuzzy_box_match(
+          "sirena tuitele",
+          List("Tuitele, Peanut", "Guity, Amaya", "Pryor, DeArica", "Guity, Sirena"),
+          "test2b"
+        )) {
+          case Right("Tuitele, Peanut") =>
+        }
+
+        // Multiple weak matches, so will error
+        TestUtils.inside(DataQualityIssues.Fixer.fuzzy_box_match(
+          "sirena tuitele",
+          List("Tuitele, Peanut", "Tuitele, Rabbit", "Guity, Amaya", "Pryor, DeArica", "Guity, Robison"),
+          "test1b"
+        )) {
+          case Left(err) if err.contains("ERROR.2A") =>
+        }
+
+        // Works because is the only matching firstname (other surnames irrelevant)
+        TestUtils.inside(DataQualityIssues.Fixer.fuzzy_box_match(
+          "FINKLEA,AMAYA",
+          List("Guity, Amaya", "Pryor, DeArica", "Guity, Robison"),
+          "test3c"
+        )) {
+          case Right("Guity, Amaya") =>
+        }
+
+        // Shouldn't work because the name "Anya" should be too close
+        TestUtils.inside(DataQualityIssues.Fixer.fuzzy_box_match(
+          "FINKLEA,AMAYA",
+          List("Guity, Amaya", "Pryor, DeArica", "Robinson, Amaya"),
+          "test3a"
+        )) {
+          case Left(err) if err.contains("ERROR.3A") =>
+        }
+
+        // Shouldn't work because the name "Anya" should be too close
+        TestUtils.inside(DataQualityIssues.Fixer.fuzzy_box_match(
+          "FINKLEA,AMAYA",
+          List("Guity, Amaya", "Pryor, DeArica", "Robinson, Anaya"),
+          "test3b"
+        )) {
+          case Left(err) if err.contains("ERROR.3B") =>
+        }
+
+        // No match
+        TestUtils.inside(DataQualityIssues.Fixer.fuzzy_box_match(
+          "FINKLEA,ALISON",
+          List("Guity, Amaya", "Pryor, DeArica", "Robinson, Anaya"),
+          "test4a"
+        )) {
+          case Left(err) if err.contains("ERROR.4A") =>
+        }
+      }
     }
   }
+
+  // Required info:
+
   def normalize_to_box(to_norm: String, surnames: Int = 1): String = {
     to_norm.split(" ").toList match {
       case l if l.size > surnames =>
@@ -86,9 +172,14 @@ object DataQualityIssuesTest extends TestSuite {
 
   val legacy_misspellings: Map[Option[TeamId], Map[String, String]] = Map( // pairs - full name in box score, and also name for PbP
 
-      Option(TeamId("Test")) -> Map(
+      // Some hand-crafted cases:
+      Option(TeamId("Test1")) -> Map(
         "Osbrone, Malik" -> "Osborne, John",
         "Stranger, John" -> "Osborne, John",
+        "Ali" -> "Khalil, Ali, Jr.",
+      ),
+      Option(TeamId("Test2")) -> Map(
+        "Ali" -> "Ali, Jr., Rahim"
       ),
 
       // ACC:
@@ -244,6 +335,7 @@ object DataQualityIssuesTest extends TestSuite {
       Option(TeamId("South Carolina St.")) -> Map(
         // Box is wrong, unusually 2020/21
         "JR., RIDEAU" -> "RIDEAU, FLOYD",
+        // PbP is wrong (2020/21)
         "RIDEAU JR." -> "FLOYD RIDEAU",
         "BULTER,RASHAMEL" -> "BUTLER,RASHAMEL"
       ),

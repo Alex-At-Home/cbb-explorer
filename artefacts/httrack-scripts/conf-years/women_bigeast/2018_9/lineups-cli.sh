@@ -1,23 +1,19 @@
 #!/bin/bash
 
 #(source .lineup.env first to set up these variables)
-YEAR=2020
-CONF=women_sec
+YEAR=2018
+CONF=women_bigeast
 array=(
-   '31.0/15500::Arkansas'
-   '648.0/15500::South+Carolina'
-   '697.0/15500::Texas+A%26M'
-   '8.0/15500::Alabama'
-   '736.0/15500::Vanderbilt'
-   '434.0/15500::Missouri'
-   '334.0/15500::Kentucky'
-   '430.0/15500::Mississippi+St.'
-   '235.0/15500::Florida'
-   '694.0/15500::Tennessee'
-   '257.0/15500::Georgia'
-   '433.0/15500::Ole+Miss'
-   '37.0/15500::Auburn'
-   '365.0/15500::LSU'
+   '387.0/14320::Marquette'
+   '176.0/14320::DePaul'
+   '635.0/14320::Seton+Hall'
+   '87.0/14320::Butler'
+   '169.0/14320::Creighton'
+   '603.0/14320::St.+John%27s+%28NY%29'
+   '739.0/14320::Villanova'
+   '556.0/14320::Providence'
+   '812.0/14320::Xavier'
+   '251.0/14320::Georgetown'
 )
 
 for index in "${array[@]}" ; do

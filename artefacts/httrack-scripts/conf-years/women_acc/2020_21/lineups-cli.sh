@@ -1,34 +1,31 @@
 #!/bin/bash
 
 #(source .lineup.env first to set up these variables)
-#CRAWL_PATH=TODO
-#ROOT_URL=TODO
-#(to get the team navigate to https://$PBP_ROOT_URL/reports/attendance?id=XXX (couln)
-# pick the team, select the year, then the team id is the last bit of the URL)
 YEAR=2020
 CONF=women_acc
 array=(
-'367.0::Louisville'
-'490.0::NC+State'
-'457.0::North+Carolina'
-'742.0::Virginia+Tech'
-'234.0::Florida+St.'
-'147.0::Clemson'
-'67.0::Boston+College'
-'513.0::Notre+Dame'
-'193.0::Duke'
-'749.0::Wake+Forest'
-'545.0::Pittsburgh'
-'688.0::Syracuse'
-'415.0::Miami+%28FL%29'
-'255.0::Georgia+Tech'
-'746.0::Virginia'
+   '490.0/15500::NC+State'
+   '367.0/15500::Louisville'
+   '457.0/15500::North+Carolina'
+   '193.0/15500::Duke'
+   '742.0/15500::Virginia+Tech'
+   '688.0/15500::Syracuse'
+   '147.0/15500::Clemson'
+   '513.0/15500::Notre+Dame'
+   '67.0/15500::Boston+College'
+   '749.0/15500::Wake+Forest'
+   '415.0/15500::Miami+%28FL%29'
+   '255.0/15500::Georgia+Tech'
+   '545.0/15500::Pittsburgh'
+   '234.0/15500::Florida+St.'
+   '746.0/15500::Virginia'
 )
 
-#TODO add TEAM filter
-
 for index in "${array[@]}" ; do
-    TEAMID="${index%%::*}"
+    FULLTEAMID="${index%%::*}"
+    TEAMID="${FULLTEAMID%%/*}"
+    SUBTEAMID="${TEAMID%%.*}"
+    YEARID="${FULLTEAMID##*/}"
     TEAM_NAME="${index##*::}"
     CONF_CRAWL_PATH=$PBP_CRAWL_PATH/$CONF/$YEAR/${TEAM_NAME}_${TEAMID}
 
@@ -39,7 +36,7 @@ for index in "${array[@]}" ; do
       fi
     fi
 
-    echo "$TEAMID - $TEAM_NAME"
+    echo "$FULLTEAMID ($TEAMID) - $TEAM_NAME"
     #TODO: only do this if you want to remove and recalc everything, otherwise will find deltas
     #rm -rf $CONF_CRAWL_PATH
     mkdir -p $CONF_CRAWL_PATH
@@ -51,7 +48,7 @@ for index in "${array[@]}" ; do
         done
       fi
     done
-    httrack "$PBP_ROOT_URL/team/$TEAMID/15500" --continue --depth=3 --path $CONF_CRAWL_PATH --robots=0 "-*" "+$PBP_ROOT_URL/contests/*/box_score" "+$PBP_ROOT_URL/game/index/*" +"$PBP_ROOT_URL/game/box_score/*?period_no=1" +"$PBP_ROOT_URL/game/play_by_play/*"
+    httrack "$PBP_ROOT_URL/team/$FULLTEAMID" --continue --depth=3 --path $CONF_CRAWL_PATH --robots=0 "-*" "+$PBP_ROOT_URL/contests/*/box_score" "+$PBP_ROOT_URL/team/$SUBTEAMID/roster/$YEARID" "+$PBP_ROOT_URL/game/index/*" +"$PBP_ROOT_URL/game/box_score/*?period_no=1" +"$PBP_ROOT_URL/game/play_by_play/*"
 
     #Check for any errors:
     ERRS=$(grep -c 'Error:' $CONF_CRAWL_PATH/hts-log.txt)

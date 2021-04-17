@@ -1,29 +1,26 @@
 #!/bin/bash
 
 #(source .lineup.env first to set up these variables)
-#CRAWL_PATH=TODO
-#ROOT_URL=TODO
-#(to get the team navigate to https://$PBP_ROOT_URL/reports/attendance?id=17900
-# pick the team, select the year, then the team id is the last bit of the URL)
 YEAR=2018
 CONF=bigtwelve
 array=(
-'450589::Kansas'
-'450582::Iowa+St.'
-'450748::Texas+Tech'
-'450776::West+Virginia'
-'450750::Texas'
-'450588::Kansas+St.'
-'450672::Oklahoma'
-'450746::TCU'
-'450481::Baylor'
-'450671::Oklahoma+St.'
+   '311.0/14300::Iowa+St.'
+   '328.0/14300::Kansas'
+   '698.0/14300::TCU'
+   '768.0/14300::West+Virginia'
+   '700.0/14300::Texas+Tech'
+   '51.0/14300::Baylor'
+   '522.0/14300::Oklahoma'
+   '703.0/14300::Texas'
+   '521.0/14300::Oklahoma+St.'
+   '327.0/14300::Kansas+St.'
 )
 
-#TODO add TEAM filter
-
 for index in "${array[@]}" ; do
-    TEAMID="${index%%::*}"
+    FULLTEAMID="${index%%::*}"
+    TEAMID="${FULLTEAMID%%/*}"
+    SUBTEAMID="${TEAMID%%.*}"
+    YEARID="${FULLTEAMID##*/}"
     TEAM_NAME="${index##*::}"
     CONF_CRAWL_PATH=$PBP_CRAWL_PATH/$CONF/$YEAR/${TEAM_NAME}_${TEAMID}
 
@@ -34,18 +31,19 @@ for index in "${array[@]}" ; do
       fi
     fi
 
-    echo "$TEAMID - $TEAM_NAME"
+    echo "$FULLTEAMID ($TEAMID) - $TEAM_NAME"
     #TODO: only do this if you want to remove and recalc everything, otherwise will find deltas
     #rm -rf $CONF_CRAWL_PATH
     mkdir -p $CONF_CRAWL_PATH
     # Remove the main crawl file from the caches:
-    if [ -e $CONF_CRAWL_PATH/hts-cache/old.zip ]; then
-      zip -d $CONF_CRAWL_PATH/hts-cache/old.zip "$PBP_ROOT_URL/teams/$TEAMID"
-    fi
-    if [ -e $CONF_CRAWL_PATH/hts-cache/new.zip ]; then
-      zip -d $CONF_CRAWL_PATH/hts-cache/new.zip "$PBP_ROOT_URL/teams/$TEAMID"
-    fi
-    httrack "$PBP_ROOT_URL/teams/$TEAMID" --continue --depth=3 --path $CONF_CRAWL_PATH --robots=0 "-*" "+$PBP_ROOT_URL/contests/*/box_score" "+$PBP_ROOT_URL/game/index/*" +"$PBP_ROOT_URL/game/box_score/*?period_no=1" +"$PBP_ROOT_URL/game/play_by_play/*"
+    for file in old new; do
+      if [ -e $CONF_CRAWL_PATH/hts-cache/${file}.zip ]; then
+        for i in $(unzip -l $CONF_CRAWL_PATH/hts-cache/${file}.zip | grep -E "/teams?/" | awk '{ print $4 }'); do
+          zip -d $CONF_CRAWL_PATH/hts-cache/${file}.zip $i;
+        done
+      fi
+    done
+    httrack "$PBP_ROOT_URL/team/$FULLTEAMID" --continue --depth=3 --path $CONF_CRAWL_PATH --robots=0 "-*" "+$PBP_ROOT_URL/contests/*/box_score" "+$PBP_ROOT_URL/team/$SUBTEAMID/roster/$YEARID" "+$PBP_ROOT_URL/game/index/*" +"$PBP_ROOT_URL/game/box_score/*?period_no=1" +"$PBP_ROOT_URL/game/play_by_play/*"
 
     #Check for any errors:
     ERRS=$(grep -c 'Error:' $CONF_CRAWL_PATH/hts-log.txt)

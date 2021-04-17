@@ -10,7 +10,10 @@ object DataQualityIssues {
 
   /** Will be in format "LASTNAME,FIRSTNAME" or "Lastname, Firstname" */
   val players_missing_from_boxscore: Map[TeamId, Map[Year, List[String]]] = Map(
-    TeamId("Texas A&M") -> Map(
+    TeamId("Oregon") -> Map( //PAC-12
+      Year(2018) -> List("Nyara, Satou") //(women)
+    ),
+    TeamId("Texas A&M") -> Map( //SEC
       Year(2018) -> List("Vaughn, Everett", "Gilder, Admon")
     )
   )
@@ -219,71 +222,20 @@ object DataQualityIssues {
         // 2] There is a single weak match: pick that
         // 3] There are 0 weak matches, but the first name matches and is not similar to any strings occurring elsewhere
 
-        // 1] One false positive
-        // 2] Did see false positives with 2 and 3 before I had the multi-box-score
-
 //TODO: to fix:
 
-// False positives
-//(2018/9 Missouri) DataQualityIssues.Fixer: [Smith, Mark] [SUCCESS.1B: single strong match: [StrongSurnameMatch(Smith, Mark,70)]] (key=[Missouri/SMITH,DRU], box=[List(Yerkes, Evan, Guess, Christian, Smith, Mark, Wolf, Adam, Ford, Brooks)])
-// True negatives
-//(2018/9 Wichita St.) DataQualityIssues.Fixer: [NO_MATCH] [ERROR.3B: multiple near first name matches: [CHA,ISAIAH POOR] vs [List(NoSurnameMatch(Moore, Chance,None,Some(cha),[cha,isaiah poor] vs [moore, chance]: Failed to find a fragment matching [moore], candidates=(cha,0);(isaiah,0);(poor,67)))]] (key=[Wichita St./CHA,ISAIAH POOR], box=[List(Burton, Jamarius, Moore, Chance, Brown, Rod, Poor Bear-Chandler, Isaiah, McDuffie, Markis, Farrakhan, Eli, Udeze, Morris, Bush, Brycen, Herrs, Jacob)])
-
-// Problem conferences with new code
-
-//2019/20 atlanticten
-// [LineupErrorAnalysis] Total possession errors: [217] (good: [27418])
-// [LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (16,143), 4 -> (5,22), 7 -> (3,6), 6 -> (10,46))]
-
-//2020/21 conferenceusa
-// [LineupErrorAnalysis] Total possession errors: [386] (good: [24840])
-// [LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (27,243), 4 -> (5,6), 6 -> (11,137))]
-
-//2020/21 bigsouth
-// [LineupErrorAnalysis] Total possession errors: [435] (good: [17837])
-// [LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (25,118), 4 -> (4,1), 3 -> (1,0), 6 -> (17,316))]
-
-//2018/9 sec
-// [LineupErrorAnalysis] Total possession errors: [232] (good: [31473])
-// [LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (8,41), 6 -> (60,170), 7 -> (7,14), 3 -> (1,0), 8 -> (3,7), 4 -> (1,0))]
-
-//2018/9 american
-// [LineupErrorAnalysis] Total possession errors: [194] (good: [26640])
-// [LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (16,64), 6 -> (28,122), 7 -> (5,6), 3 -> (1,1), 8 -> (1,0), 4 -> (1,1))]
-
-//*****2019/20 atlanticten
-// LineupErrorAnalysis] Total possession errors: [1430] (good: [29170])
-// [LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (124,1044), 6 -> (45,327), 9 -> (1,4), 2 -> (1,1), 7 -> (5,12), 3 -> (1,1), 8 -> (1,6), 4 -> (6,35))]
-
-//******2019/20 women_sec
-// [LineupErrorAnalysis] Total possession errors: [1024] (good: [29642])
-// [LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (63,641), 6 -> (32,359), 2 -> (2,2), 7 -> (3,14), 3 -> (1,0), 8 -> (1,1), 4 -> (5,7))]
-
-//2019/20 women_acc
-// [LineupErrorAnalysis] Total possession errors: [150] (good: [28121])
-// [LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (13,93), 4 -> (1,0), 7 -> (2,11), 6 -> (11,46))]
-
-//******2018/19 women_sec
-// [LineupErrorAnalysis] Total possession errors: [1407] (good: [30387])
-// [LineupErrorAnalysis] Bad lineup analysis: [Map(5 -> (98,957), 6 -> (54,385), 2 -> (1,0), 7 -> (6,16), 3 -> (3,4), 8 -> (1,6), 4 -> (8,39))]
-
-//2018/20 women_acc
-// [LineupErrorAnalysis] Total possession errors: [662] (good: [26161])
-// [LineupErrorAnalysis] Bad lineup analysis: [Map(0 -> (1,0), 5 -> (19,114), 1 -> (1,1), 6 -> (37,274), 2 -> (2,1), 7 -> (1,0), 3 -> (4,7), 4 -> (48,265))]
-
-//TODO: some other interesting cases:
-//1] DataQualityIssues.Fixer: [NO_MATCH] [ERROR.4A: no good matches] (key=[East Carolina/CLAYTOR,DOMINIQUE], box=[List()])
-// (in general, lots of small box scores):
-//DataQualityIssues.Fixer: [NO_MATCH] [ERROR.4A: no good matches] (key=[Wofford/BIGELOW,ISAIAH], box=[List(Pringle, Nick, Turner, Keaton, Murphy, Storm, Appelgren, David, Gore, Jackson, Steelman, Jonathan)])
-//DataQualityIssues.Fixer: [NO_MATCH] [ERROR.4A: no good matches] (key=[Oregon/SABALLY,NYARA], box=[List()])
-//DataQualityIssues.Fixer: [NO_MATCH] [ERROR.4A: no good matches] (key=[Florida St./NICOLETTI,IZABELA], box=[List(Wright, Imani)])
+// 1] True negatives
+//(2018/9 Wichita St.) DataQualityIssues.Fixer: [NO_MATCH] [ERROR.3B: multiple near first name matches: [CHA,ISAIAH POOR] vs [List(NoSurnameMatch(Moore, Chance,None,Some(cha),[cha,isaiah poor] vs [moore, chance]: Failed to find a fragment matching [moore], candidates=(cha,0);(isaiah,0);(poor,67)))]] (key=[TeamSeasonId(TeamId(Wichita St.),Year(2018))/CHA,ISAIAH POOR], box=[List(Burton, Jamarius, Moore, Chance, Brown, Rod, Poor Bear-Chandler, Isaiah, McDuffie, Markis, Farrakhan, Eli, Udeze, Morris, Bush, Brycen, Herrs, Jacob)])
+//^ ah OK it matches the wrong surname ... should actually look for matching firstnames that are approx surname matches
 
 //2] DataQualityIssues.Fixer: [NO_MATCH] [ERROR.4A: no good matches] (key=[VCU/VCU], box=[List(Santos-Silva, Marcus, Vann, Issac, Byrd, P.J., Sheehy-Guiseppi, D., Evans, Marcus, Jackson, Xavier, Curry, Keshawn, Simms, Mike'L, Jenkins, De'Riante, Gilmore, Michael)])
-// (also "Team Full", other stuff)
+// (also "Team Full", other random upper case stuff (SDSWU or something) ... I suspect they all mean team though)
+// ... maybe allow a DRB and ORB to not matchup, just treat it as "Team"?
 
 //3] (lots of numbers)
+// Maybe go get roster (annoyingly is https://stats.ncaa.org/team/260/roster/15480 from https://stats.ncaa.org/teams/505671)
+// Oh wow yeah the roster fixes the box score stuff also I think...
 
-//4] Look into "Texas A&M/GILDER,ADMON" since he wasn't on the team in 18/9 AFAICT
 
         case (l @ (strong :: other_strong), _, _, _) =>
           if  (other_strong.nonEmpty) {
@@ -297,6 +249,12 @@ object DataQualityIssues {
           }
 
         case (Nil, l @ (weak :: other_weak), _, _) =>
+
+          // Can generate false positives: the "sibling who is a walk-on and gets a few minutes" but never
+          // makes it onto a box score (Example: Oregon 2018: Sabally, Satou/Nyara)
+          // (likely this shouldn't cause much inaccuracy ... if they played so little then they probably
+          //  won't kill their sibling's stats!)
+
           if  (other_weak.nonEmpty) {
             val context_string = s"ERROR.2A: multiple weak matches: [$candidate] vs [$l]"
             log_info(None, context_string)

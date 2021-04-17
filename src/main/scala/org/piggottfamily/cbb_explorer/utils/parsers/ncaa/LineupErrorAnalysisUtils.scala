@@ -28,6 +28,7 @@ object LineupErrorAnalysisUtils {
   ) {
     /** To help with the fuzzy matching will make note of any box name we've seen */
     var var_seen_in_game: Set[String] = Set()
+    //TODO: change this so TidyPlayerContext transforms immutably instead
   }
 
   /** AaBbb... -> ABbbbbb, see below for explanation */

@@ -40,6 +40,7 @@ object ExtractorUtils {
 
     val starting_state = Model.LineupBuildingState(starters_only)
     val partial_events = reorder_and_reverse(reversed_partial_events)
+
     val end_state = partial_events.foldLeft(starting_state) { (state, event) =>
 
       /** Detect old format the first time a player name is encountered by looking for all upper case */

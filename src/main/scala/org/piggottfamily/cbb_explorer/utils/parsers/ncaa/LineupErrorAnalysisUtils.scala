@@ -26,6 +26,8 @@ object LineupErrorAnalysisUtils {
     all_players_map: Map[String, String],
     alt_all_players_map: Map[String, List[String]]
   )
+  //TODO: would be good to have a lookup map to speed up fuzzy lookups
+  //(and return a transformed copy)
 
   /** AaBbb... -> ABbbbbb, see below for explanation */
   private def truncate_code_1(code: String): String = {
@@ -83,6 +85,13 @@ object LineupErrorAnalysisUtils {
           case _ => None
         }
 
+      }.orElse { // OK if we're done to here, let's get creative:
+        if (p != "Team" && p != "TEAM") DataQualityIssues.Fixer.fuzzy_box_match(
+          p, ctx.all_players_map.values.toList, s"${ctx.box_lineup.team}"
+        ) match {
+          case Right(box_name) => Some(box_name)
+          case Left(_) => None
+        } else None
       }.getOrElse(p) //(this will get rejected later on, in validate_lineup)
   }
 

@@ -54,6 +54,19 @@ class LineupController(d: Dependencies = Dependencies())
       }
     }
 
+    // Collect all available box scores
+    val roster_from_box_scores = (for {
+      //(early in the season games might not exist)
+      box <- Try(d.file_manager.list_files(root_dir / boxscore_dir, Some("html"), file_filter)).getOrElse(Nil).iterator
+      box_html = d.file_manager.read_file(box)
+      box_lineup <- (d.boxscore_parser.get_box_lineup(box.last.toString, box_html, team) match {
+        case Right(lineup) => Some(lineup)
+        case _ => None
+      })
+    } yield box_lineup.players.map(_.id.name)).flatten.toSet.toList
+
+    //println("All players: " + roster_from_box_scores)
+
     val lineups = for {
       //(early in the season games might not exist)
       game <- Try(d.file_manager.list_files(root_dir / play_by_play_dir, Some("html"), file_filter)).getOrElse(Nil).iterator
@@ -63,7 +76,7 @@ class LineupController(d: Dependencies = Dependencies())
 
       _ = d.logger.info(s"Reading [$game]: [$game_id]")
 
-      lineup = Try { build_game_lineups(root_dir, game_id, team, neutral_games) } match {
+      lineup = Try { build_game_lineups(root_dir, game_id, team, roster_from_box_scores, neutral_games) } match {
         case Success(res) => res.left.map { errs => ParserError(game, errs) }
         case Failure(ex) => Left(FileError(game, ex))
       }
@@ -93,7 +106,11 @@ class LineupController(d: Dependencies = Dependencies())
   }
 
   /** Given a game/team id, returns good and bad paths for that game */
-  def build_game_lineups(root_dir: Path, game_id: String, team: TeamId, neutral_game_dates: Set[String]):
+  protected def build_game_lineups(
+    root_dir: Path, game_id: String, team: TeamId,
+    roster_from_box_scores: List[String],
+    neutral_game_dates: Set[String]
+  ):
     Either[List[ParseError], (List[LineupEvent], List[LineupEvent], List[PlayerEvent])] =
   {
     val playbyplay_filename = s"$game_id.html"
@@ -101,7 +118,9 @@ class LineupController(d: Dependencies = Dependencies())
     val box_html = d.file_manager.read_file(root_dir / boxscore_dir / boxscore_filename)
     val play_by_play_html = d.file_manager.read_file(root_dir / play_by_play_dir / playbyplay_filename)
     for {
-      box_lineup <- d.boxscore_parser.get_box_lineup(boxscore_filename, box_html, team, neutral_game_dates)
+      box_lineup <- d.boxscore_parser.get_box_lineup(
+        boxscore_filename, box_html, team, roster_from_box_scores, neutral_game_dates
+      )
       _ = d.logger.info(s"Parsed box score: opponent=[${box_lineup.opponent}] venue=[${box_lineup.location_type}]")
       lineup_events <- d.playbyplay_parser.create_lineup_data(playbyplay_filename, play_by_play_html, box_lineup)
       player_events = (lineup_events._1 ++ lineup_events._2).flatMap(

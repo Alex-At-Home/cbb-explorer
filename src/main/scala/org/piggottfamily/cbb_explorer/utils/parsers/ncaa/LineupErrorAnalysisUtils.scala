@@ -25,7 +25,10 @@ object LineupErrorAnalysisUtils {
     box_lineup: LineupEvent,
     all_players_map: Map[String, String],
     alt_all_players_map: Map[String, List[String]]
-  )
+  ) {
+    /** To help with the fuzzy matching will make note of any box name we've seen */
+    var var_seen_in_game: Set[String] = Set()
+  }
 
   /** AaBbb... -> ABbbbbb, see below for explanation */
   private def truncate_code_1(code: String): String = {
@@ -62,6 +65,10 @@ object LineupErrorAnalysisUtils {
     val player_id = ExtractorUtils.build_player_code(p, Some(ctx.box_lineup.team.team))
     ctx.all_players_map
       .get(player_id.code)
+      .map { player =>
+        ctx.var_seen_in_game = ctx.var_seen_in_game + player
+        player
+      }
       .orElse { // See if it's the alternative
         ctx.alt_all_players_map.get(player_id.code).collect {
           case unique :: Nil => unique
@@ -84,10 +91,13 @@ object LineupErrorAnalysisUtils {
         }
 
       }.orElse { // OK if we're done to here, let's get creative:
+        //if (p.toLowerCase != "team") println(s"$p: already see ${ctx.var_seen_in_game.mkString(";")}")
         if (p != "Team" && p != "TEAM") DataQualityIssues.Fixer.fuzzy_box_match(
-          p, ctx.all_players_map.values.toList, ctx.box_lineup.team.team.name
+          p, ctx.all_players_map.values.toList.filterNot(ctx.var_seen_in_game), ctx.box_lineup.team.team.name
         ) match {
-          case Right(box_name) => Some(box_name)
+          case Right(box_name) =>
+            ctx.var_seen_in_game = ctx.var_seen_in_game + box_name
+            Some(box_name)
           case Left(_) => None
         } else None
       }.getOrElse(p) //(this will get rejected later on, in validate_lineup)

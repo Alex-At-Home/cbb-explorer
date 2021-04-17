@@ -278,6 +278,12 @@ object DataQualityIssues {
             log_info(Some(strong.box_name), context_string)
             Right(strong.box_name)
           }
+//TODO: so far I have
+// Lots and lots of true positives
+// These are both wrong! (2018/9)
+// DataQualityIssues.Fixer: [Smith, Mitchell] [SUCCESS.1B: single strong match: [StrongSurnameMatch(Smith, Mitchell,86)]] (key=[Missouri/SMITH,DRU], box=[List(Santos, K.J., Tilmon, Jeremiah, Pinson, Xavier, Suggs, Ronnie, Geist, Jordan, Pickett, Javon, Watson, Torrence, Smith, Mitchell, Nikko, Reed, Puryear, Kevin)])
+// DataQualityIssues.Fixer: [Smith, Mitchell] [SUCCESS.1B: single strong match: [StrongSurnameMatch(Smith, Mitchell,86)]] (key=[Missouri/SMITH,MARK], box=[List(Santos, K.J., Tilmon, Jeremiah, Pinson, Xavier, Suggs, Ronnie, Geist, Jordan, Pickett, Javon, Watson, Torrence, Smith, Mitchell, Nikko, Reed, Puryear, Kevin)])
+
         case (Nil, l @ (weak :: other_weak), _, _) =>
           if  (other_weak.nonEmpty) {
             val context_string = s"ERROR.2A: multiple weak matches: [$candidate] vs [$l]"
@@ -287,6 +293,18 @@ object DataQualityIssues {
             val context_string = s"SUCCESS.2B: single weak match: [$weak]"
             log_info(Some(weak.box_name), context_string)
             Right(weak.box_name)
+//TODO: so far I have confirmed 6 false positives:
+// "Garrett, Marcus" vs "LUINSTRA,GARRETT" (Kansas 2018/9)
+// "Jones, Curtis" vs "JONES,KENTREVIOUS" (Ok St 2018/19)
+// "Johnson, Keyontae" vs "JOHNSON,CHASE" (Fl 2018/19)
+// "WALKER,ZACHARY" vs "Walker III, John" (TAMU 2018/19)
+// 2020/21: Lipscomb/JONES,GREG], -> Greg Alex
+//W2020/21 SABALLY,NYARA?: DataQualityIssues.Fixer: [Sabally, Satou] [SUCCESS.2B: single weak match: [WeakSurnameMatch(Sabally, Satou,67,[sabally,nyara] vs [sabally, satou]: Matched [sabally] with [Some((sabally,100))], but overall score was [67])]] (key=[Oregon/SABALLY,NYARA], box=[List(Hebard, Ruthy, Cazorla, Maite, Ionescu, Sabrina, Giomi, Lydia, Gildon, Oti, Boley, Erin, Chavez, Taylor, Sabally, Satou, Yaeger, Morgan)])
+// (seems likely  siblings are often walk-ons on the team)
+
+// 2 True positives:
+// W2020/21 Creighton Pryor, DeArica
+// 2020/21 (Miss Valley St.) Fanord Donalson -> Jonathan Fanard (!!)
           }
         case (Nil, Nil, l @ (first_name_only :: other_first_name_only), l2) =>
           if (other_first_name_only.nonEmpty) {
@@ -305,6 +323,10 @@ object DataQualityIssues {
             log_info(Some(first_name_only.box_name), context_string)
             Right(first_name_only.box_name)
           }
+//TODO: so far I have
+// 2 true-positive (Ali/Howard 2020/21) and (Poor Bear-Chandler, Isaiah/Wichita St 2018/9)
+// 2 false-positive (Carla Bremaud vs Carla Budane, Wichita St W2020/21)
+// + W2020/21 JACKSON,BIANCA: DataQualityIssues.Fixer: [Cuevas-Moore, Bianca] [SUCCESS.3C: 'first name only' match: [NoSurnameMatch(Cuevas-Moore, Bianca,Some(bianca),None,[jackson,bianca] vs [cuevas-moore, bianca]: Failed to find a fragment matching [cuevas-moore], candidates=(jackson,39);(bianca,22))]] (key=[South Carolina/JACKSON,BIANCA], box=[List(Cliney, Doniyah, Cooper, Te'a, Grissett, Lele, Jennings, Alexis, Saxton, Victaria, Cuevas-Moore, Bianca, Harris, Tyasha, Henderson
         case _ =>
           val context_string = s"ERROR.4A: no good matches"
           log_info(None, context_string)

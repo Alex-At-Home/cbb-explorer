@@ -33,11 +33,11 @@ object RosterParserTests extends TestSuite with RosterParser {
     "RosterParser" - {
       TestUtils.inside(parse_roster("test.hmtl", lineup_html, TeamId("TeamA")).map(_.take(5))) {
         case Right(List(
-          RosterEntry(PlayerCodeId("DaAkin",PlayerId("Akin, Daniel")),"30","6-9","Sr"),
-          RosterEntry(PlayerCodeId("JaBoonyasith",PlayerId("Boonyasith, Jacob")),"41","6-3","Jr"),
-          RosterEntry(PlayerCodeId("BrDavis",PlayerId("Davis, Brendan")),"24","6-0","Fr"),
-          RosterEntry(PlayerCodeId("RjEytle-rock",PlayerId("Eytle-Rock, R.J.")),"11","6-3","Jr"),
-          RosterEntry(PlayerCodeId("SaGrace",PlayerId("Grace, Sam")),"15","5-10","So")
+          RosterEntry(PlayerCodeId("DaAkin",PlayerId("Akin, Daniel")),"30","6-9","Sr", 16),
+          RosterEntry(PlayerCodeId("JaBoonyasith",PlayerId("Boonyasith, Jacob")),"41","6-3","Jr", 14),
+          RosterEntry(PlayerCodeId("BrDavis",PlayerId("Davis, Brendan")),"24","6-0","Fr", 3),
+          RosterEntry(PlayerCodeId("RjEytle-rock",PlayerId("Eytle-Rock, R.J.")),"11","6-3","Jr", 20),
+          RosterEntry(PlayerCodeId("SaGrace",PlayerId("Grace, Sam")),"15","5-10","So", 2)
         )) =>
       }
       TestUtils.inside(parse_roster("test.hmtl", lineup_html_dup_check, TeamId("TeamB")).map(_.take(5))) {

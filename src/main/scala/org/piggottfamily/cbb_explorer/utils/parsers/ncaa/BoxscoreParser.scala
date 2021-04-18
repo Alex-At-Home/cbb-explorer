@@ -118,16 +118,20 @@ trait BoxscoreParser {
           val just_players_set = just_players.toSet
           // We're going to validate each entry in the box
           // If it's not in the roster then we try to match it fuzzily against the roster
-          val validated_starting_lineup = starting_lineup_from_box.filterNot(just_players_set).map { bad_player =>
-            DataQualityIssues.Fixer.fuzzy_box_match(
-              bad_player, just_players, s"${team}"
-            ) match {
-              case Right(box_name) => box_name
-              case Left(_) => bad_player //(just stick with what we have)
+          val validated_starting_lineup = starting_lineup_from_box.map { player =>
+            if (just_players_set(player)) {
+              player
+            } else {
+              DataQualityIssues.Fixer.fuzzy_box_match(
+                player, just_players, s"${team}:box"
+              ) match {
+                case Right(box_name) => box_name
+                case Left(_) => player //(just stick with what we have)
+              }
+
             }
           }
           val validated_starting_lineup_set = validated_starting_lineup.toSet
-
           validated_starting_lineup ++
             just_players.filterNot(validated_starting_lineup_set) ++ manual_extra_players
       }

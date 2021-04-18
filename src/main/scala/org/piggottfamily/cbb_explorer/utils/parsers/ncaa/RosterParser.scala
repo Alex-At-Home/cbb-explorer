@@ -49,6 +49,9 @@ trait RosterParser {
 
     def class_finder(el: Element): Option[String] =
       (el >?> element("td:eq(4)")).map(_.text)
+
+    def games_played_finder(el: Element): Option[String] =
+      (el >?> element("td:eq(5)")).map(_.text)
   }
 
   /** Gets the boxscore lineup from the HTML page */
@@ -73,8 +76,9 @@ trait RosterParser {
             number <- builders.number_finder(el)
             height <- builders.height_finder(el)
             year_class <- builders.class_finder(el)
+            gp <- builders.games_played_finder(el)
           } yield RosterEntry(
-            player_id, number, height, year_class
+            player_id, number, height, year_class, Try(gp.toInt).getOrElse(0)
           )).toList
         }
       )

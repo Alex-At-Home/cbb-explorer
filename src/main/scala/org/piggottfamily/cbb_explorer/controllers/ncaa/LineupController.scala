@@ -63,10 +63,11 @@ class LineupController(d: Dependencies = Dependencies())
         val roster_html = d.file_manager.read_file(file)
         val roster_lineup = RosterParser.parse_roster(file.last.toString, roster_html, team)
         roster_lineup.toOption.map { lineup =>
-          lineup.foldLeft(Map[String, String]()) { (acc, p) =>
+          //(sort by games played so that typos with dup numbers are ignored)
+          lineup.sortWith(_.gp > _.gp).foldLeft(Map[String, String]()) { (acc, p) =>
             acc.get(p.number) match {
               case Some(_) => // this is some internal error, just use a dummy unique that won't match
-                acc + (("100" + acc.size) -> p.player_id.id.name)
+                acc + (("100" + acc.size + "0" + p.number) -> p.player_id.id.name)
               case None =>
                 acc + (p.number -> p.player_id.id.name)
             }

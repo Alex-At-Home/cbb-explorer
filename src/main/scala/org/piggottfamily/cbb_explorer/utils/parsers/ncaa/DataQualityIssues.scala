@@ -8,11 +8,6 @@ import me.xdrop.fuzzywuzzy.model.ExtractedResult
 
 object DataQualityIssues {
 
-//TODO: numbers failed
-  // DataQualityIssues.Fixer: [NO_MATCH] [ERROR.4A: no good matches] (key=[TeamSeasonId(TeamId(Ole Miss),Year(2018))/21], box=[List(Naylor, Zach, Hinson, Blake, Stevens, Bruce, Shuler, Devontae, Halums, Brian, Davis, Terence, Miller , Franco, Buffen, KJ, Davis, D.C., Rodriguez, Luis, Morgano, Antonio, McBride, John, Tyree, Breein, Curry, Carlos, Horn, Eric, Olejniczak, Dominik, O, D)])
-  // DataQualityIssues.Fixer: [NO_MATCH] [ERROR.4A: no good matches] (key=[TeamSeasonId(TeamId(Ole Miss),Year(2018))/23], box=[List(Naylor, Zach, Hinson, Blake, Stevens, Bruce, Shuler, Devontae, Halums, Brian, Davis, Terence, Miller , Franco, Buffen, KJ, Davis, D.C., Rodriguez, Luis, Morgano, Antonio, McBride, John, Tyree, Breein, Curry, Carlos, Horn, Eric, Olejniczak, Dominik, O, D)])
-//TODO: something has gone wrong with the parsing 
-
   /** Will be in format "LASTNAME,FIRSTNAME" or "Lastname, Firstname" */
   val players_missing_from_boxscore: Map[TeamId, Map[Year, List[String]]] = Map(
 /*
@@ -55,6 +50,7 @@ object DataQualityIssues {
 
     // Too hard to resolve
 
+/*
     Option(TeamId("Alcorn")) -> Map( //(SWAC)
       // Wrong in the PBP, 2020/21
       "10" -> "WILSON,KOBE"
@@ -63,7 +59,7 @@ object DataQualityIssues {
       // PBP:
       "23" -> "WRIGHT,JADAKISS"
     ),
-
+*/
     /////////////////////////////////
 
     // BOX Mispellings

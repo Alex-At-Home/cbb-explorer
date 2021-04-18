@@ -427,6 +427,9 @@ object ExtractorUtils {
     prev: LineupEvent,
     in: Option[String] = None, out: Option[String] = None
   ): LineupEvent = {
+
+    //println("**** NLE" + prev.players + " / " + in + " / " + out)
+
     LineupEvent(
       date = prev.date.plusMillis((prev.duration_mins*60000.0).toInt),
       location_type = prev.location_type,
@@ -458,6 +461,9 @@ object ExtractorUtils {
       val tmp_players_in = curr.players_in.map(p => p.code -> p).toMap
       val poss1 = (curr_players -- tmp_players_out.keySet ++ tmp_players_in).values.toList
       val poss2 = (curr_players ++ tmp_players_in -- tmp_players_out.keySet).values.toList
+
+      //println("**** CL" + s"curr=[$curr_players] in=[$tmp_players_in] out=[$tmp_players_out]")
+
       // Check for a common error case: player comes in and out in the same sub
       // Pick the right one based on what makes sense
       (poss1.size, poss2.size) match {

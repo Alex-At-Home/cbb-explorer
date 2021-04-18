@@ -11,5 +11,6 @@ case class RosterEntry(
   player_id: LineupEvent.PlayerCodeId,
   number: String,
   height: String,
-  year_class: String
+  year_class: String,
+  gp: Int
 )

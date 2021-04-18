@@ -103,7 +103,7 @@ object LineupErrorAnalysisUtils {
             case Left(_) => None
           } else None
         }.map { resolved_p =>
-          (p, with_updated_cache(resolved_p))
+          (resolved_p, with_updated_cache(resolved_p))
         }.getOrElse((p, with_updated_cache(p))) //(this will get rejected later on, in validate_lineup)
     }
   }

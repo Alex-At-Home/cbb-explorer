@@ -8,14 +8,21 @@ import me.xdrop.fuzzywuzzy.model.ExtractedResult
 
 object DataQualityIssues {
 
+//TODO: numbers failed
+  // DataQualityIssues.Fixer: [NO_MATCH] [ERROR.4A: no good matches] (key=[TeamSeasonId(TeamId(Ole Miss),Year(2018))/21], box=[List(Naylor, Zach, Hinson, Blake, Stevens, Bruce, Shuler, Devontae, Halums, Brian, Davis, Terence, Miller , Franco, Buffen, KJ, Davis, D.C., Rodriguez, Luis, Morgano, Antonio, McBride, John, Tyree, Breein, Curry, Carlos, Horn, Eric, Olejniczak, Dominik, O, D)])
+  // DataQualityIssues.Fixer: [NO_MATCH] [ERROR.4A: no good matches] (key=[TeamSeasonId(TeamId(Ole Miss),Year(2018))/23], box=[List(Naylor, Zach, Hinson, Blake, Stevens, Bruce, Shuler, Devontae, Halums, Brian, Davis, Terence, Miller , Franco, Buffen, KJ, Davis, D.C., Rodriguez, Luis, Morgano, Antonio, McBride, John, Tyree, Breein, Curry, Carlos, Horn, Eric, Olejniczak, Dominik, O, D)])
+//TODO: something has gone wrong with the parsing 
+
   /** Will be in format "LASTNAME,FIRSTNAME" or "Lastname, Firstname" */
   val players_missing_from_boxscore: Map[TeamId, Map[Year, List[String]]] = Map(
+/*
     TeamId("Oregon") -> Map( //PAC-12
       Year(2018) -> List("Nyara, Satou") //(women)
     ),
     TeamId("Texas A&M") -> Map( //SEC
       Year(2018) -> List("Vaughn, Everett", "Gilder, Admon")
     )
+*/
   )
 
   /** Use first and last letters from first name for these players */
@@ -52,11 +59,16 @@ object DataQualityIssues {
       // Wrong in the PBP, 2020/21
       "10" -> "WILSON,KOBE"
     ),
+    Option(TeamId("South Carolina St.")) -> Map( //(SWAC)
+      // PBP:
+      "23" -> "WRIGHT,JADAKISS"
+    ),
 
     /////////////////////////////////
 
     // BOX Mispellings
 
+/*
     Option(TeamId("Duke")) -> Map( //(ACC)
       //Box tidy complicated game from W 2018/9
       "Akinbode-James, O." -> "James, Onome",
@@ -82,18 +94,19 @@ object DataQualityIssues {
       "Devonish, Sherwyn" -> "Devonish-Prince, Sherwyn",
       "Devonish-Prince Jr., Sherwyn" -> "Devonish-Prince, Sherwyn",
     ),
-
+*/
     /////////////////////////////////
 
     // Both PBP and BOX
 
+/*
     Option(TeamId("South Carolina St.")) -> Map(
       // Box is wrong, unusually 2020/21
       "JR., RIDEAU" -> "Rideau Jr., Floyd",
       // PBP:
       "23" -> "WRIGHT,JADAKISS"
     ),
-
+*/
     /////////////////////////////////
 
     // Hack to workaround duplicate name
@@ -221,21 +234,6 @@ object DataQualityIssues {
         // 1] There is a single strong match (0+ weak matches): pick that
         // 2] There is a single weak match: pick that
         // 3] There are 0 weak matches, but the first name matches and is not similar to any strings occurring elsewhere
-
-//TODO: to fix:
-
-// 1] True negatives
-//(2018/9 Wichita St.) DataQualityIssues.Fixer: [NO_MATCH] [ERROR.3B: multiple near first name matches: [CHA,ISAIAH POOR] vs [List(NoSurnameMatch(Moore, Chance,None,Some(cha),[cha,isaiah poor] vs [moore, chance]: Failed to find a fragment matching [moore], candidates=(cha,0);(isaiah,0);(poor,67)))]] (key=[TeamSeasonId(TeamId(Wichita St.),Year(2018))/CHA,ISAIAH POOR], box=[List(Burton, Jamarius, Moore, Chance, Brown, Rod, Poor Bear-Chandler, Isaiah, McDuffie, Markis, Farrakhan, Eli, Udeze, Morris, Bush, Brycen, Herrs, Jacob)])
-//^ ah OK it matches the wrong surname ... should actually look for matching firstnames that are approx surname matches
-
-//2] DataQualityIssues.Fixer: [NO_MATCH] [ERROR.4A: no good matches] (key=[VCU/VCU], box=[List(Santos-Silva, Marcus, Vann, Issac, Byrd, P.J., Sheehy-Guiseppi, D., Evans, Marcus, Jackson, Xavier, Curry, Keshawn, Simms, Mike'L, Jenkins, De'Riante, Gilmore, Michael)])
-// (also "Team Full", other random upper case stuff (SDSWU or something) ... I suspect they all mean team though)
-// ... maybe allow a DRB and ORB to not matchup, just treat it as "Team"?
-
-//3] (lots of numbers)
-// Maybe go get roster (annoyingly is https://stats.ncaa.org/team/260/roster/15480 from https://stats.ncaa.org/teams/505671)
-// Oh wow yeah the roster fixes the box score stuff also I think...
-
 
         case (l @ (strong :: other_strong), _, _, _) =>
           if  (other_strong.nonEmpty) {

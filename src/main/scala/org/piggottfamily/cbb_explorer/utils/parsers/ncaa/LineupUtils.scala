@@ -995,7 +995,7 @@ trait LineupUtils {
     // Don't generate events for players not in the lineup
     val player_tidier = (player: LineupEvent.PlayerCodeId) => {
       val tidyPlayer = ExtractorUtils.build_player_code(
-        LineupErrorAnalysisUtils.tidy_player(player.id.name, tidy_ctx), Some(box_lineup.team.team)
+        LineupErrorAnalysisUtils.tidy_player(player.id.name, tidy_ctx)._1, Some(box_lineup.team.team)
       )
       if (valid_player_codes(tidyPlayer.code)) {
         List(tidyPlayer)
@@ -1026,7 +1026,7 @@ trait LineupUtils {
     }
     val player_filter = (player_id: LineupEvent.PlayerCodeId) => (player_str: String) => {
       val code = ExtractorUtils.build_player_code(
-        LineupErrorAnalysisUtils.tidy_player(player_str, tidy_ctx), Some(lineup_event.team.team)
+        LineupErrorAnalysisUtils.tidy_player(player_str, tidy_ctx)._1, Some(lineup_event.team.team)
       ).code
       ((code == player_id.code), code)
     }

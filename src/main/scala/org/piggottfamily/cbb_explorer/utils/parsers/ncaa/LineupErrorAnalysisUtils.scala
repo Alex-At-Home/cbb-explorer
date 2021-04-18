@@ -21,13 +21,13 @@ object LineupErrorAnalysisUtils {
   ).toSet
 
 
+  /** Context for tidying players, includes a cache for performance if you want to fold with it*/
   case class TidyPlayerContext(
     box_lineup: LineupEvent,
     all_players_map: Map[String, String],
-    alt_all_players_map: Map[String, List[String]]
+    alt_all_players_map: Map[String, List[String]],
+    resolution_cache: Map[String, String] = Map()
   )
-  //TODO: would be good to have a lookup map to speed up fuzzy lookups
-  //(and return a transformed copy)
 
   /** AaBbb... -> ABbbbbb, see below for explanation */
   private def truncate_code_1(code: String): String = {
@@ -60,39 +60,52 @@ object LineupErrorAnalysisUtils {
   }
 
   /** Grabs the tidy version of a player's name from the box score */
-  def tidy_player(p: String, ctx: TidyPlayerContext): String = {
-    val player_id = ExtractorUtils.build_player_code(p, Some(ctx.box_lineup.team.team))
-    ctx.all_players_map
-      .get(player_id.code)
-      .orElse { // See if it's the alternative
-        ctx.alt_all_players_map.get(player_id.code).collect {
-          case unique :: Nil => unique
-        }
-      }.orElse { // Sometimes the first half of a double barrrel is missed
-        var new_p = p.replaceAll("[a-zA-Z]+-([a-zA-Z]+)", "$1")
-        if (new_p != p) {
-          Some(tidy_player(new_p, ctx))
-        } else None
-      }.orElse {
-        // Often we see "D.J."" in the box lineup, and then (say) "Dan" in the PBP
-        val truncated_code = truncate_code_1(player_id.code)
-        ctx.alt_all_players_map.get(truncated_code).flatMap {
-          case unique :: Nil =>
-            // Insert a "j" for junior into the name and see if that fixes it:
-            val junior = truncated_code(0) + "j" + truncated_code.drop(1)
-            ctx.all_players_map.get(junior)
+  def tidy_player(p: String, ctx: TidyPlayerContext): (String, TidyPlayerContext) = {
+    def with_updated_cache(resolved_p: String) = {
+      ctx.copy(resolution_cache = ctx.resolution_cache + (p -> resolved_p))
+    }
+    ctx.resolution_cache.get(p).map((_, ctx)).getOrElse {
+      val player_id = ExtractorUtils.build_player_code(p, Some(ctx.box_lineup.team.team))
+      ctx.all_players_map
+        .get(player_id.code)
+        .orElse { // See if it's the alternative
+          ctx.alt_all_players_map.get(player_id.code).collect {
+            case unique :: Nil => unique
+          }
+        }.orElse { // Sometimes the first half of a double barrrel is missed
+          var new_p = p.replaceAll("[a-zA-Z]+-([a-zA-Z]+)", "$1")
+          if (new_p != p) {
+            Some(tidy_player(new_p, ctx)._1)
+          } else None
+        }.orElse { // Is it a number?
+          if (p.forall(_.isDigit)) {
+            ctx.box_lineup.players_out.find(_.code == p).map(_.id.name)
+          } else {
+            None
+          }
+        }.orElse {
+          // Often we see "D.J."" in the box lineup, and then (say) "Dan" in the PBP
+          val truncated_code = truncate_code_1(player_id.code)
+          ctx.alt_all_players_map.get(truncated_code).flatMap {
+            case unique :: Nil =>
+              // Insert a "j" for junior into the name and see if that fixes it:
+              val junior = truncated_code(0) + "j" + truncated_code.drop(1)
+              ctx.all_players_map.get(junior)
 
-          case _ => None
-        }
+            case _ => None
+          }
 
-      }.orElse { // OK if we're done to here, let's get creative:
-        if (p != "Team" && p != "TEAM") DataQualityIssues.Fixer.fuzzy_box_match(
-          p, ctx.all_players_map.values.toList, s"${ctx.box_lineup.team}"
-        ) match {
-          case Right(box_name) => Some(box_name)
-          case Left(_) => None
-        } else None
-      }.getOrElse(p) //(this will get rejected later on, in validate_lineup)
+        }.orElse { // OK if we're done to here, let's get creative:
+          if (p != "Team" && p != "TEAM") DataQualityIssues.Fixer.fuzzy_box_match(
+            p, ctx.all_players_map.values.toList, s"${ctx.box_lineup.team}"
+          ) match {
+            case Right(box_name) => Some(box_name)
+            case Left(_) => None
+          } else None
+        }.map { resolved_p =>
+          (p, with_updated_cache(resolved_p))
+        }.getOrElse((p, with_updated_cache(p))) //(this will get rejected later on, in validate_lineup)
+    }
   }
 
   /** Pulls out inconsistent lineups (self healing seems harder
@@ -116,7 +129,7 @@ object LineupErrorAnalysisUtils {
     //TODO: move this to a private fn since it's used in a few places
     val inactive_players_mentioned = lineup_event.raw_game_events.flatMap(_.team.toList).collect {
       case EventUtils.ParseAnyPlay(player) if player.toLowerCase != "team" =>
-        ExtractorUtils.build_player_code(tidy_player(player, tidy_ctx), Some(lineup_event.team.team)).code
+        ExtractorUtils.build_player_code(tidy_player(player, tidy_ctx)._1, Some(lineup_event.team.team)).code
     }.filterNot(valid_player_codes)
 
     (Set(ValidationError.WrongNumberOfPlayers).filterNot(_ => right_number_of_players) ++
@@ -233,7 +246,7 @@ object LineupErrorAnalysisUtils {
           // Any candidates who are mentioned get added to the list:
           val candidates_who_are_in_plays = ev.raw_game_events.flatMap(_.team.toList).collect {
             case EventUtils.ParseAnyPlay(player) =>
-              ExtractorUtils.build_player_code(tidy_player(player, tidy_ctx), Some(ev.team.team))
+              ExtractorUtils.build_player_code(tidy_player(player, tidy_ctx)._1, Some(ev.team.team))
           }.filter(new_candidates)
 
           if (extra_debug && debug) {
@@ -288,7 +301,7 @@ object LineupErrorAnalysisUtils {
             //(for the first element, only look at which players are involved in PbP)
           val candidates_who_are_in_plays = ev.raw_game_events.flatMap(_.team.toList).collect {
             case EventUtils.ParseAnyPlay(player) =>
-              ExtractorUtils.build_player_code(tidy_player(player, tidy_ctx), Some(ev.team.team))
+              ExtractorUtils.build_player_code(tidy_player(player, tidy_ctx)._1, Some(ev.team.team))
           }.filter(curr_candidates)
 
           if (extra_debug && debug) {

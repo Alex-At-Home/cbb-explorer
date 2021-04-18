@@ -34,11 +34,11 @@ object ExtractorUtils {
     reversed_partial_events: Iterator[Model.PlayByPlayEvent],
     box_lineup: LineupEvent
   ): List[LineupEvent] = {
-    val starters_only = box_lineup.copy(players = box_lineup.players.take(5))
+    val starters_only = box_lineup.copy(players = box_lineup.players.take(5), players_in = Nil, players_out = Nil)
     // Use this to render player names in their more readable format
     val tidy_ctx = LineupErrorAnalysisUtils.build_tidy_player_context(box_lineup)
 
-    val starting_state = Model.LineupBuildingState(starters_only)
+    val starting_state = Model.LineupBuildingState(starters_only, tidy_ctx)
     val partial_events = reorder_and_reverse(reversed_partial_events)
 
     val end_state = partial_events.foldLeft(starting_state) { (state, event) =>
@@ -52,36 +52,40 @@ object ExtractorUtils {
 
       event match {
         case Model.SubInEvent(min, _, player_name) if state.is_active(min) && no_team_keyword(player_name) =>
-          val tidier_player_name = LineupErrorAnalysisUtils.tidy_player(player_name, tidy_ctx)
+          val (tidier_player_name, new_ctx) = LineupErrorAnalysisUtils.tidy_player(player_name, state.tidy_ctx)
           val completed_curr = complete_lineup(state.curr, state.prev, min)
           state.copy(
             curr = new_lineup_event(
               completed_curr, in = Some(tidier_player_name)
             ),
+            tidy_ctx = new_ctx,
             prev = completed_curr :: state.prev,
             old_format = is_old_format(player_name, state)
           )
         case Model.SubOutEvent(min, _, player_name) if state.is_active(min) =>
-          val tidier_player_name = LineupErrorAnalysisUtils.tidy_player(player_name, tidy_ctx)
+          val (tidier_player_name, new_ctx) = LineupErrorAnalysisUtils.tidy_player(player_name, state.tidy_ctx)
           val completed_curr = complete_lineup(state.curr, state.prev, min)
           state.copy(
             curr = new_lineup_event(
               completed_curr, out = Some(tidier_player_name)
             ),
+            tidy_ctx = new_ctx,
             prev = completed_curr :: state.prev,
             old_format = is_old_format(player_name, state)
           )
         case Model.SubInEvent(min, _, player_name) if no_team_keyword(player_name) => // !state.is_active
           // Keep adding sub events
-          val tidier_player_name = LineupErrorAnalysisUtils.tidy_player(player_name, tidy_ctx)
+          val (tidier_player_name, new_ctx) = LineupErrorAnalysisUtils.tidy_player(player_name, state.tidy_ctx)
           state.with_player_in(tidier_player_name).copy(
+            tidy_ctx = new_ctx,
             old_format = is_old_format(player_name, state)
           )
 
         case Model.SubOutEvent(min, _, player_name) => // !state.is_active
           // Keep adding sub events
-          val tidier_player_name = LineupErrorAnalysisUtils.tidy_player(player_name, tidy_ctx)
+          val (tidier_player_name, new_ctx) = LineupErrorAnalysisUtils.tidy_player(player_name, state.tidy_ctx)
           state.with_player_out(tidier_player_name).copy(
+            tidy_ctx = new_ctx,
             old_format = is_old_format(player_name, state)
           )
 
@@ -500,6 +504,7 @@ object ExtractorUtils {
     /** State for building raw line-up data */
     private [ExtractorUtils] case class LineupBuildingState(
       curr: LineupEvent,
+      tidy_ctx: LineupErrorAnalysisUtils.TidyPlayerContext,
       prev: List[LineupEvent] = Nil,
       old_format: Option[Boolean] = None // most 2018+ is new format but there are a few exceptions
     ) {

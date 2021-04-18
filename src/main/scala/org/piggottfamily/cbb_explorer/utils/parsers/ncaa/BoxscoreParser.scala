@@ -96,23 +96,44 @@ trait BoxscoreParser {
         builders.score_finder(doc), target_team_first
       ).left.map(single_error_completer)
 
-      starting_lineup <- parse_players_from_boxscore(
+      starting_lineup_from_box <- parse_players_from_boxscore(
         builders.boxscore_finder(doc, target_team_first)
       ).left.map(single_error_completer)
 
-      starting_lineup_set = starting_lineup.toSet
-      starting_lineup_plus = starting_lineup ++
-        (external_roster match {
-          case Left(s) if s.isEmpty =>
-            DataQualityIssues.players_missing_from_boxscore
-              .getOrElse(TeamId(team), Map()).getOrElse(year, List())
-          case Left(others) =>
+      manual_extra_players =
+        DataQualityIssues.players_missing_from_boxscore.getOrElse(TeamId(team), Map()).getOrElse(year, List())
+
+      starting_lineup = external_roster match {
+        case Left(others) => // Have a list of players from box score
+          val starting_lineup_from_box_set = starting_lineup_from_box.toSet
+
+          starting_lineup_from_box ++ (if (others.isEmpty) {
+            manual_extra_players
+          } else { //(in this case, already have the missing players from box score)
             others
-          case Right(_) => Nil
-        }).filterNot(starting_lineup_set)
+          }).filterNot(starting_lineup_from_box_set)
+
+        case Right(number_to_player_map) => // Have a canonical list from the roster
+          val just_players = number_to_player_map.values.toList
+          val just_players_set = just_players.toSet
+          // We're going to validate each entry in the box
+          // If it's not in the roster then we try to match it fuzzily against the roster
+          val validated_starting_lineup = starting_lineup_from_box.filterNot(just_players_set).map { bad_player =>
+            DataQualityIssues.Fixer.fuzzy_box_match(
+              bad_player, just_players, s"${team}"
+            ) match {
+              case Right(box_name) => box_name
+              case Left(_) => bad_player //(just stick with what we have)
+            }
+          }
+          val validated_starting_lineup_set = validated_starting_lineup.toSet
+
+          validated_starting_lineup ++
+            just_players.filterNot(validated_starting_lineup_set) ++ manual_extra_players
+      }
 
       validated_lineup <- validate_box_score(
-        TeamId(team), starting_lineup_plus
+        TeamId(team), starting_lineup
       ).left.map(single_error_completer)
 
     } yield LineupEvent(
@@ -127,7 +148,13 @@ trait BoxscoreParser {
       lineup_id = LineupEvent.LineupId.unknown,
       players = validated_lineup,
       players_in = Nil,
-      players_out = Nil,
+      players_out = external_roster match { // Naughtily override this to give numbers in the code
+        case Right(number_to_player_map) =>
+          number_to_player_map.toList.map { case (number, name) =>
+            LineupEvent.PlayerCodeId(number, PlayerId(name))
+          }
+        case _ => Nil
+      },
       raw_game_events = Nil,
       team_stats = LineupEventStats.empty,
       opponent_stats = LineupEventStats.empty

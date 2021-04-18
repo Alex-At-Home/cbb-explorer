@@ -54,10 +54,10 @@ trait BoxscoreParser {
     }
   }
 
-  /** Gets the boxscore lineup from the HTML page */
+  /** Gets the boxscore lineup from the HTML page (external roster has either just names or names + numbers) */
   def get_box_lineup(
     filename: String, in: String, team_id: TeamId,
-    other_box_lineups: List[String] = Nil, neutral_game_dates: Set[String] = Set()
+    external_roster: Either[List[String], Map[String, String]] = Left(Nil), neutral_game_dates: Set[String] = Set()
   ): Either[List[ParseError], LineupEvent] =
   {
     val browser = JsoupBrowser()
@@ -102,12 +102,13 @@ trait BoxscoreParser {
 
       starting_lineup_set = starting_lineup.toSet
       starting_lineup_plus = starting_lineup ++
-        (other_box_lineups match {
-          case s if s.isEmpty =>
+        (external_roster match {
+          case Left(s) if s.isEmpty =>
             DataQualityIssues.players_missing_from_boxscore
               .getOrElse(TeamId(team), Map()).getOrElse(year, List())
-          case others =>
+          case Left(others) =>
             others
+          case Right(_) => Nil
         }).filterNot(starting_lineup_set)
 
       validated_lineup <- validate_box_score(

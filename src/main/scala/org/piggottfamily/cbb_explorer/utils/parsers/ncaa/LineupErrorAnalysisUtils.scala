@@ -4,6 +4,7 @@ import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.models.ncaa._
 import org.piggottfamily.cbb_explorer.utils.parsers._
 
+
 /** Wraps several functions for finding and fixing errors in the PbP/box score */
 object LineupErrorAnalysisUtils {
   /** For debugging unknown cases */
@@ -60,12 +61,14 @@ object LineupErrorAnalysisUtils {
   }
 
   /** Grabs the tidy version of a player's name from the box score */
-  def tidy_player(p: String, ctx: TidyPlayerContext): (String, TidyPlayerContext) = {
-    def with_updated_cache(resolved_p: String) = {
-      ctx.copy(resolution_cache = ctx.resolution_cache + (p -> resolved_p))
-    }
-    ctx.resolution_cache.get(p).map((_, ctx)).getOrElse {
-      val player_id = ExtractorUtils.build_player_code(p, Some(ctx.box_lineup.team.team))
+  def tidy_player(p_in: String, ctx: TidyPlayerContext): (String, TidyPlayerContext) = {
+    ctx.resolution_cache.get(p_in).map((_, ctx)).getOrElse {
+      val player_id = ExtractorUtils.build_player_code(p_in, Some(ctx.box_lineup.team.team))
+      val p = player_id.id.name //(normalized name)
+      def with_updated_cache(resolved_p: String) = {
+        ctx.copy(resolution_cache = ctx.resolution_cache + (p -> resolved_p))
+      }
+
       ctx.all_players_map
         .get(player_id.code)
         .orElse { // See if it's the alternative
@@ -77,6 +80,18 @@ object LineupErrorAnalysisUtils {
           if (new_p != p) {
             Some(tidy_player(new_p, ctx)._1)
           } else None
+        }.orElse { // Is it initials?
+          ExtractorUtils.name_is_initials(p) match {
+            case Some((p1, p2)) =>
+              val candidates = ctx.all_players_map.collect {
+                case (code, id) if (code.size >= 3) && (code(0) == p1) && (code(2) == p2) => id
+              }
+              candidates match {
+                case List(single_match) => Some(single_match)
+                case _ => None
+              }
+            case _ => None
+          }
         }.orElse { // Is it a number?
           if (p.forall(_.isDigit)) {
             ctx.box_lineup.players_out.find(_.code == p).map(_.id.name)
@@ -96,11 +111,15 @@ object LineupErrorAnalysisUtils {
           }
 
         }.orElse { // OK if we're done to here, let's get creative:
-          if (p != "Team" && p != "TEAM") DataQualityIssues.Fixer.fuzzy_box_match(
-            p, ctx.all_players_map.values.toList, s"${ctx.box_lineup.team}"
-          ) match {
-            case Right(box_name) => Some(box_name)
-            case Left(_) => None
+          if (p != "Team" && p != "TEAM" && p != "TEAM DEF" && p != "TEAM FULL" && p != ctx.box_lineup.team.team.name)
+          {
+            //^ (various team stats, we exclude them just so we don't accidentallu fuzzy match on a player...)
+            DataQualityIssues.Fixer.fuzzy_box_match(
+              p, ctx.all_players_map.values.toList, s"${ctx.box_lineup.team}"
+            ) match {
+              case Right(box_name) => Some(box_name)
+              case Left(_) => None
+            }
           } else None
         }.map { resolved_p =>
           (resolved_p, with_updated_cache(resolved_p))

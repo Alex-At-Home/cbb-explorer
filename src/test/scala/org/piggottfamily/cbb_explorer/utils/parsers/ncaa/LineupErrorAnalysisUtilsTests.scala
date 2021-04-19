@@ -16,6 +16,7 @@ object LineupErrorAnalysisUtilsTests extends TestSuite {
 
       "tidy_player" - {
         //TODO: adequately test by last test of ExtractorUtils.build_partial_lineup_list
+//TODO: not really any more...        
       }
 
       "validate_lineup" - {

@@ -18,6 +18,23 @@ object ExtractorUtils {
 
   // Top level
 
+  /** Normalizes accents out of strings - ideally only use as part of build_player_code */
+  private def remove_diacritics(fragment: String): String = {
+    import java.text.Normalizer
+    Normalizer.normalize(fragment, Normalizer.Form.NFD).replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+  }
+
+  /** Quick decomposition of name represented as initials, returns first name, last name */
+  def name_is_initials(name: String): Option[(Char, Char)] = {
+    if ((name.size == 3) || (name.size == 4)) {
+      name.toList match {
+        case List(p2, ',', ' ', p1) => Some(p1, p2)
+        case List(p1, ' ', p2) => Some(p1, p2)
+        case _ => None
+      }
+    } else None
+  }
+
   /** Converts score to a number so don't get bitten by number of digits in lexi ordering */
   def score_to_tuple(str: String): (Int, Int) = {
     val regex = "([0-9]+)-([0-9]+)".r
@@ -165,11 +182,7 @@ object ExtractorUtils {
   /** Builds a player code out of the name, with various formats supported */
   def build_player_code(in_name: String, team: Option[TeamId]): LineupEvent.PlayerCodeId = {
     // Check full name vs map of misspellings
-    def remove_accents(fragment: String): String = {
-      import java.text.Normalizer
-      Normalizer.normalize(fragment, Normalizer.Form.NFD).replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
-    }
-    val name = remove_accents(DataQualityIssues.misspellings(team).get(in_name).getOrElse(in_name))
+    val name = remove_diacritics(DataQualityIssues.misspellings(team).get(in_name).getOrElse(in_name))
     def first_last(fragment: String): String = {
       if (fragment.isEmpty) {
         ""

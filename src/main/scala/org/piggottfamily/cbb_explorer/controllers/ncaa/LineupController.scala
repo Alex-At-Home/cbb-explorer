@@ -57,7 +57,7 @@ class LineupController(d: Dependencies = Dependencies())
     // Try to get the most accurate canonical list of players
     // First look for a roster - if that doesn't exist (legacy) just get all the box scores
     val external_roster = {
-      Try(
+      val player_number_map = Try(
         d.file_manager.list_files(root_dir / roster_dir, Some("html"), file_filter, recursive = true)
       ).getOrElse(Nil).headOption.flatMap { file =>
         val roster_html = d.file_manager.read_file(file)
@@ -73,22 +73,25 @@ class LineupController(d: Dependencies = Dependencies())
             }
           }
         }
-      }
-    }.map(Right(_)).getOrElse { // If there is no roster then fallback to using as many box scores as possible
-      Left((for {
-        //(early in the season games might not exist)
+      }.getOrElse(Map())
+
+      // Now read all the box scores in to get any missing names:
+
+      val all_box_players = (for {
         box <- Try(d.file_manager.list_files(root_dir / boxscore_dir, Some("html"), file_filter)).getOrElse(Nil).iterator
         box_html = d.file_manager.read_file(box)
-        box_lineup <- (d.boxscore_parser.get_box_lineup(box.last.toString, box_html, team) match {
+        box_lineup <- (d.boxscore_parser.get_box_lineup(box.last.toString, box_html, team, (Nil, player_number_map)) match {
           case Right(lineup) => Some(lineup)
           case _ => None
         })
-      } yield box_lineup.players.map(_.id.name)).flatten.toSet.toList)
+      } yield box_lineup.players.map(_.id.name)).flatten.toSet.toList
+
+      (all_box_players, player_number_map)
     }
-
-    //println(s"All players: [${external_roster.left.map(_.size).right.map(_.size)}]\n" + external_roster)
-
-    val lineups = for {
+/**/
+    println(s"All_box_roster_players: [$external_roster]")
+/**/
+    val lineups = if (true) Nil else for {
       //(early in the season games might not exist)
       game <- Try(d.file_manager.list_files(root_dir / play_by_play_dir, Some("html"), file_filter)).getOrElse(Nil).iterator
 
@@ -129,7 +132,7 @@ class LineupController(d: Dependencies = Dependencies())
   /** Given a game/team id, returns good and bad paths for that game */
   protected def build_game_lineups(
     root_dir: Path, game_id: String, team: TeamId,
-    external_roster: Either[List[String], Map[String, String]],
+    external_roster: (List[String], Map[String, String]),
     neutral_game_dates: Set[String]
   ):
     Either[List[ParseError], (List[LineupEvent], List[LineupEvent], List[PlayerEvent])] =

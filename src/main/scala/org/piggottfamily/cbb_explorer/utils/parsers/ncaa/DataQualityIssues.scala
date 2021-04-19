@@ -8,16 +8,44 @@ import me.xdrop.fuzzywuzzy.model.ExtractedResult
 
 object DataQualityIssues {
 
+//TODO: treat this like team (also seen VCU "TEAM DEF" "TEAM FULL")
+//DataQualityIssues.Fixer: [NO_MATCH] [ERROR.4A: no good matches] (key=[TeamSeasonId(TeamId(South Dakota St.),Year(2018))/SDSUW], box=[List(Ferrand, Jordan, Theuninck, Lindsey, Hirschman, Addison, Miller, Macy, Guebert, Madison, Palmer, Sydney, Stapleton, Sydney, Bultsma, Megan, Larson, Tagyn, Irwin, Tylee, Cascio Jensen, Rylie, Selland, Myah, Burckhard, Paiton)])
+// ^ mainly just need to confirm that this doesn't cause errors
+
+//TODO:
+// seen this construct a few times:
+//DataQualityIssues.Fixer: [NO_MATCH] [ERROR.4A: no good matches] (key=[TeamSeasonId(TeamId(Kentucky),Year(2019))/O A], box=[List(Roach, Kameron, Patterson, Chasity, Anyagaligbo, Ogechi, Edwards, Dre'Una, Paschal, Amanda, King, Emma, Cole, Nae Nae, Roper, Jaida, Green, Blair, Haines, Sabrina, Merrill, Deasia, Howard, Rhyne, McKinney, KeKe, Wyatt, Tatyana)])
+//DataQualityIssues.Fixer: [P, P] [SUCCESS.1B: single strong match: [StrongSurnameMatch(P, P,86)]] (key=[TeamSeasonId(TeamId(La Salle),Year(2018))/JOSEPH,DAJOUR], box=[List(Lafond, Andrew, Powell, Pookie, Beatty, David, Brookins, Miles, Spencer, Scott, Brower, Jayson, P, P, Mosely, Cheddi, Sullivan, Key, Carter, Traci, Deas, Isiah, Clark, Jack, Croswell, Ed, Phiri, Saul, Moultrie, Jamir, Kimbrough, Jared)])
+//TODO: don't allow initials in roster...
+
+//TODO 3s:
+//DataQualityIssues.Fixer: [NO_MATCH] [ERROR.3B: multiple near first name matches: [CHA,ISAIAH POOR] vs [List(NoSurnameMatch(Moore, Chance,None,Some(cha),[cha,isaiah poor] vs [moore, chance]: Failed to find a fragment matching [moore], candidates=(cha,0);(isaiah,0);(poor,67)))]] (key=[TeamSeasonId(TeamId(Wichita St.),Year(2018))/CHA,ISAIAH POOR], box=[List(Haynes-Jones, Samajae, Burton, Jamarius, Torres, Ricky, Stevenson, Erik, Moore, Chance, Dennis, Dexter, Brown, Rod, Poor Bear-Chandler, Isaiah, Midtgaard, Asbjorn, Allen, Teddy, McDuffie, Markis, Farrakhan, Eli, Busse, Tate, Udeze, Morris, Bush, Brycen, Herrs, Jacob, Echenique, Jaime)])
+// good one
+//DataQualityIssues.Fixer: [Devonish, Sherwyn] [SUCCESS.3C: 'first name only' match: [NoSurnameMatch(Devonish, Sherwyn,Some(sherwyn),None,[sherwyn prince jr.] vs [devonish, sherwyn]: Failed to find a fragment matching [devonish], candidates=(sherwyn,27);(prince,14))]] (key=[TeamSeasonId(TeamId(Morgan St.),Year(2020))/Sherwyn Prince Jr.], box=[List(Ware, De'Torrion, Bowens, Elijah, Okafor, Victor, Vance, Thai're, Brown, Jamar, Sorber, Peter, Baxte
+//**** This looks wrong
+//DataQualityIssues.Fixer: [Navarro, Josh] [SUCCESS.3C: 'first name only' match: [NoSurnameMatch(Navarro, Josh,Some(josh),None,[colon, josh] vs [navarro, josh]: Failed to find a fragment matching [navarro], candidates=(colon,17);(josh,23))]] (key=[Fordham:box/Colon, Josh], box=[List(Burquest, Peter, Radovich, Luka, Skoric, Lazar, Gazi, Erten, Williams, Mason, Soriano, Joel, Portley, Antwon, Austin, Chris, Perry, Ty, Navarro, Josh, Ohams, Chuba, Rodriguez, Alec, Cohn, Cameron, Raut, Ivan, Cobb,Jalen, Eyisi, Onyi, Rose, Kyle)])
+// Correctly misses this one:
+//DataQualityIssues.Fixer: [NO_MATCH] [ERROR.3B: multiple near first name matches: [English, Jaren] vs [List(NoSurnameMatch(Adaway, Jalen,None,Some(jaren),[english, jaren] vs [adaway, jalen]: Failed to find a fragment matching [adaway], candidates=(english,0);(jaren,18)))]] (key=[St. Bonaventure:box/English, Jaren], box=[List(Lacewell, Malik, Johnson, Matt, Vasquez, Alejandro, Adaway, Jalen, Winston, Justin, Holmes, Jaren, Planutis, Bobby, Osunniyi, Osun, Ikpeze, Amadi, Welch, Dominick, Lofton,Kyle, Carpenter, Robert, Okoli, Alpha)])
+
+//TODO: some guys who aren't in the roster:
+// DataQualityIssues.Fixer: [NO_MATCH] [ERROR.4A: no good matches] (key=[TeamSeasonId(TeamId(La Salle),Year(2018))/COONEY,KYLE], box=[List(Lafond, Andrew, Powell, Pookie, Beatty, David, Brookins, Miles, Spencer, Scott, Brower, Jayson, P, P, Mosely, Cheddi, Sullivan, Key, Carter, Traci, Deas, Isiah, Clark, Jack, Croswell, Ed, Phiri, Saul, Moultrie, Jamir, Kimbrough, Jared)])
+// DataQualityIssues.Fixer: [NO_MATCH] [ERROR.4A: no good matches] (key=[TeamSeasonId(TeamId(La Salle),Year(2018))/SHULER,JOHNNIE], box=[List(Lafond, Andrew, Powell, Pookie, Beatty, David, Brookins, Miles, Spencer, Scott, Brower, Jayson, P, P, Mosely, Cheddi, Sullivan, Key, Carter, Traci, Deas, Isiah, Clark, Jack, Croswell, Ed, Phiri, Saul, Moultrie, Jamir, Kimbrough, Jared)])
+// DataQualityIssues.Fixer: [NO_MATCH] [ERROR.4A: no good matches] (key=[TeamSeasonId(TeamId(La Salle),Year(2018))/KUHAR,CHRIS], box=[List(Lafond, Andrew, Powell, Pookie, Beatty, David, Brookins, Miles, Spencer, Scott, Brower, Jayson, P, P, Mosely, Cheddi, Sullivan, Key, Carter, Traci, Deas, Isiah, Clark, Jack, Croswell, Ed, Phiri, Saul, Moultrie, Jamir, Kimbrough, Jared)])
+// DataQualityIssues.Fixer: [NO_MATCH] [ERROR.4A: no good matches] (key=[TeamSeasonId(TeamId(Xavier),Year(2018))/VANDERPOHL,NICK], box=[List(Scruggs, Paul, Jones, Tyrique, Swetye, Zak, Kennedy, Keonte, Marshall, Naji, Frazier, A.J., Harden, Elias, Schrand, Leighton, James, Dontarius, Goodin, Quentin, Castlin, Kyle, Singh, Ramon, Hankins, Zach, Welage, Ryan)])
+
+
+//TODO;
+// This one used to be fixed when I was combining box scores?!
+//DataQualityIssues.Fixer: [NO_MATCH] [ERROR.4A: no good matches] (key=[TeamSeasonId(TeamId(Morgan St.),Year(2020))/Lapri Pace], box=[List(Ware, De'Torrion, Bowens, Elijah, Okafor, Victor, Vance, Thai're, Brown, Jamar, Sorber, Peter, Baxter Jr, Troy, Khaalid, Naseem, Wright, Sharone, Burke, Isaiah, Miller, Malik, Grantsaan, Lagio, Venning, Chad, Marable, Josiah, Holston, Troy, Campbell, Tahj-Malik, Camara, Moel, Devonish, Sherwyn, Moore, Trevor)])
+
+//TODO: ... really should have been allowed these 3...
+// DataQualityIssues.Fixer: [NO_MATCH] [ERROR.1A: multiple strong matches: [Cumberland, Jaevin] vs [List(StrongSurnameMatch(Cumberland, Jaev,94), StrongSurnameMatch(Cumberland, Jarron,83))]] (key=[Cincinnati:box/Cumberland, Jaevin], box=[List(Banks, Rob, Cumberland, Jarron, Harvey, Zach, Cook, Adam, Vogt, Chris, Scott, Tre, Toyambi, Prince, Sorolla, Jaume, Moore, Trevor, Cumberland, Jaev, Koz, John, Davenport, Jeremiah, Martin, Sam, McNeal, Chris, Diarra, Mamoudou, Williams, Keith, Adams-Woods, Mika)])
+// DataQualityIssues.Fixer: [NO_MATCH] [ERROR.1A: multiple strong matches: [Jones, Mike] vs [List(StrongSurnameMatch(Jones, Bates,70), StrongSurnameMatch(Jones, Michael,80))]] (key=[Davidson:box/Jones, Mike], box=[List(Kristensen, David, Freundlich, Cal, Casey, Patrick, Dibble, Drew, Jones, Michael, Collins, Carter, Brajkovic, Luka, Wynter, Malcolm, Boachie-Yiadom, Nelson, Lee, Hyunjung, Jones, Bates, Frampton, Luke, Grady, Kellan, Czerapowicz, David, Pritchett, Kishawn, Gudmunsson, Jon Axel)])
+// DataQualityIssues.Fixer: [NO_MATCH] [ERROR.1A: multiple strong matches: [DOOITTLE,TRAVONTA] vs [List(StrongSurnameMatch(Doolittle, Daveon,76), StrongSurnameMatch(Doolittle, Travonta,94))]] (key=[TeamSeasonId(TeamId(Ark.-Pine Bluff),Year(2020))/DOOITTLE,TRAVONTA], box=[List(Posey, Cameron, Doolittle, Travonta, Johnson, Joshuwan, Hargrove, Kobe, Stredic Jr, Alvin, Stokes , Kshun, Parchman, Omar, Woods, Rylan, Morris, Dequan, Jones, Nicholas, Lynn, Jalen, Boyd , Robert, Banyard, Terrance, Bell, Markedric, Doss Jr., Shaun, Ivory III, George, Doolittle, Daveon)])
+
+
   /** Will be in format "LASTNAME,FIRSTNAME" or "Lastname, Firstname" */
   val players_missing_from_boxscore: Map[TeamId, Map[Year, List[String]]] = Map(
-/*
-    TeamId("Oregon") -> Map( //PAC-12
-      Year(2018) -> List("Nyara, Satou") //(women)
-    ),
-    TeamId("Texas A&M") -> Map( //SEC
-      Year(2018) -> List("Vaughn, Everett", "Gilder, Admon")
-    )
-*/
   )
 
   /** Use first and last letters from first name for these players */
@@ -50,59 +78,24 @@ object DataQualityIssues {
 
     // Too hard to resolve
 
-/*
-    Option(TeamId("Alcorn")) -> Map( //(SWAC)
-      // Wrong in the PBP, 2020/21
-      "10" -> "WILSON,KOBE"
+    Option(TeamId("Wichita St.")) -> Map( //(AAC)
+      // Wrong in the PBP, 2018/19
+      "CHA,ISAIAH POOR" -> "Poor Bear-Chandler, Isaiah"
     ),
-    Option(TeamId("South Carolina St.")) -> Map( //(SWAC)
-      // PBP:
-      "23" -> "WRIGHT,JADAKISS"
-    ),
-*/
+
     /////////////////////////////////
 
-    // BOX Mispellings
-
-/*
-    Option(TeamId("Duke")) -> Map( //(ACC)
-      //Box tidy complicated game from W 2018/9
-      "Akinbode-James, O." -> "James, Onome",
-    ),
-
-    Option(TeamId("La Salle")) -> Map( //(A10)
-      // Wrong in the box
-      "Sullivan, Key" -> "Sullivan, Cian"
-    ),
-
-    Option(TeamId("TCU")) -> Map( //(B12)
-      // (wrong in box score only)
-      "Ascieris, Owen" -> "Aschieris, Owen",
-    ),
-
-    Option(TeamId("Texas")) -> Map( //(B12)
-      // (wrong in box score only)
-      "Ostekowski, Dylan" -> "Osetkowski, Dylan",
-    ),
+    // Roster/BOX Mispellings
 
     Option(TeamId("Morgan St.")) -> Map( //(MEAC)
-      // box name difference 2020/21 (PbP also wrong but can auto fix that)
-      "Devonish, Sherwyn" -> "Devonish-Prince, Sherwyn",
-      "Devonish-Prince Jr., Sherwyn" -> "Devonish-Prince, Sherwyn",
+      // roster/box name difference 2020/21 (using the longer version allows PbP to work)
+      "Devonish, Sherwyn" -> "Devonish-Prince, Sherwyn"
     ),
-*/
+
     /////////////////////////////////
 
     // Both PBP and BOX
 
-/*
-    Option(TeamId("South Carolina St.")) -> Map(
-      // Box is wrong, unusually 2020/21
-      "JR., RIDEAU" -> "Rideau Jr., Floyd",
-      // PBP:
-      "23" -> "WRIGHT,JADAKISS"
-    ),
-*/
     /////////////////////////////////
 
     // Hack to workaround duplicate name
@@ -233,11 +226,25 @@ object DataQualityIssues {
 
         case (l @ (strong :: other_strong), _, _, _) =>
           if  (other_strong.nonEmpty) {
-            val context_string = s"ERROR.1A: multiple strong matches: [$candidate] vs [$l]"
-            log_info(None, context_string)
-            Left(context_string)
+            l.sortWith(_.score > _.score) match {
+              case best_strong :: less_good_strong =>
+                val threshold_score = best_strong.score - 10
+                val new_candidates = less_good_strong.filter(_.score > threshold_score)
+
+                if (less_good_strong.nonEmpty) {
+                  val context_string = s"ERROR.1A: multiple strong matches: [$candidate] vs [$l]"
+                  log_info(None, context_string)
+                  Left(context_string)
+                } else {
+                  val context_string = s"SUCCESS.1B: multiple strong matches, but clear winner: [$candidate] vs [$l]"
+                  log_info(Some(strong.box_name), context_string)
+                  Right(strong.box_name)
+                }
+
+              case l2 @ _ => Left(s"(internal logic error: [$l2])")
+            }
           } else {
-            val context_string = s"SUCCESS.1B: single strong match: [$strong]"
+            val context_string = s"SUCCESS.1C: single strong match: [$strong]"
             log_info(Some(strong.box_name), context_string)
             Right(strong.box_name)
           }
@@ -271,10 +278,13 @@ object DataQualityIssues {
             val context_string = s"ERROR.3B: multiple near first name matches: [$candidate] vs [$bad_l2]"
             log_info(None, context_string)
             Left(context_string)
-          } else {
-            val context_string = s"SUCCESS.3C: 'first name only' match: [$first_name_only]"
+          } else { // After some reflection I'm retiring this for now - too many false positives empirically
+            //TODO: note didn't quite work anyway, see: [CHA,ISAIAH POOR] vs ""[List(NoSurnameMatch(Moore, Chance,None,Some(cha),[cha,isaiah poor] vs [moore, chance]""
+            //(used wrong surname to get first name)
+            val context_string = s"ERROR.3C: 'first name only' match: [$first_name_only]"
             log_info(Some(first_name_only.box_name), context_string)
-            Right(first_name_only.box_name)
+            //Right(first_name_only.box_name)
+            Left(context_string)
           }
 
         case _ =>

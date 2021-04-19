@@ -26,8 +26,8 @@ object RosterParserTests extends TestSuite with RosterParser {
   import ExtractorUtilsTests._
 
   val lineup_html = Source.fromURL(getClass.getResource("/ncaa/sample_roster.html")).mkString
-  val lineup_html_dup_check =
-    Source.fromURL(getClass.getResource("/ncaa/sample_roster.html")).mkString.replace("Davis, Brendan", "Akin, David")
+  val lineup_html_diacritic = lineup_html.replace("Akin, Daniel", "Akin, Daniél")
+  val lineup_html_dup_check = lineup_html.replace("Davis, Brendan", "Akin, David")
 
   val tests = Tests {
     "RosterParser" - {

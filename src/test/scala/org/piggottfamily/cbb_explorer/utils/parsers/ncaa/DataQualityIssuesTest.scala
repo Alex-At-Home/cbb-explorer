@@ -88,16 +88,25 @@ object DataQualityIssuesTest extends TestSuite {
         TestUtils.inside(DataQualityIssues.Fixer.fuzzy_box_match(
           "sirena tuitele",
           List("Suitele, Sirena", "Tuitele, Peanut", "Guity, Amaya", "Pryor, DeArica", "Guity, Robison"),
-          "test1b"
+          "test1c"
         )) {
           case Right("Suitele, Sirena") =>
+        }
+
+        // Multiple strong matches, but clear winner
+        TestUtils.inside(DataQualityIssues.Fixer.fuzzy_box_match(
+          "Jone, Mike",
+          List("Kristensen, David", "Jones, Michael", "Collins, Carter", "Brajkovic, Luka", "Jones, Bates"),
+          "test1b"
+        )) {
+          case Right("Jones, Michael") =>
         }
 
         // Multiple strong matches, so will error
         TestUtils.inside(DataQualityIssues.Fixer.fuzzy_box_match(
           "sirena tuitele",
           List("Suitele, Sirena", "Tuitele, Irena", "Guity, Amaya", "Pryor, DeArica", "Guity, Robison"),
-          "test1b"
+          "test1a"
         )) {
           case Left(err) if err.contains("ERROR.1A") =>
         }
@@ -126,7 +135,9 @@ object DataQualityIssuesTest extends TestSuite {
           List("Guity, Amaya", "Pryor, DeArica", "Guity, Robison"),
           "test3c"
         )) {
-          case Right("Guity, Amaya") =>
+          // Removed 3C support
+          //case Right("Guity, Amaya") =>
+          case Left(err) if err.contains("ERROR.3C") =>
         }
 
         // Shouldn't work because the name "Anya" should be too close

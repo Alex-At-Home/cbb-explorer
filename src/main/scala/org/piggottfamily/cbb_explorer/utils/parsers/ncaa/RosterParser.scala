@@ -72,7 +72,11 @@ trait RosterParser {
         builders.player_info_finder(doc).getOrElse(Nil).flatMap { el =>
           (for {
             name <- builders.name_finder(el)
-            player_id = build_player_code(name, Some(team_id))
+
+            // No initials allowed in the roster:
+            _ <- if (name_is_initials(name).nonEmpty) None else Some(())
+
+            player_id = build_player_code(name, Some(team_id)) //(fixes accent and misspellings)
             number <- builders.number_finder(el)
             height <- builders.height_finder(el)
             year_class <- builders.class_finder(el)

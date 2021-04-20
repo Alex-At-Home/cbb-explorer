@@ -35,12 +35,10 @@ trait BoxscoreParser {
   // Holds all the HTML parsing logic
   protected object builders {
 
-    //TODO: this doesn't work on 2019- any more, need to remove the 50% line
     def team_finder(doc: Document): List[String] = //2020+ is 40%, 2019- is 50%
       (doc >?> elementList("div#contentarea table.mytable[width~=[45]0%] td a[href]"))
         .getOrElse(Nil).map(_.text)
 
-    //TODO: this doesn't work on 2019- any more, need to remove the 50% line
     def score_finder(doc: Document): List[String] = //2020+ is 40%, 2019- is 50%
       (doc >?> elementList("div#contentarea table.mytable[width~=[45]0%] td[align=right]"))
         .getOrElse(Nil).map(_.text)
@@ -56,10 +54,10 @@ trait BoxscoreParser {
     }
   }
 
-  /** Gets the boxscore lineup from the HTML page */
+  /** Gets the boxscore lineup from the HTML page (external roster has either just names or names + numbers) */
   def get_box_lineup(
     filename: String, in: String, team_id: TeamId,
-    other_box_lineups: List[String] = Nil, neutral_game_dates: Set[String] = Set()
+    external_roster: (List[String], List[RosterEntry]) = (Nil, Nil), neutral_game_dates: Set[String] = Set()
   ): Either[List[ParseError], LineupEvent] =
   {
     val browser = JsoupBrowser()
@@ -98,42 +96,90 @@ trait BoxscoreParser {
         builders.score_finder(doc), target_team_first
       ).left.map(single_error_completer)
 
-      starting_lineup <- parse_players_from_boxscore(
+      ordered_lineup_from_box <- parse_players_from_boxscore(
         builders.boxscore_finder(doc, target_team_first)
       ).left.map(single_error_completer)
 
-      starting_lineup_set = starting_lineup.toSet
-      starting_lineup_plus = starting_lineup ++
-        (other_box_lineups match {
-          case s if s.isEmpty =>
-            DataQualityIssues.players_missing_from_boxscore
-              .getOrElse(TeamId(team), Map()).getOrElse(year, List())
-          case others =>
-            others
-        }).filterNot(starting_lineup_set)
+      val temp_box_score = LineupEvent( //(need this to build a player context)
+        date,
+        location_type,
+        start_min = start_time_from_period(period, is_women_game = false), //(doesn't matter which)
+        end_min = start_time_from_period(period, is_women_game = false),
+        duration_mins = 0.0,
+        score_info = LineupEvent.ScoreInfo(Game.Score(0, 0), final_score, 0, 0),
+        team = TeamSeasonId(TeamId(team), year),
+        opponent = TeamSeasonId(TeamId(opponent), year),
+        lineup_id = LineupEvent.LineupId.unknown,
+        players = Nil,
+        players_in = Nil,
+        players_out = external_roster._2.toList.map { roster =>
+          roster.player_code_id.copy(code = roster.number)
+        },
+        raw_game_events = Nil,
+        team_stats = LineupEventStats.empty,
+        opponent_stats = LineupEventStats.empty
+      )
 
-      validated_lineup <- validate_box_score(
-        TeamId(team), starting_lineup_plus
+      ordered_lineup = inject_validated_players(ordered_lineup_from_box, temp_box_score , external_roster)
+
+      final_validated_lineup <- validate_box_score(
+        TeamId(team), ordered_lineup
       ).left.map(single_error_completer)
 
-    } yield LineupEvent(
-      date,
-      location_type,
-      start_min = start_time_from_period(period, is_women_game = false), //(doesn't matter which)
-      end_min = start_time_from_period(period, is_women_game = false),
-      duration_mins = 0.0,
-      score_info = LineupEvent.ScoreInfo(Game.Score(0, 0), final_score, 0, 0),
-      team = TeamSeasonId(TeamId(team), year),
-      opponent = TeamSeasonId(TeamId(opponent), year),
-      lineup_id = LineupEvent.LineupId.unknown,
-      players = validated_lineup,
-      players_in = Nil,
-      players_out = Nil,
-      raw_game_events = Nil,
-      team_stats = LineupEventStats.empty,
-      opponent_stats = LineupEventStats.empty
-    )
+    } yield temp_box_score.copy(players = final_validated_lineup)
   }
+
+  ////////////////////////////////////////////////////
+
+  // Almost as top level
+
+  //TODO: have tests for this?
+
+  /** Validates box players against the roster (if available) and any other available box scores */
+  def inject_validated_players(
+    ordered_lineup_from_box: List[String], box_minus_players: LineupEvent,
+    external_roster: (List[String], List[RosterEntry])
+  ): List[String] = {
+    val (other_players, roster_players) = external_roster
+
+    val tidy_ctx = LineupErrorAnalysisUtils.build_tidy_player_context(
+      box_minus_players.copy(players = roster_players.map(_.player_code_id))
+    )
+
+    val manual_extra_players =
+      DataQualityIssues.players_missing_from_boxscore
+        .getOrElse(box_minus_players.team.team, Map()).getOrElse(box_minus_players.team.year, List())
+
+    val ordered_lineup = {
+
+      val just_players = roster_players.map(_.player_code_id.id.name)
+      val just_players_set = just_players.toSet
+      // We're going to validate each entry in the box
+      // If it's not in the roster then we try to match it fuzzily against the roster
+      val validated_ordered_lineup = ordered_lineup_from_box.map { player =>
+        if (just_players_set.isEmpty || just_players_set(player)) {
+          player
+        } else {
+          val (fixed_player, _) = LineupErrorAnalysisUtils.tidy_player(player, tidy_ctx)
+
+          // Handy debug prints:
+          // if (fixed_player != remove_diacritics(player)) //transformed and not just by removing accents
+          //   println(s"BoxscoreParser.inject_validated_players: [$player] -> [$fixed_player]")
+          // else if (fixed_player == player)
+          //   println(s"BoxscoreParser.inject_validated_players: append [$fixed_player]")
+
+          fixed_player
+        }
+      }
+      val validated_ordered_lineup_set = validated_ordered_lineup.toSet
+      validated_ordered_lineup ++
+        (just_players ++ other_players ++ manual_extra_players).filterNot(validated_ordered_lineup_set).toSet
+            //(in this case, already have the missing players from box score)
+    }
+    ordered_lineup
+  }
+
+  ////////////////////////////////////////////////////
 
   // Utils
   /** Gets the box score's period from the filename */

@@ -1,29 +1,27 @@
 #!/bin/bash
 
 #(source .lineup.env first to set up these variables)
-#CRAWL_PATH=TODO
-#ROOT_URL=TODO
-#(to get the team navigate to https://$PBP_ROOT_URL/reports/attendance?id=XXX (couln)
-# pick the team, select the year, then the team id is the last bit of the URL)
 YEAR=2020
 CONF=women_bigeast
 array=(
-'635.0::Seton+Hall'
-'176.0::DePaul'
-'812.0::Xavier'
-'387.0::Marquette'
-'603.0::St.+John%27s+%28NY%29'
-'739.0::Villanova'
-'169.0::Creighton'
-'556.0::Providence'
-'87.0::Butler'
-'164.0::UConn'
+   '164.0/15500::UConn'
+   '176.0/15500::DePaul'
+   '635.0/15500::Seton+Hall'
+   '739.0/15500::Villanova'
+   '387.0/15500::Marquette'
+   '603.0/15500::St.+John%27s+%28NY%29'
+   '812.0/15500::Xavier'
+   '169.0/15500::Creighton'
+   '556.0/15500::Providence'
+   '87.0/15500::Butler'
+   '251.0/15500::Georgetown'
 )
 
-#TODO add TEAM filter
-
 for index in "${array[@]}" ; do
-    TEAMID="${index%%::*}"
+    FULLTEAMID="${index%%::*}"
+    TEAMID="${FULLTEAMID%%/*}"
+    SUBTEAMID="${TEAMID%%.*}"
+    YEARID="${FULLTEAMID##*/}"
     TEAM_NAME="${index##*::}"
     CONF_CRAWL_PATH=$PBP_CRAWL_PATH/$CONF/$YEAR/${TEAM_NAME}_${TEAMID}
 
@@ -34,7 +32,7 @@ for index in "${array[@]}" ; do
       fi
     fi
 
-    echo "$TEAMID - $TEAM_NAME"
+    echo "$FULLTEAMID ($TEAMID) - $TEAM_NAME"
     #TODO: only do this if you want to remove and recalc everything, otherwise will find deltas
     #rm -rf $CONF_CRAWL_PATH
     mkdir -p $CONF_CRAWL_PATH
@@ -46,7 +44,7 @@ for index in "${array[@]}" ; do
         done
       fi
     done
-    httrack "$PBP_ROOT_URL/team/$TEAMID/15500" --continue --depth=3 --path $CONF_CRAWL_PATH --robots=0 "-*" "+$PBP_ROOT_URL/contests/*/box_score" "+$PBP_ROOT_URL/game/index/*" +"$PBP_ROOT_URL/game/box_score/*?period_no=1" +"$PBP_ROOT_URL/game/play_by_play/*"
+    httrack "$PBP_ROOT_URL/team/$FULLTEAMID" --continue --depth=3 --path $CONF_CRAWL_PATH --robots=0 "-*" "+$PBP_ROOT_URL/contests/*/box_score" "+$PBP_ROOT_URL/team/$SUBTEAMID/roster/$YEARID" "+$PBP_ROOT_URL/game/index/*" +"$PBP_ROOT_URL/game/box_score/*?period_no=1" +"$PBP_ROOT_URL/game/play_by_play/*"
 
     #Check for any errors:
     ERRS=$(grep -c 'Error:' $CONF_CRAWL_PATH/hts-log.txt)

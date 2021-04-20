@@ -1,31 +1,27 @@
 #!/bin/bash
 
 #(source .lineup.env first to set up these variables)
-#CRAWL_PATH=TODO
-#ROOT_URL=TODO
-#(to get the team navigate to https://$PBP_ROOT_URL/reports/attendance?id=XXX (couln)
-# pick the team, select the year, then the team id is the last bit of the URL)
 YEAR=2020
 CONF=bigsouth
 array=(
    '792.0/15480::Winthrop'
-   '115.0/15480::Campbell'
    '456.0/15480::UNC+Asheville'
-   '19651.0/15480::High+Point'
-   '1320.0/15480::Presbyterian'
-   '10411.0/15480::USC+Upstate'
-   '48.0/15480::Charleston+So.'
-   '270.0/15480::Hampton'
-   '363.0/15480::Longwood'
+   '115.0/15480::Campbell'
    '1092.0/15480::Gardner-Webb'
+   '270.0/15480::Hampton'
+   '19651.0/15480::High+Point'
+   '10411.0/15480::USC+Upstate'
    '563.0/15480::Radford'
+   '363.0/15480::Longwood'
+   '1320.0/15480::Presbyterian'
+   '48.0/15480::Charleston+So.'
 )
-
-#TODO add TEAM filter
 
 for index in "${array[@]}" ; do
     FULLTEAMID="${index%%::*}"
     TEAMID="${FULLTEAMID%%/*}"
+    SUBTEAMID="${TEAMID%%.*}"
+    YEARID="${FULLTEAMID##*/}"
     TEAM_NAME="${index##*::}"
     CONF_CRAWL_PATH=$PBP_CRAWL_PATH/$CONF/$YEAR/${TEAM_NAME}_${TEAMID}
 
@@ -48,7 +44,7 @@ for index in "${array[@]}" ; do
         done
       fi
     done
-    httrack "$PBP_ROOT_URL/team/$FULLTEAMID" --continue --depth=3 --path $CONF_CRAWL_PATH --robots=0 "-*" "+$PBP_ROOT_URL/contests/*/box_score" "+$PBP_ROOT_URL/game/index/*" +"$PBP_ROOT_URL/game/box_score/*?period_no=1" +"$PBP_ROOT_URL/game/play_by_play/*"
+    httrack "$PBP_ROOT_URL/team/$FULLTEAMID" --continue --depth=3 --path $CONF_CRAWL_PATH --robots=0 "-*" "+$PBP_ROOT_URL/contests/*/box_score" "+$PBP_ROOT_URL/team/$SUBTEAMID/roster/$YEARID" "+$PBP_ROOT_URL/game/index/*" +"$PBP_ROOT_URL/game/box_score/*?period_no=1" +"$PBP_ROOT_URL/game/play_by_play/*"
 
     #Check for any errors:
     ERRS=$(grep -c 'Error:' $CONF_CRAWL_PATH/hts-log.txt)

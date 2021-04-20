@@ -18,6 +18,23 @@ object ExtractorUtils {
 
   // Top level
 
+  /** Normalizes accents out of strings - ideally only use as part of build_player_code */
+  def remove_diacritics(fragment: String): String = {
+    import java.text.Normalizer
+    Normalizer.normalize(fragment, Normalizer.Form.NFD).replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+  }
+
+  /** Quick decomposition of name represented as initials, returns first name, last name */
+  def name_is_initials(name: String): Option[(Char, Char)] = {
+    if ((name.size == 3) || (name.size == 4)) {
+      name.toList match {
+        case List(p2, ',', ' ', p1) => Some(p1, p2)
+        case List(p1, ' ', p2) => Some(p1, p2)
+        case _ => None
+      }
+    } else None
+  }
+
   /** Converts score to a number so don't get bitten by number of digits in lexi ordering */
   def score_to_tuple(str: String): (Int, Int) = {
     val regex = "([0-9]+)-([0-9]+)".r
@@ -34,11 +51,11 @@ object ExtractorUtils {
     reversed_partial_events: Iterator[Model.PlayByPlayEvent],
     box_lineup: LineupEvent
   ): List[LineupEvent] = {
-    val starters_only = box_lineup.copy(players = box_lineup.players.take(5))
+    val starters_only = box_lineup.copy(players = box_lineup.players.take(5), players_in = Nil, players_out = Nil)
     // Use this to render player names in their more readable format
     val tidy_ctx = LineupErrorAnalysisUtils.build_tidy_player_context(box_lineup)
 
-    val starting_state = Model.LineupBuildingState(starters_only)
+    val starting_state = Model.LineupBuildingState(starters_only, tidy_ctx)
     val partial_events = reorder_and_reverse(reversed_partial_events)
 
     val end_state = partial_events.foldLeft(starting_state) { (state, event) =>
@@ -52,36 +69,40 @@ object ExtractorUtils {
 
       event match {
         case Model.SubInEvent(min, _, player_name) if state.is_active(min) && no_team_keyword(player_name) =>
-          val tidier_player_name = LineupErrorAnalysisUtils.tidy_player(player_name, tidy_ctx)
+          val (tidier_player_name, new_ctx) = LineupErrorAnalysisUtils.tidy_player(player_name, state.tidy_ctx)
           val completed_curr = complete_lineup(state.curr, state.prev, min)
           state.copy(
             curr = new_lineup_event(
               completed_curr, in = Some(tidier_player_name)
             ),
+            tidy_ctx = new_ctx,
             prev = completed_curr :: state.prev,
             old_format = is_old_format(player_name, state)
           )
         case Model.SubOutEvent(min, _, player_name) if state.is_active(min) =>
-          val tidier_player_name = LineupErrorAnalysisUtils.tidy_player(player_name, tidy_ctx)
+          val (tidier_player_name, new_ctx) = LineupErrorAnalysisUtils.tidy_player(player_name, state.tidy_ctx)
           val completed_curr = complete_lineup(state.curr, state.prev, min)
           state.copy(
             curr = new_lineup_event(
               completed_curr, out = Some(tidier_player_name)
             ),
+            tidy_ctx = new_ctx,
             prev = completed_curr :: state.prev,
             old_format = is_old_format(player_name, state)
           )
         case Model.SubInEvent(min, _, player_name) if no_team_keyword(player_name) => // !state.is_active
           // Keep adding sub events
-          val tidier_player_name = LineupErrorAnalysisUtils.tidy_player(player_name, tidy_ctx)
+          val (tidier_player_name, new_ctx) = LineupErrorAnalysisUtils.tidy_player(player_name, state.tidy_ctx)
           state.with_player_in(tidier_player_name).copy(
+            tidy_ctx = new_ctx,
             old_format = is_old_format(player_name, state)
           )
 
         case Model.SubOutEvent(min, _, player_name) => // !state.is_active
           // Keep adding sub events
-          val tidier_player_name = LineupErrorAnalysisUtils.tidy_player(player_name, tidy_ctx)
+          val (tidier_player_name, new_ctx) = LineupErrorAnalysisUtils.tidy_player(player_name, state.tidy_ctx)
           state.with_player_out(tidier_player_name).copy(
+            tidy_ctx = new_ctx,
             old_format = is_old_format(player_name, state)
           )
 
@@ -161,11 +182,7 @@ object ExtractorUtils {
   /** Builds a player code out of the name, with various formats supported */
   def build_player_code(in_name: String, team: Option[TeamId]): LineupEvent.PlayerCodeId = {
     // Check full name vs map of misspellings
-    def remove_accents(fragment: String): String = {
-      import java.text.Normalizer
-      Normalizer.normalize(fragment, Normalizer.Form.NFD).replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
-    }
-    val name = remove_accents(DataQualityIssues.misspellings(team).get(in_name).getOrElse(in_name))
+    val name = remove_diacritics(DataQualityIssues.misspellings(team).get(in_name).getOrElse(in_name))
     def first_last(fragment: String): String = {
       if (fragment.isEmpty) {
         ""
@@ -423,6 +440,9 @@ object ExtractorUtils {
     prev: LineupEvent,
     in: Option[String] = None, out: Option[String] = None
   ): LineupEvent = {
+
+    //println("**** NLE" + prev.players + " / " + in + " / " + out)
+
     LineupEvent(
       date = prev.date.plusMillis((prev.duration_mins*60000.0).toInt),
       location_type = prev.location_type,
@@ -454,6 +474,9 @@ object ExtractorUtils {
       val tmp_players_in = curr.players_in.map(p => p.code -> p).toMap
       val poss1 = (curr_players -- tmp_players_out.keySet ++ tmp_players_in).values.toList
       val poss2 = (curr_players ++ tmp_players_in -- tmp_players_out.keySet).values.toList
+
+      //println("**** CL" + s"curr=[$curr_players] in=[$tmp_players_in] out=[$tmp_players_out]")
+
       // Check for a common error case: player comes in and out in the same sub
       // Pick the right one based on what makes sense
       (poss1.size, poss2.size) match {
@@ -500,6 +523,7 @@ object ExtractorUtils {
     /** State for building raw line-up data */
     private [ExtractorUtils] case class LineupBuildingState(
       curr: LineupEvent,
+      tidy_ctx: LineupErrorAnalysisUtils.TidyPlayerContext,
       prev: List[LineupEvent] = Nil,
       old_format: Option[Boolean] = None // most 2018+ is new format but there are a few exceptions
     ) {

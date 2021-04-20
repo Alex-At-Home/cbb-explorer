@@ -8,12 +8,15 @@ trait FileUtils {
 
   /** List a set of files with a given exension in */
   def list_files(
-    root_dir: Path, extension: Option[String], time_filter: Option[Long => Boolean] = None
+    root_dir: Path, extension: Option[String], time_filter: Option[Long => Boolean] = None, recursive: Boolean = false
   ): List[Path] = {
-    (extension match {
+    (if (recursive) (extension match {
+      case Some(ext) => ls.rec! root_dir |? (_.ext == ext)
+      case None => ls.rec! root_dir
+    }) else (extension match {
       case Some(ext) => ls! root_dir |? (_.ext == ext)
       case None => ls! root_dir
-    }).filter { path =>
+    })).filter { path =>
       time_filter match {
         case Some(lambda) =>
           val file_stat = stat! path

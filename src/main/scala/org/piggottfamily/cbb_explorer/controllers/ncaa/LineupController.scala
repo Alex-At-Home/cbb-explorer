@@ -54,18 +54,35 @@ class LineupController(d: Dependencies = Dependencies())
       }
     }
 
-    // Collect all available box scores
-    val roster_from_box_scores = (for {
-      //(early in the season games might not exist)
-      box <- Try(d.file_manager.list_files(root_dir / boxscore_dir, Some("html"), file_filter)).getOrElse(Nil).iterator
-      box_html = d.file_manager.read_file(box)
-      box_lineup <- (d.boxscore_parser.get_box_lineup(box.last.toString, box_html, team) match {
-        case Right(lineup) => Some(lineup)
-        case _ => None
-      })
-    } yield box_lineup.players.map(_.id.name)).flatten.toSet.toList
+    // Try to get the most accurate canonical list of players
+    // First look for a roster - if that doesn't exist (legacy) just get all the box scores
+    val external_roster = {
+      val roster_players = Try(
+        d.file_manager.list_files(root_dir / roster_dir, Some("html"), file_filter, recursive = true)
+      ).getOrElse(Nil).headOption.flatMap { file =>
+        val roster_html = d.file_manager.read_file(file)
+        val roster_lineup = RosterParser.parse_roster(file.last.toString, roster_html, team)
+        roster_lineup.toOption.map { lineup =>
+          //(sort by games played so that typos with dup numbers are ignored)
+          lineup.sortWith(_.gp > _.gp)
+        }
+      }.getOrElse(Nil)
 
-    //println("All players: " + roster_from_box_scores)
+      // Now read all the box scores in to get any missing names:
+
+      val all_box_players = (for {
+        box <- Try(d.file_manager.list_files(root_dir / boxscore_dir, Some("html"), file_filter)).getOrElse(Nil).iterator
+        box_html = d.file_manager.read_file(box)
+        box_lineup <- (d.boxscore_parser.get_box_lineup(box.last.toString, box_html, team, (Nil, roster_players)) match {
+          case Right(lineup) => Some(lineup)
+          case _ => None
+        })
+      } yield box_lineup.players.map(_.id.name)).flatten.toSet.toList
+
+      (all_box_players, roster_players)
+    }
+
+    //println(s"All_box_roster_players: [$external_roster]")
 
     val lineups = for {
       //(early in the season games might not exist)
@@ -76,7 +93,7 @@ class LineupController(d: Dependencies = Dependencies())
 
       _ = d.logger.info(s"Reading [$game]: [$game_id]")
 
-      lineup = Try { build_game_lineups(root_dir, game_id, team, roster_from_box_scores, neutral_games) } match {
+      lineup = Try { build_game_lineups(root_dir, game_id, team, external_roster, neutral_games) } match {
         case Success(res) => res.left.map { errs => ParserError(game, errs) }
         case Failure(ex) => Left(FileError(game, ex))
       }
@@ -108,7 +125,7 @@ class LineupController(d: Dependencies = Dependencies())
   /** Given a game/team id, returns good and bad paths for that game */
   protected def build_game_lineups(
     root_dir: Path, game_id: String, team: TeamId,
-    roster_from_box_scores: List[String],
+    external_roster: (List[String], List[RosterEntry]),
     neutral_game_dates: Set[String]
   ):
     Either[List[ParseError], (List[LineupEvent], List[LineupEvent], List[PlayerEvent])] =
@@ -119,7 +136,7 @@ class LineupController(d: Dependencies = Dependencies())
     val play_by_play_html = d.file_manager.read_file(root_dir / play_by_play_dir / playbyplay_filename)
     for {
       box_lineup <- d.boxscore_parser.get_box_lineup(
-        boxscore_filename, box_html, team, roster_from_box_scores, neutral_game_dates
+        boxscore_filename, box_html, team, external_roster, neutral_game_dates
       )
       _ = d.logger.info(s"Parsed box score: opponent=[${box_lineup.opponent}] venue=[${box_lineup.location_type}]")
       lineup_events <- d.playbyplay_parser.create_lineup_data(playbyplay_filename, play_by_play_html, box_lineup)
@@ -138,6 +155,7 @@ object LineupController {
   val teams_dir = RelPath("teams")
   val play_by_play_dir = RelPath("game") / RelPath("play_by_play")
   val boxscore_dir = RelPath("game") / RelPath("box_score")
+  val roster_dir = RelPath("team")
 
   /** Dependency injection */
   case class Dependencies(

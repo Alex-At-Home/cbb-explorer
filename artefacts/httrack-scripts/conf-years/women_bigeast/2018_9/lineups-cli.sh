@@ -1,19 +1,19 @@
 #!/bin/bash
 
 #(source .lineup.env first to set up these variables)
-YEAR=2019
-CONF=bigtwelve
+YEAR=2018
+CONF=women_bigeast
 array=(
-   '328.0/15061::Kansas'
-   '311.0/15061::Iowa+St.'
-   '700.0/15061::Texas+Tech'
-   '51.0/15061::Baylor'
-   '768.0/15061::West+Virginia'
-   '522.0/15061::Oklahoma'
-   '521.0/15061::Oklahoma+St.'
-   '698.0/15061::TCU'
-   '327.0/15061::Kansas+St.'
-   '703.0/15061::Texas'
+   '387.0/14320::Marquette'
+   '176.0/14320::DePaul'
+   '635.0/14320::Seton+Hall'
+   '87.0/14320::Butler'
+   '169.0/14320::Creighton'
+   '603.0/14320::St.+John%27s+%28NY%29'
+   '739.0/14320::Villanova'
+   '556.0/14320::Providence'
+   '812.0/14320::Xavier'
+   '251.0/14320::Georgetown'
 )
 
 for index in "${array[@]}" ; do

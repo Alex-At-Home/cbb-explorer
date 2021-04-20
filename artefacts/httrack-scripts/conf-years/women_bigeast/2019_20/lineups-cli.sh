@@ -2,18 +2,18 @@
 
 #(source .lineup.env first to set up these variables)
 YEAR=2019
-CONF=bigtwelve
+CONF=women_bigeast
 array=(
-   '328.0/15061::Kansas'
-   '311.0/15061::Iowa+St.'
-   '700.0/15061::Texas+Tech'
-   '51.0/15061::Baylor'
-   '768.0/15061::West+Virginia'
-   '522.0/15061::Oklahoma'
-   '521.0/15061::Oklahoma+St.'
-   '698.0/15061::TCU'
-   '327.0/15061::Kansas+St.'
-   '703.0/15061::Texas'
+   '176.0/15002::DePaul'
+   '603.0/15002::St.+John%27s+%28NY%29'
+   '635.0/15002::Seton+Hall'
+   '387.0/15002::Marquette'
+   '169.0/15002::Creighton'
+   '87.0/15002::Butler'
+   '739.0/15002::Villanova'
+   '812.0/15002::Xavier'
+   '556.0/15002::Providence'
+   '251.0/15002::Georgetown'
 )
 
 for index in "${array[@]}" ; do

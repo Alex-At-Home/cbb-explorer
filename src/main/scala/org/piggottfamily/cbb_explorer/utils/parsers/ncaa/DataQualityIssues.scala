@@ -19,21 +19,19 @@ object DataQualityIssues {
   )
 
   /** Use first and last letters from first name for these players */
-  val players_with_duplicate_names = Set(
-    "mitchell, makhi", "makhi mitchell", "mitchell,makhi",
-    "mitchell, makhel", "makhel mitchell", "mitchell,makhel",
-
-    "hamilton, jared", "jared hamilton", "hamilton,jared",
-    "hamilton, jairus", "jairus hamilton", "hamilton,jairus",
-
+  val players_with_duplicate_names = Set((
+    // Mitchell brothers
+    combos("Makhi", "Mitchell") ++ combos("Makhel", "Mitchell") ++
+    // Hamilton brothers
+    combos("Jared", "Hamilton") ++ combos("Jairus", "Hamilton") ++
     // Wisconsin team-mates, leave Jordan with Jo and Jonathan gets Jn
     //"davis, jordan", "jordan davis", "davis,jordan",
-    "davis, jonathan", "jonathan davis", "davis,jonathan",
-
+    combos("Jonathan", "Davis") ++
+    // Cumberland relatives
     // These two have the same name regardless of strategy! Use misspellings to tuncate Jaev's name
-    "cumberland, jaev", "jaev cumberland", "cumberland,jaev",
-    "cumberland, jarron", "jarron cumberland", "cumberland,jarron",
-  )
+    combos("Jaev", "Cumberland") ++ combos("Jarron", "Cumberland") ++
+    Nil
+  ):_*).map(_.toLowerCase)
 
   /** Will be in format "LASTNAME,FIRSTNAME" (old box, pbp) or "Lastname, Firstname" (new box)
    *  "Firstname Lastname" (new pbp)
@@ -71,25 +69,21 @@ object DataQualityIssues {
 
     // Both PBP and BOX
 
-    Option(TeamId("Fordham")) -> Map( //A10
+    Option(TeamId("Fordham")) -> Map(( //A10
       // Lots of box scores has him by this nickname, as do PbP
-      "Colon, Josh" -> "Navarro, Josh",
-      "COLON,JOSH" -> "Navarro, Josh",
-      "Josh Colon" -> "Navarro, Josh",
-    ),
+      alias_combos(("Josh", "Colon") -> "Navarro, Josh")
+    ):_*),
 
     /////////////////////////////////
 
     // Hack to workaround duplicate name
 
-    Option(TeamId("Cincinnati")) -> Map(
+    Option(TeamId("Cincinnati")) -> Map((
       // The Cumberlands have caused quite a mess!
       // Truncate Jaevin's name (sorry Jaevin!)
-      "CUMBERLAND,J" -> "CUMBERLAND,JARRON", //(just in case!)
-      "Cumberland, Jaevin" -> "Cumberland, Jaev",
-      "CUMBERLAND,JAEVIN" -> "CUMBERLAND,JAEV",
-      "Jaevin Cumberland" -> "Jaev Cumberland"
-    )
+      Seq("CUMBERLAND,J" -> "Cumberland, Jarron") ++ //(some legacy typo, just in case!)
+      alias_combos(("Jaevin", "Cumberland") -> "Cumberland, Jaev")
+    ):_*)
 
   ).mapValues(
     _ ++ generic_misspellings
@@ -98,4 +92,19 @@ object DataQualityIssues {
   /** common mispellings - currently none */
   val generic_misspellings: Map[String, String] = Map()
 
+
+  // Some utils:
+
+  /** Generate the 3 different strings: box, PbP, legacy PbP */
+  def combos(first_last: (String, String)): Seq[String] = {
+    val (first, last) = first_last
+    List(
+      s"$last, $first", s"$first $last", s"${last.toUpperCase},${first.toUpperCase}"
+    )
+  }
+  /** Generate the 3 different strings: box, PbP, legacy PbP - for use in alias maps */
+  def alias_combos(first_last_to: ((String, String), String)): Seq[(String, String)] = {
+    val (first_last, to_name) = first_last_to
+    combos(first_last).map(_ -> to_name)
+  }
 }

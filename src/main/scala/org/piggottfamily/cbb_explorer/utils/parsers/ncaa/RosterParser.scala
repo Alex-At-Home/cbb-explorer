@@ -76,19 +76,19 @@ trait RosterParser {
             // No initials allowed in the roster:
             _ <- if (name_is_initials(name).nonEmpty) None else Some(())
 
-            player_id = build_player_code(name, Some(team_id)) //(fixes accent and misspellings)
+            player_code_id = build_player_code(name, Some(team_id)) //(fixes accent and misspellings)
             number <- builders.number_finder(el)
             height <- builders.height_finder(el)
             year_class <- builders.class_finder(el)
             gp <- builders.games_played_finder(el)
           } yield RosterEntry(
-            player_id, number, height, year_class, Try(gp.toInt).getOrElse(0)
+            player_code_id, number, height, year_class, Try(gp.toInt).getOrElse(0)
           )).toList
         }
       )
 
       // Validate duplicates (like in box score parsing logic):
-      player_codes = players.map(_.player_id.code)
+      player_codes = players.map(_.player_code_id.code)
       _ <- if (player_codes.toSet.size != players.size) {
         Left(List(ParseUtils.build_sub_error(`parent_fills_in`)(
           s"Duplicate players: [$player_codes]"

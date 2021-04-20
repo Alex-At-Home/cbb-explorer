@@ -8,7 +8,7 @@ import org.piggottfamily.cbb_explorer.models._
  * @param number The jersey number
  */
 case class RosterEntry(
-  player_id: LineupEvent.PlayerCodeId,
+  player_code_id: LineupEvent.PlayerCodeId,
   number: String,
   height: String,
   year_class: String,

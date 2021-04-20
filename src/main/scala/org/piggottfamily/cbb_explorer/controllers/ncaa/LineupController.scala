@@ -57,41 +57,34 @@ class LineupController(d: Dependencies = Dependencies())
     // Try to get the most accurate canonical list of players
     // First look for a roster - if that doesn't exist (legacy) just get all the box scores
     val external_roster = {
-      val player_number_map = Try(
+      val roster_players = Try(
         d.file_manager.list_files(root_dir / roster_dir, Some("html"), file_filter, recursive = true)
       ).getOrElse(Nil).headOption.flatMap { file =>
         val roster_html = d.file_manager.read_file(file)
         val roster_lineup = RosterParser.parse_roster(file.last.toString, roster_html, team)
         roster_lineup.toOption.map { lineup =>
           //(sort by games played so that typos with dup numbers are ignored)
-          lineup.sortWith(_.gp > _.gp).foldLeft(Map[String, String]()) { (acc, p) =>
-            acc.get(p.number) match {
-              case Some(_) => // this is some internal error, just use a dummy unique that won't match
-                acc + (("100" + acc.size + "0" + p.number) -> p.player_id.id.name)
-              case None =>
-                acc + (p.number -> p.player_id.id.name)
-            }
-          }
+          lineup.sortWith(_.gp > _.gp)
         }
-      }.getOrElse(Map())
+      }.getOrElse(Nil)
 
       // Now read all the box scores in to get any missing names:
 
       val all_box_players = (for {
         box <- Try(d.file_manager.list_files(root_dir / boxscore_dir, Some("html"), file_filter)).getOrElse(Nil).iterator
         box_html = d.file_manager.read_file(box)
-        box_lineup <- (d.boxscore_parser.get_box_lineup(box.last.toString, box_html, team, (Nil, player_number_map)) match {
+        box_lineup <- (d.boxscore_parser.get_box_lineup(box.last.toString, box_html, team, (Nil, roster_players)) match {
           case Right(lineup) => Some(lineup)
           case _ => None
         })
       } yield box_lineup.players.map(_.id.name)).flatten.toSet.toList
 
-      (all_box_players, player_number_map)
+      (all_box_players, roster_players)
     }
-/**/
-    println(s"All_box_roster_players: [$external_roster]")
-/**/
-    val lineups = if (true) Nil else for {
+
+    //println(s"All_box_roster_players: [$external_roster]")
+
+    val lineups = for {
       //(early in the season games might not exist)
       game <- Try(d.file_manager.list_files(root_dir / play_by_play_dir, Some("html"), file_filter)).getOrElse(Nil).iterator
 
@@ -132,7 +125,7 @@ class LineupController(d: Dependencies = Dependencies())
   /** Given a game/team id, returns good and bad paths for that game */
   protected def build_game_lineups(
     root_dir: Path, game_id: String, team: TeamId,
-    external_roster: (List[String], Map[String, String]),
+    external_roster: (List[String], List[RosterEntry]),
     neutral_game_dates: Set[String]
   ):
     Either[List[ParseError], (List[LineupEvent], List[LineupEvent], List[PlayerEvent])] =

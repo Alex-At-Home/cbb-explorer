@@ -19,7 +19,7 @@ object ExtractorUtils {
   // Top level
 
   /** Normalizes accents out of strings - ideally only use as part of build_player_code */
-  private def remove_diacritics(fragment: String): String = {
+  def remove_diacritics(fragment: String): String = {
     import java.text.Normalizer
     Normalizer.normalize(fragment, Normalizer.Form.NFD).replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
   }

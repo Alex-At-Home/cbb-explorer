@@ -129,6 +129,17 @@ class StorageController(d: StorageController.Dependencies = StorageController.De
    })
  }
 
+ /** Stores the roster in JSON */
+ def write_roster(
+   roster: List[RosterEntry],
+   file_path: Path
+ ): Unit = {
+   val roster_as_map = roster.map(roster => roster.player_code_id.code -> roster).toMap.asJson
+   d.file_manager.write_lines_to_file(
+     file_path, List(printer.pretty(roster_as_map))
+   )
+ }
+
   /** Store lineups in a NDJSON format */
   def write_lineups(
     lineups: List[LineupEvent],

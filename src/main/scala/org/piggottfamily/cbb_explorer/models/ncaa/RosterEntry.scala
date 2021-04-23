@@ -10,7 +10,13 @@ import org.piggottfamily.cbb_explorer.models._
 case class RosterEntry(
   player_code_id: LineupEvent.PlayerCodeId,
   number: String,
+  pos: String,
   height: String,
+  height_in: Option[Int],
   year_class: String,
   gp: Int
 )
+
+object RosterEntry {
+  val height_regex = "([0-9]+)[-]([0-9]+)".r
+}

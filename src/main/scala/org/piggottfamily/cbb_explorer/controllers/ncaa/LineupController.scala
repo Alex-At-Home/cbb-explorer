@@ -56,31 +56,7 @@ class LineupController(d: Dependencies = Dependencies())
 
     // Try to get the most accurate canonical list of players
     // First look for a roster - if that doesn't exist (legacy) just get all the box scores
-    val external_roster = {
-      val roster_players = Try(
-        d.file_manager.list_files(root_dir / roster_dir, Some("html"), file_filter, recursive = true)
-      ).getOrElse(Nil).headOption.flatMap { file =>
-        val roster_html = d.file_manager.read_file(file)
-        val roster_lineup = RosterParser.parse_roster(file.last.toString, roster_html, team)
-        roster_lineup.toOption.map { lineup =>
-          //(sort by games played so that typos with dup numbers are ignored)
-          lineup.sortWith(_.gp > _.gp)
-        }
-      }.getOrElse(Nil)
-
-      // Now read all the box scores in to get any missing names:
-
-      val all_box_players = (for {
-        box <- Try(d.file_manager.list_files(root_dir / boxscore_dir, Some("html"), file_filter)).getOrElse(Nil).iterator
-        box_html = d.file_manager.read_file(box)
-        box_lineup <- (d.boxscore_parser.get_box_lineup(box.last.toString, box_html, team, (Nil, roster_players)) match {
-          case Right(lineup) => Some(lineup)
-          case _ => None
-        })
-      } yield box_lineup.players.map(_.id.name)).flatten.toSet.toList
-
-      (all_box_players, roster_players)
-    }
+    val external_roster = build_roster(root_dir, team)
 
     //println(s"All_box_roster_players: [$external_roster]")
 
@@ -120,6 +96,35 @@ class LineupController(d: Dependencies = Dependencies())
       }
     }
     (end_state.good_lineups, end_state.bad_lineups, end_state.player_events)
+  }
+
+  /** Gets a list of Roster Entry objects, plus any box players missing from that list */
+  def build_roster(
+    root_dir: Path, team: TeamId
+  ): (List[String], List[RosterEntry]) = {
+    val roster_players = Try(
+      d.file_manager.list_files(root_dir / roster_dir, Some("html"), None, recursive = true)
+    ).getOrElse(Nil).headOption.flatMap { file =>
+      val roster_html = d.file_manager.read_file(file)
+      val roster_lineup = RosterParser.parse_roster(file.last.toString, roster_html, team)
+      roster_lineup.toOption.map { lineup =>
+        //(sort by games played so that typos with dup numbers are ignored)
+        lineup.sortWith(_.gp > _.gp)
+      }
+    }.getOrElse(Nil)
+
+    // Now read all the box scores in to get any missing names:
+
+    val all_box_players = (for {
+      box <- Try(d.file_manager.list_files(root_dir / boxscore_dir, Some("html"), None)).getOrElse(Nil).iterator
+      box_html = d.file_manager.read_file(box)
+      box_lineup <- (d.boxscore_parser.get_box_lineup(box.last.toString, box_html, team, (Nil, roster_players)) match {
+        case Right(lineup) => Some(lineup)
+        case _ => None
+      })
+    } yield box_lineup.players.map(_.id.name)).flatten.toSet.toList
+
+    (all_box_players, roster_players)
   }
 
   /** Given a game/team id, returns good and bad paths for that game */

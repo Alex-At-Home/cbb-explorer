@@ -44,6 +44,9 @@ trait RosterParser {
     def number_finder(el: Element): Option[String] =
       (el >?> element("td:eq(0)")).map(_.text)
 
+    def pos_finder(el: Element): Option[String] =
+      (el >?> element("td:eq(2)")).map(_.text)
+
     def height_finder(el: Element): Option[String] =
       (el >?> element("td:eq(3)")).map(_.text)
 
@@ -78,11 +81,18 @@ trait RosterParser {
 
             player_code_id = build_player_code(name, Some(team_id)) //(fixes accent and misspellings)
             number <- builders.number_finder(el)
+            pos <- builders.pos_finder(el)
             height <- builders.height_finder(el)
             year_class <- builders.class_finder(el)
             gp <- builders.games_played_finder(el)
+
+            height_in = height match {
+              case RosterEntry.height_regex(ft, in) => Some(ft.toInt*12 + in.toInt)
+              case _ => None
+            }
+
           } yield RosterEntry(
-            player_code_id, number, height, year_class, Try(gp.toInt).getOrElse(0)
+            player_code_id, number, pos, height, height_in, year_class, Try(gp.toInt).getOrElse(0)
           )).toList
         }
       )

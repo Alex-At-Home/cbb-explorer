@@ -107,10 +107,11 @@ class LineupController(d: Dependencies = Dependencies())
     ).getOrElse(Nil).headOption.flatMap { file =>
       val roster_html = d.file_manager.read_file(file)
       val roster_lineup = RosterParser.parse_roster(file.last.toString, roster_html, team)
-      roster_lineup.toOption.map { lineup =>
-        //(sort by games played so that typos with dup numbers are ignored)
-        lineup.sortWith(_.gp > _.gp)
+
+      roster_lineup.left.foreach { errors =>
+        d.logger.error(s"Parse error with [$team][$root_dir]: [$errors]")
       }
+      roster_lineup.toOption
     }.getOrElse(Nil)
 
     // Now read all the box scores in to get any missing names:

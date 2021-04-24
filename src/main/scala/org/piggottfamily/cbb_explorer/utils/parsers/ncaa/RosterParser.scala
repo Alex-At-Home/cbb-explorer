@@ -94,14 +94,20 @@ trait RosterParser {
           } yield RosterEntry(
             player_code_id, number, pos, height, height_in, year_class, Try(gp.toInt).getOrElse(0)
           )).toList
-        }
+        }.sortWith( // So below we dedup the smaller number of games played
+          _.gp > _.gp
+        ).foldLeft(Map[LineupEvent.PlayerCodeId, RosterEntry]()) { (acc, v) => acc.get(v.player_code_id) match {
+          // Can get duplicate names so just
+          case  Some(_) => acc
+          case None => acc + (v.player_code_id -> v)
+        }}.values.toList.sortWith(_.gp > _.gp)
       )
 
       // Validate duplicates (like in box score parsing logic):
-      player_codes = players.map(_.player_code_id.code)
+      player_codes = players.map(p => p.player_code_id.code)
       _ <- if (player_codes.toSet.size != players.size) {
         Left(List(ParseUtils.build_sub_error(`parent_fills_in`)(
-          s"Duplicate players: [$player_codes]"
+          s"Duplicate players: [${players.map(_.player_code_id)}]"
         )))
 
       } else {

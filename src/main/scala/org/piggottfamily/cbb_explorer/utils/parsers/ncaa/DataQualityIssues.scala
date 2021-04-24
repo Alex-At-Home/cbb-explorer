@@ -20,16 +20,19 @@ object DataQualityIssues {
 
   /** Use first and last letters from first name for these players */
   val players_with_duplicate_names = Set((
-    // Mitchell brothers
+    // Mitchell brothers (Maryland / RI)
     combos("Makhi", "Mitchell") ++ combos("Makhel", "Mitchell") ++
-    // Hamilton brothers
+    // Hamilton brothers (BC)
     combos("Jared", "Hamilton") ++ combos("Jairus", "Hamilton") ++
     // Wisconsin team-mates, leave Jordan with Jo and Jonathan gets Jn
     //"davis, jordan", "jordan davis", "davis,jordan",
     combos("Jonathan", "Davis") ++
-    // Cumberland relatives
+    // Cumberland relatives (Cinci)
+//TODO: when re-importing next, leave Jarron with Ja, Jaevon gets Jn and can remove from misspellings?
     // These two have the same name regardless of strategy! Use misspellings to tuncate Jaev's name
     combos("Jaev", "Cumberland") ++ combos("Jarron", "Cumberland") ++
+    // Bama - Quinerly bros(?) Jahvon and Jaden, leave Jahvon with Ja, Jadon gets Jn
+    combos("Jaden", "Quinerly") ++
     Nil
   ):_*).map(_.toLowerCase)
 

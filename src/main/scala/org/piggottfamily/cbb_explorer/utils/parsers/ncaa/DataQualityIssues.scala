@@ -20,19 +20,36 @@ object DataQualityIssues {
 
   /** Use first and last letters from first name for these players */
   val players_with_duplicate_names = Set((
-    // Mitchell brothers (Maryland / RI)
+
+    // These caused issues with box/PbP parsing:
+
+    // Mitchell brothers (Maryland 19/20 / RI 20/21)
     combos("Makhi", "Mitchell") ++ combos("Makhel", "Mitchell") ++
-    // Hamilton brothers (BC)
+    // Hamilton brothers (BC 18-19/20)
     combos("Jared", "Hamilton") ++ combos("Jairus", "Hamilton") ++
     // Wisconsin team-mates, leave Jordan with Jo and Jonathan gets Jn
-    //"davis, jordan", "jordan davis", "davis,jordan",
     combos("Jonathan", "Davis") ++
     // Cumberland relatives (Cinci)
-//TODO: when re-importing next, leave Jarron with Ja, Jaevon gets Jn and can remove from misspellings?
     // These two have the same name regardless of strategy! Use misspellings to tuncate Jaev's name
+    // (these are both major players so don't have favorites)
+//TODO: just to Jaevin -> Jn and simplify misspellings
     combos("Jaev", "Cumberland") ++ combos("Jarron", "Cumberland") ++
-    // Bama - Quinerly bros(?) Jahvon and Jaden, leave Jahvon with Ja, Jadon gets Jn
+
+    // These caused issues during roster import:
+
+    // Bama 20/21 - Quinerly bros(?) Jahvon and Jaden, leave Jahvon with Ja, Jadon gets Jn
     combos("Jaden", "Quinerly") ++
+    // Wichita St 20221 - Trey and Trevin Wade. Trevin gets Tn
+    combos("Trevin", "Wade")  ++
+    // Ohio 20/21 - Miles and Michael Brown. Micheal gets  Ml
+    combos("Michael", "Brown") ++
+    // Women 2018 Wash St. Molina - Chanelle v Cherilyn (leave Chanelle else will conflict with 3rd sister Celena!)
+    combos("Cherilyn", "Molina") ++
+    // Women 2019 Cinci - Scott, Jadyn / Jada
+    combos("Jadyn", "Scott") ++ combos("Jada", "Scott") ++
+    // Women 2019 Memphis - Williams, Lanetta / Lanyce (->Le)
+    combos("Lanyce", "Williams") ++
+
     Nil
   ):_*).map(_.toLowerCase)
 
@@ -73,7 +90,7 @@ object DataQualityIssues {
     // Both PBP and BOX
 
     Option(TeamId("Fordham")) -> Map(( //A10
-      // Lots of box scores has him by this nickname, as do PbP
+      // Lots of box scores has him by this nickname (Josh "Colon" Navarro), as do PbP
       alias_combos(("Josh", "Colon") -> "Navarro, Josh")
     ):_*),
 

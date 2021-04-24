@@ -107,7 +107,7 @@ trait RosterParser {
       player_codes = players.map(p => p.player_code_id.code)
       _ <- if (player_codes.toSet.size != players.size) {
         Left(List(ParseUtils.build_sub_error(`parent_fills_in`)(
-          s"Duplicate players: [${players.map(_.player_code_id)}]"
+          s"Duplicate players: [${players.groupBy(_.player_code_id.code).mapValues(_.map(_.player_code_id))}]"
         )))
 
       } else {

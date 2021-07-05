@@ -3,7 +3,7 @@
 PUT _data_frame/transforms/trank_aggregator
 {
   "source": {
-    "index": "trank_players"
+    "index": "trank_players_all"
   },
   "pivot": {
     "group_by": {
@@ -35,7 +35,7 @@ PUT _data_frame/transforms/trank_aggregator
 PUT _data_frame/transforms/trank_tidier
 {
   "source": {
-    "index": "trank_players"
+    "index": "trank_players_all"
   },
   "pivot": {
     "group_by": {

@@ -60,6 +60,14 @@ filebeat.inputs:
 
   json.keys_under_root: true
 
+#================================ Processing =====================================
+
+processors:
+  - fingerprint:
+      fields: [ "player.code", "lineup_id", "team.team", "opponent.team", "date", "start_min", "end_min" ]
+      target_field: "@metadata._id"
+      ignore_missing: true
+
 #================================ Output =====================================
 
 setup.ilm.enabled: false

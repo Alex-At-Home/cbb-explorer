@@ -158,6 +158,7 @@ class StorageController(d: StorageController.Dependencies = StorageController.De
     file_name: String = default_player_cache
   ): Unit = {
     d.file_manager.write_lines_to_file(
+      //(use printer.pretty to handle nulls, otherwise equivalent to _.asJson.noSpaces)
       file_root / file_name, player_events.map(p => printer.pretty(p.asJson))
     )
   }

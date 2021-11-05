@@ -18,7 +18,7 @@ import java.net.URLDecoder
 /** Reads the ingest pipeline and builds a team list for the web page */
 object ParseIngestPipeline {
 
-  val ncaa_conf_map = Map( //(need to come up with a mid vs low-mid strategy, fill in XXXs when done!)
+  val ncaa_conf_map = Map( 
     "acc" -> "high",
     "bigeast" -> "high",
     "bigten" -> "high",
@@ -63,6 +63,7 @@ object ParseIngestPipeline {
     "2018" -> "2018/9",
     "2019" -> "2019/20",
     "2020" -> "2020/21",
+    "2021" -> "2021/22",
   )
 
   def main(args: Array[String]): Unit = {

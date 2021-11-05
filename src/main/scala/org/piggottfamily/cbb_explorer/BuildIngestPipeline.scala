@@ -14,6 +14,7 @@ import org.piggottfamily.cbb_explorer.utils.parsers.ncaa.TeamIdParser
 import scala.io.Source
 import scala.util.{Try, Success, Failure}
 
+/** See scripts/build_ingest_pipeline.sh for usage info */
 object BuildIngestPipeline {
 
   val h2ncaa_conf_map = Map(
@@ -60,7 +61,7 @@ object BuildIngestPipeline {
         |--out=<<out-dir-in-which-dir-structure-is-placed>>
         |[--gender=women]
         |[--confs=<<comma-separated-list-of-confs>>] (or "all")
-        |[--year=<<year>>] (default=2020_21)
+        |[--year=<<year>>] (default=2021_22)
         |[--replace-existing=yes|no] (default=no)
         """)
       System.exit(-1)
@@ -93,7 +94,7 @@ object BuildIngestPipeline {
     val year_str = args
       .map(_.trim).filter(_.startsWith("--year="))
       .headOption.map(_.split("=", 2)(1))
-      .getOrElse("2020_21")
+      .getOrElse("2021_22")
 
     val replace_existing = args
       .map(_.trim).filter(_.startsWith("--replace-existing="))

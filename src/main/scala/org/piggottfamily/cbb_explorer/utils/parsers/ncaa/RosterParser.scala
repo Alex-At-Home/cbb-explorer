@@ -94,9 +94,10 @@ trait RosterParser {
           } yield RosterEntry(
             player_code_id, number, pos, height, height_in, year_class, Try(gp.toInt).getOrElse(0)
           )).toList
-        }.sortWith( // So below we dedup the smaller number of games played
-          _.gp > _.gp
-        ).foldLeft(Map[LineupEvent.PlayerCodeId, RosterEntry]()) { (acc, v) => acc.get(v.player_code_id) match {
+        }.sortWith { // So below we dedup the smaller number of games played
+          case (lhs, rhs) => 
+            lhs.gp > rhs.gp || ((lhs.gp == rhs.gp) && (lhs.player_code_id.code < rhs.player_code_id.code))
+        }.foldLeft(Map[LineupEvent.PlayerCodeId, RosterEntry]()) { (acc, v) => acc.get(v.player_code_id) match {
           // Can get duplicate names so just
           case  Some(_) => acc
           case None => acc + (v.player_code_id -> v)

@@ -33,11 +33,17 @@ object RosterParserTests extends TestSuite with RosterParser {
     "RosterParser" - {
       TestUtils.inside(parse_roster("test.hmtl", lineup_html, TeamId("TeamA")).map(_.take(5))) {
         case Right(List(
-          RosterEntry(PlayerCodeId("DaAkin",PlayerId("Akin, Daniel")),"30","F", "6-9",Some(81),"Sr", 16),
-          RosterEntry(PlayerCodeId("JaBoonyasith",PlayerId("Boonyasith, Jacob")),"41","G","6-3",Some(75),"Jr", 14),
-          RosterEntry(PlayerCodeId("BrDavis",PlayerId("Davis, Brendan")),"24","G","6-0",Some(72),"Fr", 3),
-          RosterEntry(PlayerCodeId("RjEytle-rock",PlayerId("Eytle-Rock, R.J.")),"11","G","6-3",Some(75),"Jr", 20),
-          RosterEntry(PlayerCodeId("SaGrace",PlayerId("Grace, Sam")),"15","G","5-10",Some(70),"So", 2)
+          RosterEntry(PlayerCodeId("RjEytle-rock",PlayerId("Eytle-Rock, R.J.")),"11","G","6-3",Some(75),"Jr",20),
+          RosterEntry(PlayerCodeId("KeKennedy",PlayerId("Kennedy, Keondre")),"0","G","6-6",Some(78),"Jr",20),
+          RosterEntry(PlayerCodeId("DaRogers",PlayerId("Rogers, Darnell")),"2","G","5-2",Some(62),"Sr",20),
+          RosterEntry(PlayerCodeId("DiSpasojevic",PlayerId("Spasojevic, Dimitrije")),"32","F","6-8",Some(80),"Sr",20),
+          RosterEntry(PlayerCodeId("BrHorvath",PlayerId("Horvath, Brandon")),"12","F","6-10",Some(82),"Sr",19),
+
+          // (old roster entries prior to the sort by GP, in case I mess with sort again!)
+          // RosterEntry(PlayerCodeId("DaAkin",PlayerId("Akin, Daniel")),"30","F", "6-9",Some(81),"Sr", 16),
+          // RosterEntry(PlayerCodeId("JaBoonyasith",PlayerId("Boonyasith, Jacob")),"41","G","6-3",Some(75),"Jr", 14),
+          // RosterEntry(PlayerCodeId("BrDavis",PlayerId("Davis, Brendan")),"24","G","6-0",Some(72),"Fr", 3),
+          // RosterEntry(PlayerCodeId("SaGrace",PlayerId("Grace, Sam")),"15","G","5-10",Some(70),"So", 2)
         )) =>
       }
       TestUtils.inside(parse_roster("test.hmtl", lineup_html_dup_check, TeamId("TeamB")).map(_.take(5))) {

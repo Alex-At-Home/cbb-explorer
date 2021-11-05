@@ -6,16 +6,20 @@
 export CURR_TIME=${CURR_TIME:=$(date +"%s")}
 export CURR_YEAR=${CURR_YEAR:="2022"}
 
-if [ -z "$COOKIE" ]; then
-  echo "No cookie, trying to login manually"
-  COOKIE=$(curl --silent --cookie-jar - -XPOST 'https://kenpom.com/handlers/login_handler.php' -d"email=${EFF_USER}&password=${EFF_PASSWORD}&submit=Login" | grep PHPSESSID | awk '{ print $7 }')
-
+if [ "$1" != "--skip-download" ]; then
   if [ -z "$COOKIE" ]; then
-    echo "It is necessary to include the auth cookie as env var COOKIE, or the user/pass as EFF_USER/EFF_PASSWORD"
-    exit -1
-  else
-    echo "Login successful"
+    echo "No cookie, trying to login manually"
+    COOKIE=$(curl --silent --cookie-jar - -XPOST 'https://kenpom.com/handlers/login_handler.php' -d"email=${EFF_USER}&password=${EFF_PASSWORD}&submit=Login" | grep PHPSESSID | awk '{ print $7 }')
+
+    if [ -z "$COOKIE" ]; then
+      echo "It is necessary to include the auth cookie as env var COOKIE, or the user/pass as EFF_USER/EFF_PASSWORD"
+      exit -1
+    else
+      echo "Login successful"
+    fi
   fi
+else
+  echo "Bypassing login and skipping download"
 fi
 
 echo ">>>>>>> Extracting from [$CURR_TIME] for [$CURR_YEAR]"

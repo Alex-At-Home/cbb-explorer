@@ -1,12 +1,21 @@
 #!/bin/bash
 # Call with --skip-download to bypass the download and just process/upload
+# Run from ELASTIC_FILEBEAT_CONFIG_ROOT (eg "cbb-data/cbb")
+# Ensure ".scripts.env" has been run
 
 export CURR_TIME=${CURR_TIME:=$(date +"%s")}
-export CURR_YEAR=${CURR_YEAR:="2021"}
+export CURR_YEAR=${CURR_YEAR:="2022"}
 
 if [ -z "$COOKIE" ]; then
-  echo "It is necessary to include the auth cookie as env var COOKIE"
-  exit -1
+  echo "No cookie, trying to login manually"
+  COOKIE=$(curl --silent --cookie-jar - -XPOST 'https://kenpom.com/handlers/login_handler.php' -d"email=${EFF_USER}&password=${EFF_PASSWORD}&submit=Login" | grep PHPSESSID | awk '{ print $7 }')
+
+  if [ -z "$COOKIE" ]; then
+    echo "It is necessary to include the auth cookie as env var COOKIE, or the user/pass as EFF_USER/EFF_PASSWORD"
+    exit -1
+  else
+    echo "Login successful"
+  fi
 fi
 
 echo ">>>>>>> Extracting from [$CURR_TIME] for [$CURR_YEAR]"

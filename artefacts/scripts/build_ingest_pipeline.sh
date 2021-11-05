@@ -11,7 +11,7 @@
 #High major women: acc,american,bigeast,bigten,bigtwelve,pactwelve,sec
 #(misc_conf not currently supported)
 export REPLACE_EXIST=${REPLACE_EXIST:="no"}
-export YEAR=${YEAR:="2020_21"}
+export YEAR=${YEAR:="2021_22"}
 
 java -cp "$PBP_SRC_ROOT/target/scala-2.12/cbb-explorer-assembly-0.1-deps.jar:$PBP_SRC_ROOT/target/scala-2.12/cbb-explorer_2.12-0.1.jar" \
   org.piggottfamily.cbb_explorer.BuildIngestPipeline \

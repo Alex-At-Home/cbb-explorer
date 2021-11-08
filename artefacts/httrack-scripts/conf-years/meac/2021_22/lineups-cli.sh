@@ -5,14 +5,13 @@ YEAR=2021
 CONF=meac
 array=(
    '446.0/15881::Morgan+St.'
-   '488.0/15881::N.C.+A%26T'
    '485.0/15881::Norfolk+St.'
    '290.0/15881::Howard'
    '489.0/15881::N.C.+Central'
    '178.0/15881::Delaware+St.'
    '165.0/15881::Coppin+St.'
-   '228.0/15881::Florida+A%26M'
    '647.0/15881::South+Carolina+St.'
+   '393.0/15881::UMES'
 )
 
 for index in "${array[@]}" ; do

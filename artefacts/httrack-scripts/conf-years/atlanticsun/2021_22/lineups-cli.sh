@@ -1,19 +1,23 @@
 #!/bin/bash
 
 #(source .lineup.env first to set up these variables)
-YEAR=2020
-CONF=wac
+YEAR=2021
+CONF=atlanticsun
 array=(
-   '1104.0/15480::Grand+Canyon'
-   '472.0/15480::New+Mexico+St.'
-   '30024.0/15480::Utah+Valley'
-   '536.0/15480::UTRGV'
-   '1356.0/15480::Seattle+U'
-   '136.0/15480::Chicago+St.'
-   '30135.0/15480::California+Baptist'
-   '1395.0/15480::Tarleton+St.'
-   '30095.0/15480::Dixie+St.'
+   '355.0/15881::Liberty'
+   '28755.0/15881::FGCU'
+   '28600.0/15881::Lipscomb'
+   '316.0/15881::Jacksonville'
+   '2711.0/15881::North+Florida'
+   '678.0/15881::Stetson'
+   '1157.0/15881::Kennesaw+St.'
+   '52.0/15881::Bellarmine'
+   '487.0/15881::North+Ala.'
+   '1004.0/15881::Central+Ark'
+   '202.0/15881::Eastern+Ky.'
+   '315.0/15881::Jacksonville+St.'
 )
+https://stats.ncaa.org/teams/527738
 
 for index in "${array[@]}" ; do
     FULLTEAMID="${index%%::*}"

@@ -1,18 +1,20 @@
 #!/bin/bash
 
 #(source .lineup.env first to set up these variables)
-YEAR=2020
-CONF=wac
+YEAR=2021
+CONF=bigsky
 array=(
-   '1104.0/15480::Grand+Canyon'
-   '472.0/15480::New+Mexico+St.'
-   '30024.0/15480::Utah+Valley'
-   '536.0/15480::UTRGV'
-   '1356.0/15480::Seattle+U'
-   '136.0/15480::Chicago+St.'
-   '30135.0/15480::California+Baptist'
-   '1395.0/15480::Tarleton+St.'
-   '30095.0/15480::Dixie+St.'
+   '758.0/15881::Weber+St.'
+   '667.0/15881::Southern+Utah'
+   '440.0/15881::Montana+St.'
+   '207.0/15881::Eastern+Wash.'
+   '102.0/15881::Sacramento+St.'
+   '294.0/15881::Idaho+St.'
+   '550.0/15881::Portland+St.'
+   '441.0/15881::Montana'
+   '502.0/15881::Northern+Colo.'
+   '501.0/15881::Northern+Ariz.'
+   '295.0/15881::Idaho'
 )
 
 for index in "${array[@]}" ; do

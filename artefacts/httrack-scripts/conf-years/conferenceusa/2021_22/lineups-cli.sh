@@ -1,18 +1,23 @@
 #!/bin/bash
 
 #(source .lineup.env first to set up these variables)
-YEAR=2020
-CONF=wac
+YEAR=2021
+CONF=conferenceusa
 array=(
-   '1104.0/15480::Grand+Canyon'
-   '472.0/15480::New+Mexico+St.'
-   '30024.0/15480::Utah+Valley'
-   '536.0/15480::UTRGV'
-   '1356.0/15480::Seattle+U'
-   '136.0/15480::Chicago+St.'
-   '30135.0/15480::California+Baptist'
-   '1395.0/15480::Tarleton+St.'
-   '30095.0/15480::Dixie+St.'
+   '229.0/15881::Fla.+Atlantic'
+   '231.0/15881::FIU'
+   '574.0/15881::Rice'
+   '388.0/15881::Marshall'
+   '706.0/15881::UTSA'
+   '497.0/15881::North+Texas'
+   '9.0/15881::UAB'
+   '772.0/15881::Western+Ky.'
+   '366.0/15881::Louisiana+Tech'
+   '704.0/15881::UTEP'
+   '523.0/15881::Old+Dominion'
+   '664.0/15881::Southern+Miss.'
+   '458.0/15881::Charlotte'
+   '419.0/15881::Middle+Tenn.'
 )
 
 for index in "${array[@]}" ; do

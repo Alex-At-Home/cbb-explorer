@@ -1,18 +1,21 @@
 #!/bin/bash
 
 #(source .lineup.env first to set up these variables)
-YEAR=2020
-CONF=wac
+YEAR=2021
+CONF=horizon
 array=(
-   '1104.0/15480::Grand+Canyon'
-   '472.0/15480::New+Mexico+St.'
-   '30024.0/15480::Utah+Valley'
-   '536.0/15480::UTRGV'
-   '1356.0/15480::Seattle+U'
-   '136.0/15480::Chicago+St.'
-   '30135.0/15480::California+Baptist'
-   '1395.0/15480::Tarleton+St.'
-   '30095.0/15480::Dixie+St.'
+   '810.0/15881::Wright+St.'
+   '308.0/15881::Purdue+Fort+Wayne'
+   '817.0/15881::Youngstown+St.'
+   '797.0/15881::Milwaukee'
+   '184.0/15881::Detroit+Mercy'
+   '579.0/15881::Robert+Morris'
+   '514.0/15881::Oakland'
+   '302.0/15881::UIC'
+   '794.0/15881::Green+Bay'
+   '505.0/15881::Northern+Ky.'
+   '148.0/15881::Cleveland+St.'
+   '2699.0/15881::IUPUI'
 )
 
 for index in "${array[@]}" ; do

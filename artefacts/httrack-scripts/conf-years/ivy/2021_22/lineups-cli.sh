@@ -1,20 +1,17 @@
 #!/bin/bash
 
 #(source .lineup.env first to set up these variables)
-YEAR=2020
-CONF=bigwest
+YEAR=2021
+CONF=ivy
 array=(
-   '108.0/15480::UC+Davis'
-   '109.0/15480::UC+Irvine'
-   '104.0/15480::UC+Santa+Barbara'
-   '97.0/15480::Cal+St.+Fullerton'
-   '277.0/15480::Hawaii'
-   '101.0/15480::CSUN'
-   '99.0/15480::Long+Beach+St.'
-   '94.0/15480::CSU+Bakersfield'
-   '111.0/15480::UC+Riverside'
-   '90.0/15480::Cal+Poly'
-   '112.0/15480::UC+San+Diego'
+   '813.0/15881::Yale'
+   '80.0/15881::Brown'
+   '158.0/15881::Columbia'
+   '167.0/15881::Cornell'
+   '275.0/15881::Harvard'
+   '172.0/15881::Dartmouth'
+   '540.0/15881::Penn'
+   '554.0/15881::Princeton'
 )
 
 for index in "${array[@]}" ; do

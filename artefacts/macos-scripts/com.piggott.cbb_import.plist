@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+
+    <key>Label</key>
+    <string>com.piggott.cbb_import.plist</string>
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Hour</key>
+            <integer>4</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+    </array>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/alex/personal/github/cbb-data/cbb/import_errs.txt</string>
+
+    <key>StandardOutPath</key>
+    <string>/Users/alex/personal/github/cbb-data/cbb/import_out.txt</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>PATH</key>
+      <string><![CDATA[/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/alex/google-cloud-sdk/bin/]]></string>
+
+      <key>ENV_FILE</key>
+      <string>/Users/alex/personal/github/cbb-explorer/.scripts.env</string>
+
+      <key>DAILY_IMPORT</key>
+      <string>yes</string>
+
+      <key>BUILD_EFFICIENCY</key>
+      <string>cron</string>
+
+      <key>BUILD_LEADERBOARDS</key>
+      <string>cron</string>
+
+      <key>BOTO_CONFIG</key>
+      <string>/Users/alex/.boto</string>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/alex/personal/github/cbb-data/cbb</string>
+
+    <key>ProgramArguments</key>
+    <array>
+      <string>/bin/sh</string>
+      <string>/Users/alex/personal/github/cbb-explorer/artefacts/scripts/daily_cbb_import.sh</string>
+    </array>
+
+  </dict>
+</plist>

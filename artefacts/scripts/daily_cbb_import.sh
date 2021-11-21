@@ -1,4 +1,5 @@
 #!/bin/bash
+# (put = in TEAM_FILTER to make it exact match vs URL-encoded string)
 
 ENV_FILE=${ENV_FILE:=$PBP_SRC_ROOT/.scripts.env}
 if [ "$ENV_FILE" = "/.scripts.env" ]; then
@@ -56,7 +57,7 @@ if [[ "$BUILD_LEADERBOARDS" == "yes" ]] || [[ "$BUILD_LEADERBOARDS" = "cron" && 
    npm run build_leaderboards -- --tier=High
    npm run build_leaderboards -- --tier=Medium
    npm run build_leaderboards -- --tier=Low
-   #TODO: --gender=Women --tier=High
+   npm run build_leaderboards -- --gender=Women --tier=High
 
    # Upload to GCS (and delete on success)
    gsutil cp ./public/leaderboards/lineups/*2021*.json gs://$LEADERBOARD_BUCKET/ && \

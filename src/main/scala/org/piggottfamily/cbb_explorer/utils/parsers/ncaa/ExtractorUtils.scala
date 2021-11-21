@@ -299,6 +299,11 @@ object ExtractorUtils {
    13:43:00		26-41	Anthony Cowan, substitution in
    13:38:00		26-43	Eric Ayala, 2pt drivinglayup 2ndchance;pointsinthepaint made
 
+   // Example of PbP craziness we can nonetheless fix
+   05:37:00 12-13 Tasos Kamateros, substitution out
+   05:37:00 12-13 Tasos Kamateros, substitution in
+   05:37:00 12-13 Tasos Kamateros, substitution out
+   05:37:00 12-13 Tasos Kamateros, foul personal
    *
    * (protected just to support testing)
    */
@@ -392,7 +397,8 @@ object ExtractorUtils {
               state.copy(group_1 = ev :: state.group_1)
 
             case ev: Model.OtherTeamEvent =>
-              if (event_refs_player(ev, sub_ins)) {
+              if (event_refs_player(ev, sub_ins) && !event_refs_player(ev, sub_outs)) {
+                //^(if the player appears in both in and out then assume they are in the first block)
                 state.copy(group_2 = ev :: state.group_2)
               } else if (event_refs_player(ev, sub_outs)) {
                 state.copy(group_1 = ev :: state.group_1)
@@ -466,32 +472,45 @@ object ExtractorUtils {
     )
   }
 
-  /** Fills in/tidies up a partial lineup event following its completion */
-  private def complete_lineup(curr: LineupEvent, prevs: List[LineupEvent], min: Double): LineupEvent = {
+  /** Builds a player list from the previous (or current, if pre-init'd) and current in/out */
+  def build_new_player_list(curr: LineupEvent, prev: LineupEvent): List[LineupEvent.PlayerCodeId] = {
     val new_player_list = {
-      val curr_players = curr.players.map(p => p.code -> p).toMap //(copied from the prev play)
+      val curr_players = prev.players.map(p => p.code -> p).toMap //(copied from the prev play)
       val tmp_players_out = curr.players_out.map(p => p.code -> p).toMap
       val tmp_players_in = curr.players_in.map(p => p.code -> p).toMap
       val poss1 = (curr_players -- tmp_players_out.keySet ++ tmp_players_in).values.toList
       val poss2 = (curr_players ++ tmp_players_in -- tmp_players_out.keySet).values.toList
+      val poss3 = tmp_players_in.values.toList
 
       //println("**** CL" + s"curr=[$curr_players] in=[$tmp_players_in] out=[$tmp_players_out]")
 
       // Check for a common error case: player comes in and out in the same sub
       // Pick the right one based on what makes sense
-      (poss1.size, poss2.size) match {
-        case (5, _) => poss1
-        case (_, 5) => poss2
+      (poss1.size, poss2.size, poss3.size) match {
+        case (_, _, 5) => poss3  //5 players in, so that'll do
+        case (5, _, _) => poss1
+        case (_, 5, _) => poss2
         case _ =>
           // Try removing all common players:
           val common_players = tmp_players_in.keySet.filter(tmp_players_out.keySet)
           val alt_players_in = tmp_players_in -- common_players
           val alt_players_out = tmp_players_out -- common_players
-          val poss3 = (curr_players -- alt_players_out.keySet ++ alt_players_in).values.toList
-          poss3
+          val poss_n = (curr_players -- alt_players_out.keySet ++ alt_players_in).values.toList
+
+          // if (poss_n.size != 5)
+          // println("**** CLerr" + s"curr=[$curr_players] in=[$tmp_players_in] out=[$tmp_players_out]: [$poss_n]")
+
+          poss_n
       }
     }
+    new_player_list.sortBy(_.code)
+  }
+
+  /** Fills in/tidies up a partial lineup event following its completion */
+  private def complete_lineup(curr: LineupEvent, prevs: List[LineupEvent], min: Double): LineupEvent = {
     //TODO test the lineup fix logic
+
+    val new_player_list = build_new_player_list(curr, curr)
 
     curr.copy(
       end_min = min,
@@ -508,7 +527,7 @@ object ExtractorUtils {
         num_possessions = 0 //(calculate later)
       ),
       lineup_id = build_lineup_id(new_player_list),
-      players = new_player_list.sortBy(_.code),
+      players = new_player_list,
       players_in = curr.players_in.reverse,
       players_out = curr.players_out.reverse,
       raw_game_events = curr.raw_game_events.reverse

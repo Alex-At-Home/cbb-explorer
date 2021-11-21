@@ -19,7 +19,8 @@ object BuildLineups {
       println("""
         |--in=<<in-dir-up-to-conf-then-year>>
         |--out=<<out-dir-in-which-files-are-placed>>
-        |[--team]=<<only include teams matching this string>>
+        |[--team]==<<only include teams matching this string>>
+        |[--team]=<<only include teams containing this string>>
         |[--full] (includes player in/out and raw events)
         |[--player-events] (includes player events in a separate file)
         |[--from=<<filter-files-before-this-unix-timestamp>>]
@@ -50,9 +51,13 @@ object BuildLineups {
         .map(_.split("=", 2)(1))
         .map(_.toLong)
 
-    val maybe_team_selector = args
+    val maybe_team_match = args
+      .map(_.trim).filter(_.startsWith("--team=="))
+      .headOption.map(_.split("==", 2)(1))
+
+    val maybe_team_selector = if (maybe_team_match.isEmpty) args
       .map(_.trim).filter(_.startsWith("--team="))
-      .headOption.map(_.split("=", 2)(1))
+      .headOption.map(_.split("=", 2)(1)) else None
 
     // Get year and then conference
 
@@ -74,7 +79,7 @@ object BuildLineups {
       val get_team_id = "(.*)_([0-9.]+)$".r
       subdir.last match {
         case get_team_id(team_name, _)
-          if maybe_team_selector.forall(sel => team_name.contains(sel))
+          if maybe_team_selector.forall(sel => team_name.contains(sel)) && maybe_team_match.forall(_ == team_name)
         =>
           val team_dir =  subdir/ "stats.ncaa.org"
           val decoded_team_name = URLDecoder.decode(team_name.replace("+", " "))
@@ -84,11 +89,11 @@ object BuildLineups {
           )
 
         case get_team_id(team_name, _) =>
-          println(s"Skipping unselected team with dir ${subdir.toString}")
+          println(s"Skipping unselected team [$team_name] with dir [${subdir.toString}] vs [$maybe_team_selector] or [$maybe_team_match]")
           (List(), List(), List())
 
         case _ =>
-          println(s"Skipping unrecognized dir ${subdir.toString}")
+          println(s"Skipping unrecognized dir [${subdir.toString}]")
           (List(), List(), List())
       }
     }.foldLeft((List[LineupEvent](), List[LineupEvent](), List[PlayerEvent]())) {

@@ -27,7 +27,7 @@ object DataQualityIssues {
     combos("Makhi", "Mitchell") ++ combos("Makhel", "Mitchell") ++
     // Hamilton brothers (BC 18-19/20)
     combos("Jared", "Hamilton") ++ combos("Jairus", "Hamilton") ++
-    // Wisconsin team-mates, leave Jordan with Jo and Jonathan/Johnny gets Jo
+    // Wisconsin team-mates, leave Jordan with Jo and Jonathan/Johnny gets J?
     // TODO: need to reimport 2020/21 where I did this the other way round for some reason
     combos("Jordan", "Davis") ++ 
     // Cumberland relatives (Cinci)
@@ -50,6 +50,10 @@ object DataQualityIssues {
     combos("Jadyn", "Scott") ++ combos("Jada", "Scott") ++
     // Women 2019 Memphis - Williams, Lanetta / Lanyce (->Le)
     combos("Lanyce", "Williams") ++
+    // Florida 2021/22 Tatiana and Taliyah Wyche ... make Taliyah be Th because otherwise they are both Ta!
+    combos("Taliyah", "Wyche") ++
+    // Syracuse 2021/22 Christianna and Chrislyn Carr .. both starting! Sorry Chrislyn :)
+    combos("Chrislyn", "Carr") ++
 
     Nil
   ):_*).map(_.toLowerCase)

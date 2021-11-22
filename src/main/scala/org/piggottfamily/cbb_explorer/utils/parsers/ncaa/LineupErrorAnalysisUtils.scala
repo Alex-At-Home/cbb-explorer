@@ -271,7 +271,15 @@ object LineupErrorAnalysisUtils {
         found_players: Set[LineupEvent.PlayerCodeId],
         last_event: Option[LineupEvent]
       )
-      val State(_, players_to_add, _) = related_evs.foldLeft(State(candidates, Set(), None)) {
+
+      // A scenario you sometimes see is the good lineup starts with a sub-out of a player who wasn't actually on
+      // the floor - we'll use this as the initial candidates
+      // eg CURR_TIME="12" DOWNLOAD="no" PARSE="yes" UPLOAD="no" CURR_YEAR_STR="2021_22" TEAM_FILTER="=Florida+A%26M" PING="lpong" CONFS="swac" $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh  
+      val initial_candidates = clump.next_good.toList.flatMap(_.players_out).filterNot(
+        clump.evs.flatMap(_.players).toSet
+      ).toSet
+      
+      val State(_, players_to_add, _) = related_evs.foldLeft(State(candidates, initial_candidates, None)) {
         case (State(curr_candidates, curr_to_add, _), ev) =>
           // If you get subbed in, you cease to become a candidate
           val new_candidates = curr_candidates -- ev.players_in.filter(curr_candidates)

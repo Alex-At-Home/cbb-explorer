@@ -7,7 +7,7 @@
 #--gender is men|women (lower case)
 
 #Some confs:
-#All: acc,american,atlanticten,bigeast,bigten,bigtwelve,pactwelve,sec,wcc,mountainwest,mvc,conferenceusa,mac,socon,sunbelt,bigsky,colonial,summit,americaeast,atlanticsun,bigsouth,bigwest,horizon,maac,meac,nec,ovc,patriot,southland,swac,wac
+#All: acc,american,atlanticten,bigeast,bigten,bigtwelve,pactwelve,sec,wcc,mountainwest,mvc,conferenceusa,mac,socon,sunbelt,bigsky,colonial,summit,americaeast,atlanticsun,bigsouth,bigwest,horizon,ivy,maac,meac,nec,ovc,patriot,southland,swac,wac
 #High major women: acc,american,bigeast,bigten,bigtwelve,pactwelve,sec
 #(misc_conf not currently supported)
 export REPLACE_EXIST=${REPLACE_EXIST:="no"}

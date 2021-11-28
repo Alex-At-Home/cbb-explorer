@@ -2,6 +2,7 @@ package org.piggottfamily.cbb_explorer.models.ncaa
 
 /**
  * Contains a collection of counting stats
+ * (player_shot_info - for each spot in the lineup, some minimal info about the sort of shots they took, for upstream luck calcs)
  */
 case class LineupEventStats(
   num_events: Int = 0,
@@ -29,6 +30,8 @@ case class LineupEventStats(
   ast_3p: Option[LineupEventStats.AssistInfo] = None,
 
   foul: Option[LineupEventStats.ShotClockStats] = None,
+
+  player_shot_info: Option[LineupEventStats.PlayerShotInfoStats] = None,
 
   pts: Int = 0,
   plus_minus: Int = 0
@@ -85,6 +88,22 @@ object LineupEventStats {
     counts: LineupEventStats.ShotClockStats = LineupEventStats.ShotClockStats(),
     target: Option[List[AssistEvent]] = None,
     source: Option[List[AssistEvent]] = None
+  )
+
+  /** This will get serialized into an 8B Long, 2B each in ascending order (need 2B so can sum without fear of overflow) */
+  case class PlayerShotInfo(
+    unknown_3pa: Option[Int],
+    trans_3pa: Option[Int],
+    unassisted_3pm: Option[Int],
+    assisted_3pm: Option[Int]
+  )
+  /** Gives each player some info about their stats */
+  case class PlayerShotInfoStats(
+    _1: Option[PlayerShotInfo] = None,
+    _2: Option[PlayerShotInfo] = None,
+    _3: Option[PlayerShotInfo] = None,
+    _4: Option[PlayerShotInfo] = None,
+    _5: Option[PlayerShotInfo] = None,
   )
 
 }

@@ -43,6 +43,31 @@ object StorageController {
       } yield DateTime.parse(dt)
     }
 
+    // Encode per lineup info into a long
+    implicit val encodePlayerInfo: Encoder[LineupEventStats.PlayerShotInfo] = new Encoder[LineupEventStats.PlayerShotInfo] {
+      final def apply(in: LineupEventStats.PlayerShotInfo): Json = {
+        val out: Long = (in.unknown_3pa.getOrElse(0) & 0xFFF) //(max out individual values at >>16B so can sum them safely)
+          + ((in.trans_3pa.getOrElse(0) & 0xFFF) << 16)
+          + ((in.unassisted_3pm.getOrElse(0) & 0xFFF) << 32)
+          + ((in.assisted_3pm.getOrElse(0) & 0xFFF) << 48)
+        Json.fromString(out.toString)
+      }
+    }
+    implicit val decodePlayerInfo: Decoder[LineupEventStats.PlayerShotInfo] = new Decoder[LineupEventStats.PlayerShotInfo] {
+      final def apply(c: HCursor): Decoder.Result[LineupEventStats.PlayerShotInfo] = for {
+        in <- c.as[Long]
+        unknown_3pa = (in & 0xFFF).toInt
+        trans_3pa = ((in >> 16) & 0xFFF).toInt
+        unassisted_3pm = ((in >> 32) & 0xFFF).toInt
+        assisted_3pm = ((in >> 48) & 0xFFF).toInt
+      } yield LineupEventStats.PlayerShotInfo(
+        Some(unknown_3pa).filter(_ > 0),
+        Some(trans_3pa).filter(_ > 0),
+        Some(unassisted_3pm).filter(_ > 0),
+        Some(assisted_3pm).filter(_ > 0),
+      )
+    }
+
     // Enums:
     implicit val tierTypeEncoder = Encoder.enumEncoder(Game.TierType)
     implicit val tierTypeDecoder = Decoder.enumDecoder(Game.TierType)

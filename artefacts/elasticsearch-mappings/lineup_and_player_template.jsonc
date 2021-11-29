@@ -13,6 +13,15 @@
               "type": "double"
             }
           }
+        },
+        //(even though the default is long, we specify this explicitly, since it won't work if it's <long)
+        {
+          "player_shot_info": {
+            "path_match": "*.player_shot_info.*",
+            "mapping": {
+              "type": "long"
+            }
+          }
         }
       ]
     }

@@ -1,630 +1,629 @@
 {
-    "mappings" : {
-      "doc" : {
-        "properties" : {
-          "@timestamp" : {
-            "type" : "date"
-          },
-          "beat" : {
-            "properties" : {
-              "hostname" : {
-                "type" : "text",
-                "fields" : {
-                  "keyword" : {
-                    "type" : "keyword",
-                    "ignore_above" : 256
+  "mappings" : {
+    "doc" : {
+      "properties" : {
+        "@timestamp" : {
+          "type" : "date"
+        },
+        "beat" : {
+          "properties" : {
+            "hostname" : {
+              "type" : "text",
+              "fields" : {
+                "keyword" : {
+                  "type" : "keyword",
+                  "ignore_above" : 256
+                }
+              }
+            },
+            "name" : {
+              "type" : "text",
+              "fields" : {
+                "keyword" : {
+                  "type" : "keyword",
+                  "ignore_above" : 256
+                }
+              }
+            },
+            "version" : {
+              "type" : "text",
+              "fields" : {
+                "keyword" : {
+                  "type" : "keyword",
+                  "ignore_above" : 256
+                }
+              }
+            }
+          }
+        },
+        "coach" : {
+          "type" : "text",
+          "fields" : {
+            "keyword" : {
+              "type" : "keyword",
+              "ignore_above" : 256
+            }
+          }
+        },
+        "conf" : {
+          "type" : "text",
+          "fields" : {
+            "keyword" : {
+              "type" : "keyword",
+              "ignore_above" : 256
+            }
+          }
+        },
+        "games" : {
+          "properties" : {
+            "date" : {
+              "type" : "date"
+            },
+            "location_type" : {
+              "type" : "text",
+              "fields" : {
+                "keyword" : {
+                  "type" : "keyword",
+                  "ignore_above" : 256
+                }
+              }
+            },
+            "opp_rank" : {
+              "type" : "long"
+            },
+            "opponent" : {
+              "properties" : {
+                "team" : {
+                  "type" : "text",
+                  "fields" : {
+                    "keyword" : {
+                      "type" : "keyword",
+                      "ignore_above" : 256
+                    }
+                  }
+                },
+                "year" : {
+                  "type" : "long"
+                }
+              }
+            },
+            "pace" : {
+              "type" : "long"
+            },
+            "rank" : {
+              "type" : "long"
+            },
+            "score" : {
+              "properties" : {
+                "allowed" : {
+                  "type" : "long"
+                },
+                "scored" : {
+                  "type" : "long"
+                }
+              }
+            },
+            "tier" : {
+              "type" : "text",
+              "fields" : {
+                "keyword" : {
+                  "type" : "keyword",
+                  "ignore_above" : 256
+                }
+              }
+            },
+            "won" : {
+              "type" : "boolean"
+            }
+          }
+        },
+        "host" : {
+          "properties" : {
+            "name" : {
+              "type" : "text",
+              "fields" : {
+                "keyword" : {
+                  "type" : "keyword",
+                  "ignore_above" : 256
+                }
+              }
+            }
+          }
+        },
+        "input" : {
+          "properties" : {
+            "type" : {
+              "type" : "text",
+              "fields" : {
+                "keyword" : {
+                  "type" : "keyword",
+                  "ignore_above" : 256
+                }
+              }
+            }
+          }
+        },
+        "ncaa_seed" : {
+          "type" : "long"
+        },
+        "offset" : {
+          "type" : "long"
+        },
+        "prospector" : {
+          "properties" : {
+            "type" : {
+              "type" : "text",
+              "fields" : {
+                "keyword" : {
+                  "type" : "keyword",
+                  "ignore_above" : 256
+                }
+              }
+            }
+          }
+        },
+        "source" : {
+          "type" : "text",
+          "fields" : {
+            "keyword" : {
+              "type" : "keyword",
+              "ignore_above" : 256
+            }
+          }
+        },
+        "stats" : {
+          "properties" : {
+            "_def" : {
+              "properties" : {
+                "_2p_pct" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "_2p_pt_dist" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "_3p_pct" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "_3p_pt_dist" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "_3pa_rate" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "afgm_rate" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "avg_poss_len" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "blk_pct" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "eff_fg" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "ft_pct" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "ft_pt_dist" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "ft_rate" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "orb_pct" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "stl_pct" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "to_pct" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
                   }
                 }
-              },
-              "name" : {
-                "type" : "text",
-                "fields" : {
-                  "keyword" : {
-                    "type" : "keyword",
-                    "ignore_above" : 256
+              }
+            },
+            "adj_def" : {
+              "properties" : {
+                "rank" : {
+                  "type" : "long"
+                },
+                "value" : {
+                  "type" : "float"
+                }
+              }
+            },
+            "adj_margin" : {
+              "properties" : {
+                "rank" : {
+                  "type" : "long"
+                },
+                "value" : {
+                  "type" : "float"
+                }
+              }
+            },
+            "adj_off" : {
+              "properties" : {
+                "rank" : {
+                  "type" : "long"
+                },
+                "value" : {
+                  "type" : "float"
+                }
+              }
+            },
+            "adj_tempo" : {
+              "properties" : {
+                "rank" : {
+                  "type" : "long"
+                },
+                "value" : {
+                  "type" : "float"
+                }
+              }
+            },
+            "off" : {
+              "properties" : {
+                "_2p_pct" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "_2p_pt_dist" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "_3p_pct" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "_3p_pt_dist" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "_3pa_rate" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "afgm_rate" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "avg_poss_len" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "blk_pct" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "eff_fg" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "ft_pct" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "ft_pt_dist" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "ft_rate" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "orb_pct" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "stl_pct" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "to_pct" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
                   }
                 }
-              },
-              "version" : {
-                "type" : "text",
-                "fields" : {
-                  "keyword" : {
-                    "type" : "keyword",
-                    "ignore_above" : 256
+              }
+            },
+            "personnel" : {
+              "properties" : {
+                "avg_height_inches" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "bench_mins_pct" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "continuity_pct" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "experience_yrs" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                }
+              }
+            },
+            "sos" : {
+              "properties" : {
+                "_def" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "non_conf" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "off" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
+                  }
+                },
+                "total" : {
+                  "properties" : {
+                    "rank" : {
+                      "type" : "long"
+                    },
+                    "value" : {
+                      "type" : "float"
+                    }
                   }
                 }
               }
             }
-          },
-          "coach" : {
-            "type" : "text",
-            "fields" : {
-              "keyword" : {
-                "type" : "keyword",
-                "ignore_above" : 256
-              }
-            }
-          },
-          "conf" : {
-            "type" : "text",
-            "fields" : {
-              "keyword" : {
-                "type" : "keyword",
-                "ignore_above" : 256
-              }
-            }
-          },
-          "games" : {
-            "properties" : {
-              "date" : {
-                "type" : "date"
-              },
-              "location_type" : {
-                "type" : "text",
-                "fields" : {
-                  "keyword" : {
-                    "type" : "keyword",
-                    "ignore_above" : 256
-                  }
-                }
-              },
-              "opp_rank" : {
-                "type" : "long"
-              },
-              "opponent" : {
-                "properties" : {
-                  "team" : {
-                    "type" : "text",
-                    "fields" : {
-                      "keyword" : {
-                        "type" : "keyword",
-                        "ignore_above" : 256
-                      }
-                    }
-                  },
-                  "year" : {
-                    "type" : "long"
-                  }
-                }
-              },
-              "pace" : {
-                "type" : "long"
-              },
-              "rank" : {
-                "type" : "long"
-              },
-              "score" : {
-                "properties" : {
-                  "allowed" : {
-                    "type" : "long"
-                  },
-                  "scored" : {
-                    "type" : "long"
-                  }
-                }
-              },
-              "tier" : {
-                "type" : "text",
-                "fields" : {
-                  "keyword" : {
-                    "type" : "keyword",
-                    "ignore_above" : 256
-                  }
-                }
-              },
-              "won" : {
-                "type" : "boolean"
-              }
-            }
-          },
-          "host" : {
-            "properties" : {
-              "name" : {
-                "type" : "text",
-                "fields" : {
-                  "keyword" : {
-                    "type" : "keyword",
-                    "ignore_above" : 256
-                  }
+          }
+        },
+        "team_season" : {
+          "properties" : {
+            "team" : {
+              "type" : "text",
+              "fields" : {
+                "keyword" : {
+                  "type" : "keyword",
+                  "ignore_above" : 256
                 }
               }
-            }
-          },
-          "input" : {
-            "properties" : {
-              "type" : {
-                "type" : "text",
-                "fields" : {
-                  "keyword" : {
-                    "type" : "keyword",
-                    "ignore_above" : 256
-                  }
-                }
-              }
-            }
-          },
-          "ncaa_seed" : {
-            "type" : "long"
-          },
-          "offset" : {
-            "type" : "long"
-          },
-          "prospector" : {
-            "properties" : {
-              "type" : {
-                "type" : "text",
-                "fields" : {
-                  "keyword" : {
-                    "type" : "keyword",
-                    "ignore_above" : 256
-                  }
-                }
-              }
-            }
-          },
-          "source" : {
-            "type" : "text",
-            "fields" : {
-              "keyword" : {
-                "type" : "keyword",
-                "ignore_above" : 256
-              }
-            }
-          },
-          "stats" : {
-            "properties" : {
-              "_def" : {
-                "properties" : {
-                  "_2p_pct" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "_2p_pt_dist" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "_3p_pct" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "_3p_pt_dist" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "_3pa_rate" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "afgm_rate" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "avg_poss_len" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "blk_pct" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "eff_fg" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "ft_pct" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "ft_pt_dist" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "ft_rate" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "orb_pct" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "stl_pct" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "to_pct" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  }
-                }
-              },
-              "adj_def" : {
-                "properties" : {
-                  "rank" : {
-                    "type" : "long"
-                  },
-                  "value" : {
-                    "type" : "float"
-                  }
-                }
-              },
-              "adj_margin" : {
-                "properties" : {
-                  "rank" : {
-                    "type" : "long"
-                  },
-                  "value" : {
-                    "type" : "float"
-                  }
-                }
-              },
-              "adj_off" : {
-                "properties" : {
-                  "rank" : {
-                    "type" : "long"
-                  },
-                  "value" : {
-                    "type" : "float"
-                  }
-                }
-              },
-              "adj_tempo" : {
-                "properties" : {
-                  "rank" : {
-                    "type" : "long"
-                  },
-                  "value" : {
-                    "type" : "float"
-                  }
-                }
-              },
-              "off" : {
-                "properties" : {
-                  "_2p_pct" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "_2p_pt_dist" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "_3p_pct" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "_3p_pt_dist" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "_3pa_rate" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "afgm_rate" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "avg_poss_len" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "blk_pct" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "eff_fg" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "ft_pct" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "ft_pt_dist" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "ft_rate" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "orb_pct" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "stl_pct" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "to_pct" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  }
-                }
-              },
-              "personnel" : {
-                "properties" : {
-                  "avg_height_inches" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "bench_mins_pct" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "continuity_pct" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "experience_yrs" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  }
-                }
-              },
-              "sos" : {
-                "properties" : {
-                  "_def" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "non_conf" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "off" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  },
-                  "total" : {
-                    "properties" : {
-                      "rank" : {
-                        "type" : "long"
-                      },
-                      "value" : {
-                        "type" : "float"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "team_season" : {
-            "properties" : {
-              "team" : {
-                "type" : "text",
-                "fields" : {
-                  "keyword" : {
-                    "type" : "keyword",
-                    "ignore_above" : 256
-                  }
-                }
-              },
-              "year" : {
-                "type" : "long"
-              }
+            },
+            "year" : {
+              "type" : "long"
             }
           }
         }

@@ -972,24 +972,28 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
         }
       }
 
-      //TODO: commenting this out since it needs rework following move to optionals
-      // but this is low prio because it's just a debug function
-      /**
-      "sum" - {
+      "sum_event_stats / sum_shot_infos" - {
         val test1 = LineupEventStats.empty
           .modify(_.num_possessions).setTo(1)
           .modify(_.fg.made.total).setTo(2)
-          .modify(_.orb.total).setTo(3)
+          .modify(_.orb.atOrElse(emptyShotClock).total).setTo(3)
+          .modify(_.player_shot_info.atOrElse(emptyPlayerShotInfo).ast_3pm.atOrElse(emptyPlayerTupleInt)._1).setTo(1)          
+          .modify(_.player_shot_info.atOrElse(emptyPlayerShotInfo).early_3pa.atOrElse(emptyPlayerTupleInt)._3).setTo(2)          
         val test2 = LineupEventStats.empty
           .modify(_.fg.made.total).setTo(3)
-          .modify(_.drb.total).setTo(4)
-        sum(test1, test2) ==> LineupEventStats.empty
+          .modify(_.drb.atOrElse(emptyShotClock).total).setTo(4)
+          .modify(_.player_shot_info.atOrElse(emptyPlayerShotInfo).ast_3pm.atOrElse(emptyPlayerTupleInt)._1).setTo(4)
+          .modify(_.player_shot_info.atOrElse(emptyPlayerShotInfo).unknown_3pM.atOrElse(emptyPlayerTupleInt)._5).setTo(3)
+        sum_event_stats(test1, test2) ==> LineupEventStats.empty
           .modify(_.num_possessions).setTo(1)
           .modify(_.fg.made.total).setTo(5)
-          .modify(_.orb.total).setTo(3)
-          .modify(_.drb.total).setTo(4)
+          .modify(_.orb.atOrElse(emptyShotClock).total).setTo(3)
+          .modify(_.drb.atOrElse(emptyShotClock).total).setTo(4)
+          .modify(_.player_shot_info.atOrElse(emptyPlayerShotInfo).ast_3pm.atOrElse(emptyPlayerTupleInt)._1).setTo(5)
+          .modify(_.player_shot_info.atOrElse(emptyPlayerShotInfo).early_3pa.atOrElse(emptyPlayerTupleInt)._3).setTo(2)
+          .modify(_.player_shot_info.atOrElse(emptyPlayerShotInfo).unknown_3pM.atOrElse(emptyPlayerTupleInt)._5).setTo(3)
       }
-      */
+
       "create_player_events" - {
         val test_lineup = base_lineup.copy( //TODO: set possessions
           players = {
@@ -1045,6 +1049,9 @@ object LineupUtilsTests extends TestSuite with LineupUtils {
                     LineupEventStats.ShotClockStats().copy(total = 2)
                   ) :: Nil)
                 )))
+                .modify(
+                  _.player_shot_info.atOrElse(emptyPlayerShotInfo).ast_3pm
+                ).setTo(Some((2, 0, 0, 0, 0)))
               ,
               players = test_lineup.players,
               raw_game_events = Events.made_team :: Events.made_team :: Nil,

@@ -31,7 +31,7 @@ case class LineupEventStats(
 
   foul: Option[LineupEventStats.ShotClockStats] = None,
 
-  player_shot_info: Option[LineupEventStats.PlayerShotInfoStats] = None,
+  player_shot_info: Option[LineupEventStats.PlayerShotInfo] = None,
 
   pts: Int = 0,
   plus_minus: Int = 0
@@ -90,20 +90,15 @@ object LineupEventStats {
     source: Option[List[AssistEvent]] = None
   )
 
-  /** This will get serialized into an 8B Long, 2B each in ascending order (need 2B so can sum without fear of overflow) */
-  case class PlayerShotInfo(
-    unknown_3pa: Option[Int],
-    trans_3pa: Option[Int],
-    unassisted_3pm: Option[Int],
-    assisted_3pm: Option[Int]
-  )
-  /** Gives each player some info about their stats */
-  case class PlayerShotInfoStats(
-    _1: Option[PlayerShotInfo] = None,
-    _2: Option[PlayerShotInfo] = None,
-    _3: Option[PlayerShotInfo] = None,
-    _4: Option[PlayerShotInfo] = None,
-    _5: Option[PlayerShotInfo] = None,
-  )
+  type PlayerTuple[T] = Tuple5[T, T, T, T, T]
 
+  /** Gives each player some info about their stats 
+   * The tuples will get serialized into an 8B Long, 12b each in ascending order
+  */
+  case class PlayerShotInfo(
+    unknown_3pM: Option[PlayerTuple[Int]] = None,
+    early_3pa: Option[PlayerTuple[Int]] = None,
+    unast_3pm: Option[PlayerTuple[Int]] = None,
+    ast_3pm: Option[PlayerTuple[Int]] = None
+  )
 }

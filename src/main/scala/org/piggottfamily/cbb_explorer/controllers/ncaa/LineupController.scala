@@ -12,6 +12,8 @@ import ammonite.ops._
 import scala.util.matching.Regex
 import scala.util.{Try, Success, Failure}
 
+import com.softwaremill.quicklens._
+
 /** Top level business logic for parsing the different datasets */
 class LineupController(d: Dependencies = Dependencies())
 {
@@ -146,12 +148,25 @@ class LineupController(d: Dependencies = Dependencies())
       )
       _ = d.logger.info(s"Parsed box score: opponent=[${box_lineup.opponent}] venue=[${box_lineup.location_type}]")
       lineup_events <- d.playbyplay_parser.create_lineup_data(playbyplay_filename, play_by_play_html, box_lineup)
-      player_events = (lineup_events._1 ++ lineup_events._2).flatMap(
+      List(player_events_good, player_events_bad) = List(lineup_events._1, lineup_events._2).map { ls =>
         //(note we are including bad lineups in our player events since it's not such a disaster -
         // what we care about is mostly the individual stats)
-        LineupUtils.create_player_events(_, box_lineup)
-      )
-    } yield (lineup_events._1, lineup_events._2, player_events)
+        ls.map { l => 
+          val player_events = LineupUtils.create_player_events(l, box_lineup)
+          // Now finally transform lineup events with the roster info from player events
+          val lineup_with_shot_info = l.modify(_.team_stats.player_shot_info).setTo(
+            LineupUtils.sum_shot_infos(player_events.flatMap(_.player_stats.player_shot_info.toList))
+          )
+          (lineup_with_shot_info, 
+            player_events.map(modify[PlayerEvent](_.player_stats.player_shot_info).setTo(None))
+              //(remove shot info stats now that we've copied them across)
+          )
+        }
+      }
+    } yield (
+      player_events_good.map(_._1), //good lineups adjusted with player info 
+      player_events_bad.map(_._1), //bad lineups adjusted with player info 
+      player_events_good.map(_._2).flatten ++ player_events_bad.map(_._2).flatten) // player info only
   }
 
 }

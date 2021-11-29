@@ -15,6 +15,7 @@ import shapeless.ops.hlist._
 import shapeless.record._
 import shapeless.ops.record._
 import shapeless.syntax.singleton._
+import shapeless.syntax.std.tuple._
 import shapeless.HList.ListCompat._
 
 import com.softwaremill.quicklens._
@@ -108,7 +109,8 @@ trait LineupUtils {
   protected def enrich_stats(
     lineup: LineupEvent,
     event_parser: LineupEvent.RawGameEvent.PossessionEvent,
-    player_filter_coder: Option[String => (Boolean, String)] = None
+    player_filter_coder: Option[String => (Boolean, String)] = None,
+    player_index: Int = -1
   ): LineupEventStats => LineupEventStats = { case stats: LineupEventStats =>
 
     val game_events_as_clumps = Concurrency.lineup_as_raw_clumps(lineup).toStream.map(ensure_ev_uniqueness)
@@ -120,7 +122,7 @@ trait LineupUtils {
       classOf[LineupEvent], Concurrency.concurrent_event_handler[StatsBuilder]
     ) {
       case StateEvent.Next(ctx, StatsBuilder(curr_stats, prev_clumps), clump @ Concurrency.ConcurrentClump(evs, _)) =>
-        val updated_stats = enrich_stats_with_clump(evs, event_parser, player_filter_coder, clump, prev_clumps)(curr_stats)
+        val updated_stats = enrich_stats_with_clump(evs, event_parser, player_filter_coder, clump, prev_clumps, player_index)(curr_stats)
         ctx.stateChange(StatsBuilder(updated_stats, clump :: prev_clumps))
 
       case StateEvent.Complete(ctx, _) => //(no additional processing when element list complete)
@@ -136,6 +138,9 @@ trait LineupUtils {
   val emptyAssist = LineupEventStats.AssistInfo() //(for filling in options)
   val emptyShotClock = LineupEventStats.ShotClockStats()
   val emptyShotClockModify = modify[Option[LineupEventStats.ShotClockStats]](_.atOrElse(emptyShotClock))
+
+  val emptyPlayerShotInfo = LineupEventStats.PlayerShotInfo()
+  val emptyPlayerTupleInt: LineupEventStats.PlayerTuple[Int] = (0, 0, 0, 0, 0)
 
   /**
    * Find an assist at the same time as a shot
@@ -690,7 +695,8 @@ trait LineupUtils {
     evs: List[LineupEvent.RawGameEvent],
     event_parser: LineupEvent.RawGameEvent.PossessionEvent,
     player_filter_coder: Option[String => (Boolean, String)] = None,
-    clump: Concurrency.ConcurrentClump, prev_clumps: List[Concurrency.ConcurrentClump]
+    clump: Concurrency.ConcurrentClump, prev_clumps: List[Concurrency.ConcurrentClump],
+    player_index: Int
   ): LineupEventStats => LineupEventStats = { case stats: LineupEventStats =>
       case class StatsBuilder(curr: LineupEventStats)
 
@@ -704,6 +710,19 @@ trait LineupUtils {
       val selector_shotclock_total = modify[LineupEventStats.ShotClockStats](_.total)
       val selector_shotclock_transition = modify[LineupEventStats.ShotClockStats](_.early.atOrElse(0))
       val selector_shotclock_scramble = modify[LineupEventStats.ShotClockStats](_.orb.atOrElse(0))
+      // And some more:
+      val unknown_3pM_selector = modify[LineupEventStats.PlayerShotInfo](_.unknown_3pM.atOrElse(emptyPlayerTupleInt))
+      val transition_3pa_selector = modify[LineupEventStats.PlayerShotInfo](_.early_3pa.atOrElse(emptyPlayerTupleInt))
+      val assisted_3pm_selector = modify[LineupEventStats.PlayerShotInfo](_.ast_3pm.atOrElse(emptyPlayerTupleInt))
+      val unassisted_3pm_selector = modify[LineupEventStats.PlayerShotInfo](_.unast_3pm.atOrElse(emptyPlayerTupleInt))
+      def player_tuple_selector(index: Int) = index match {
+        case 0 => modify[LineupEventStats.PlayerTuple[Int]](_._1)
+        case 1 => modify[LineupEventStats.PlayerTuple[Int]](_._2)
+        case 2 => modify[LineupEventStats.PlayerTuple[Int]](_._3)
+        case 3 => modify[LineupEventStats.PlayerTuple[Int]](_._4)
+        case 4 => modify[LineupEventStats.PlayerTuple[Int]](_._5)
+        case _ => throw new Exception(s"Internal Logic Error, index [$index] should already have been filtered to [0-4]")
+      }
 
       // Default and overridden versions
       val shotclock_selectors = List(selector_shotclock_total)
@@ -804,6 +823,31 @@ trait LineupUtils {
         }.getOrElse(state)
       }
 
+      // Build stats about what type of shot a player has made
+      def increment_player_3p_shot_info(ev: LineupEvent.RawGameEvent, is_make: Boolean)(state: StatsBuilder) = {
+        if ((player_index >= 0) && (player_index < 5)) {        
+          val transformer = find_matching_assist(clump.evs.filter(_ => is_make), event_parser).map { _ =>
+            assisted_3pm_selector
+          }.getOrElse { // not assisted, more analysis required:
+            val is_scramble = is_scramble_builder(ev)
+            val is_transition = is_transition_builder(ev, is_scramble)
+
+            if (is_transition) {
+              transition_3pa_selector
+            } else if (is_make) {
+              unassisted_3pm_selector
+            } else {
+              unknown_3pM_selector
+            }
+          }
+          (modify[StatsBuilder](_.curr.player_shot_info.atOrElse(emptyPlayerShotInfo)) 
+            andThenModify transformer andThenModify player_tuple_selector(player_index)
+          ).using(_ + 1)(state)
+        } else {
+          state
+        }
+      }
+      
       // Main business logic:
 
       val id: StatsBuilder => StatsBuilder = s => s
@@ -894,6 +938,9 @@ trait LineupUtils {
                 modify[StatsBuilder](_.curr.fg_3p.ast.atOrElse(emptyShotClock)),
                 modify[StatsBuilder](_.curr.ast_3p.atOrElse(emptyAssist).source)
               )
+
+              andThen increment_player_3p_shot_info(ev, is_make = true)
+
             )(state)
 
         case (state, ev @ event_parser.AttackingTeam(ev_str @ EventUtils.ParseThreePointerMissed(player)))
@@ -902,6 +949,7 @@ trait LineupUtils {
           implicit val extended_shotclock_selector = shot_clock_selector_builder(ev)
           (increment_misc_stat(modify[StatsBuilder](_.curr.fg.attempts))
             andThen increment_misc_stat(modify[StatsBuilder](_.curr.fg_3p.attempts))
+            andThen increment_player_3p_shot_info(ev, is_make = false)
           )(state)
 
         // Misc stats
@@ -1030,7 +1078,7 @@ trait LineupUtils {
       ).code
       ((code == player_id.code), code)
     }
-    lineup_event.players.map { player =>
+    lineup_event.players.zipWithIndex.map { case (player, player_index) =>
       val this_player_filter = player_filter(player)
       val player_event = base_player_event(player)
       val player_raw_game_events = lineup_event.raw_game_events.collect {
@@ -1038,56 +1086,92 @@ trait LineupUtils {
           if this_player_filter(player_str)._1 => ev
       }
       val player_stats = enrich_stats(
-        lineup_event, team_event_filter, Some(this_player_filter)
+        lineup_event, team_event_filter, Some(this_player_filter), player_index
       )(player_event.player_stats)
-      player_event.copy( // will fill in these 2 fields as we go along
-        player_stats = player_stats.copy(
-          num_events = player_raw_game_events.size
-        ),
-        raw_game_events = player_raw_game_events
-      )
+      player_event // will fill in these 2 fields as we go along
+        .modify(_.player_stats).setTo(
+          player_stats.modify(_.num_events).setTo(player_raw_game_events.size)
+        )
+        .modify(_.raw_game_events).setTo(player_raw_game_events)
+
     } //(note: need to keep empty events so we can calculate possessions and hence usage)
   }
 
   // Very low level:
 
   /** Adds two lineup stats objects together  - just used for debug */
-  // TODO: now I've moved everything to Options, this needs some rework, but that's pretty low priority
-  // (since it's only usede for debug)
-  // protected def sum(lhs: LineupEventStats, rhs: LineupEventStats): LineupEventStats = {
-  //   trait sum_int extends Poly1 {
-  //     implicit def case_int2 = at[(Int, Int)](lr => lr._1 + lr._2)
-  //   }
-  //   trait sum_shot extends sum_int {
-  //     val gen_shot = Generic[LineupEventStats.ShotClockStats]
-  //     object sum_int_obj extends sum_int
-  //     implicit def case_shot2 =
-  //       at[(LineupEventStats.ShotClockStats, LineupEventStats.ShotClockStats)] { lr =>
-  //         gen_shot.from((gen_shot.to(lr._1) zip gen_shot.to(lr._2)).map(sum_int_obj))
-  //       }
-  //   }
-  //   trait sum_assist extends sum_shot {
-  //     val gen_ast = Generic[LineupEventStats.AssistInfo]
-  //     object sum_assist_obj extends sum_shot
-  //     implicit def case_assist2 =
-  //       at[(LineupEventStats.AssistInfo, LineupEventStats.AssistInfo)] { lr =>
-  //         LineupEventStats.AssistInfo(
-  //           gen_shot.from((gen_shot.to(lr._1.counts) zip gen_shot.to(lr._2.counts)).map(sum_int_obj)),
-  //           lr._1.target ++ lr._2.target,
-  //           lr._1.source ++ lr._2.source //TODO (this is just for debug so for now just concat the arrarys)
-  //         )
-  //       }
-  //   }
-  //   object sum extends sum_assist {
-  //     val gen_fg = Generic[LineupEventStats.FieldGoalStats]
-  //     object sum_shot_obj extends sum_assist
-  //     implicit def case_field2 =
-  //       at[(LineupEventStats.FieldGoalStats, LineupEventStats.FieldGoalStats)] { lr =>
-  //         gen_fg.from((gen_fg.to(lr._1) zip gen_fg.to(lr._2)).map(sum_shot_obj))
-  //       }
-  //   }
-  //   val gen_lineup = Generic[LineupEventStats]
-  //   gen_lineup.from((gen_lineup.to(lhs) zip gen_lineup.to(rhs)).map(sum))
-  // }
+  protected def sum_event_stats(lhs: LineupEventStats, rhs: LineupEventStats): LineupEventStats = {
+    trait sum_int extends Poly1 {
+      implicit def case_int2 = at[(Int, Int)](lr => lr._1 + lr._2)
+      implicit def case_maybe_int2 = 
+          at[(Option[Int], Option[Int])](lr => Some(lr._1.getOrElse(0) + lr._2.getOrElse(0)).filter(_ > 0))
+    }
+    trait sum_shot extends sum_int {
+      val gen_shot = Generic[LineupEventStats.ShotClockStats]
+      object sum_int_obj extends sum_int
+      implicit def case_shot2 =
+        at[(LineupEventStats.ShotClockStats, LineupEventStats.ShotClockStats)] { lr =>
+          gen_shot.from((gen_shot.to(lr._1) zip gen_shot.to(lr._2)).map(sum_int_obj))
+        }
+
+      implicit def case_maybe_shot2 =
+        at[(Option[LineupEventStats.ShotClockStats], Option[LineupEventStats.ShotClockStats])] {
+          case (Some(left), Some(right)) =>
+            Some(gen_shot.from((gen_shot.to(left) zip gen_shot.to(right)).map(sum_int_obj)))
+          case lr =>  lr._1.orElse(lr._2)
+        }
+    }
+    trait sum_assist extends sum_shot {
+      val gen_ast = Generic[LineupEventStats.AssistInfo]
+      object sum_assist_obj extends sum_shot
+      implicit def case_maybe_assist2 =
+        at[(Option[LineupEventStats.AssistInfo], Option[LineupEventStats.AssistInfo])] {
+          case (Some(left), Some(right)) =>
+            Some(LineupEventStats.AssistInfo(
+              gen_shot.from((gen_shot.to(left.counts) zip gen_shot.to(right.counts)).map(sum_int_obj)),
+              Some(left.target.getOrElse(Nil) ++ right.target.getOrElse(Nil)).filter(_.nonEmpty),
+              Some(left.source.getOrElse(Nil) ++ right.source.getOrElse(Nil)).filter(_.nonEmpty)
+                //TODO (this is just for debug so for now just concat the arrarys)
+            ))
+          case lr => lr._1.orElse(lr._2)
+        }
+    }
+    object sum extends sum_assist {
+      val gen_fg = Generic[LineupEventStats.FieldGoalStats]
+      object sum_shot_obj extends sum_assist
+      implicit def case_field2 =
+        at[(LineupEventStats.FieldGoalStats, LineupEventStats.FieldGoalStats)] { lr =>
+          gen_fg.from((gen_fg.to(lr._1) zip gen_fg.to(lr._2)).map(sum_shot_obj))
+        }
+
+      implicit def case_maybe_shot_infos = 
+          at[(Option[LineupEventStats.PlayerShotInfo], Option[LineupEventStats.PlayerShotInfo])] { lr =>
+        sum_shot_infos(lr._1.toList ++ lr._2.toList)
+      }  
+    }
+    val gen_lineup = Generic[LineupEventStats]
+    gen_lineup.from((gen_lineup.to(lhs) zip gen_lineup.to(rhs)).map(sum))
+  }
+
+  /** Adds a list of PlayerShotInfo together, combining field by field */
+  def sum_shot_infos(shot_infos: List[LineupEventStats.PlayerShotInfo]): Option[LineupEventStats.PlayerShotInfo] = {
+    object combine_int extends Poly1 {
+      implicit def case_int2 = at[(Int, Int)](lr => lr._1 + lr._2)
+    }
+    object combine_info extends Poly1 {
+      implicit def case_tuple5x2 = at[(Option[LineupEventStats.PlayerTuple[Int]], Option[LineupEventStats.PlayerTuple[Int]])] { 
+        case (Some(left), Some(right)) => 
+          Some(
+            (left zip right).map(combine_int)
+          )
+        case lr @ (_, _) => lr._1.orElse(lr._2)
+      }
+    }
+    val gen_shot_info = Generic[LineupEventStats.PlayerShotInfo]
+    def combine(left: LineupEventStats.PlayerShotInfo, right: LineupEventStats.PlayerShotInfo) = {
+      gen_shot_info.from((gen_shot_info.to(left) zip gen_shot_info.to(right)).map(combine_info))
+    }
+    shot_infos.reduceOption(combine(_, _))
+  }
 }
 object LineupUtils extends LineupUtils

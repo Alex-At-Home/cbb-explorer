@@ -10,6 +10,8 @@ import org.piggottfamily.cbb_explorer.utils.parsers.kenpom._
 import cats.implicits._
 import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
 
+import shapeless.syntax.std.tuple._
+
 import ammonite.ops.Path
 import scala.util.Try
 
@@ -43,29 +45,14 @@ object StorageController {
       } yield DateTime.parse(dt)
     }
 
-    // Encode per lineup info into a long
-    implicit val encodePlayerInfo: Encoder[LineupEventStats.PlayerShotInfo] = new Encoder[LineupEventStats.PlayerShotInfo] {
-      final def apply(in: LineupEventStats.PlayerShotInfo): Json = {
-        val out: Long = (in.unknown_3pa.getOrElse(0) & 0xFFF) //(max out individual values at >>16B so can sum them safely)
-          + ((in.trans_3pa.getOrElse(0) & 0xFFF) << 16)
-          + ((in.unassisted_3pm.getOrElse(0) & 0xFFF) << 32)
-          + ((in.assisted_3pm.getOrElse(0) & 0xFFF) << 48)
-        Json.fromString(out.toString)
+    // Encode per lineup info (tupe5) into a long created by shifting ints up 12
+    implicit val encodePlayerInfo: Encoder[LineupEventStats.PlayerTuple[Int]] = new Encoder[LineupEventStats.PlayerTuple[Int]] {
+      final def apply(in: LineupEventStats.PlayerTuple[Int]): Json = {
+        val encodedTuple = Json.fromLong(
+          in.toList.zipWithIndex.foldLeft(0L) { case (acc, (v, index)) => acc + ((v.toLong & 0xFFFL) << (12*index)) }
+        )
+        encodedTuple
       }
-    }
-    implicit val decodePlayerInfo: Decoder[LineupEventStats.PlayerShotInfo] = new Decoder[LineupEventStats.PlayerShotInfo] {
-      final def apply(c: HCursor): Decoder.Result[LineupEventStats.PlayerShotInfo] = for {
-        in <- c.as[Long]
-        unknown_3pa = (in & 0xFFF).toInt
-        trans_3pa = ((in >> 16) & 0xFFF).toInt
-        unassisted_3pm = ((in >> 32) & 0xFFF).toInt
-        assisted_3pm = ((in >> 48) & 0xFFF).toInt
-      } yield LineupEventStats.PlayerShotInfo(
-        Some(unknown_3pa).filter(_ > 0),
-        Some(trans_3pa).filter(_ > 0),
-        Some(unassisted_3pm).filter(_ > 0),
-        Some(assisted_3pm).filter(_ > 0),
-      )
     }
 
     // Enums:
@@ -172,7 +159,9 @@ class StorageController(d: StorageController.Dependencies = StorageController.De
     file_name: String = default_lineup_cache
   ): Unit = {
     d.file_manager.write_lines_to_file(
-      file_root / file_name, lineups.map(_.asJson.noSpaces)
+      file_root / file_name, lineups.map(_.asJson.noSpaces) 
+        //TODO: why isn't this printer.pretty to remove nulls? It appears to be intentional but I can't figure
+        // out why I'd still nulls everywhere in the lineup events
     )
   }
 

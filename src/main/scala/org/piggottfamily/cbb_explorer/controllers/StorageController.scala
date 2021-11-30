@@ -45,11 +45,11 @@ object StorageController {
       } yield DateTime.parse(dt)
     }
 
-    // Encode per lineup info (tupe5) into a long created by shifting ints up 12
+    // Encode per lineup info (tupe5) into a long created by shifting ints up 10 (lets you fit 5 numbers <1024 into a the 52b mantissa of a 64b double)
     implicit val encodePlayerInfo: Encoder[LineupEventStats.PlayerTuple[Int]] = new Encoder[LineupEventStats.PlayerTuple[Int]] {
       final def apply(in: LineupEventStats.PlayerTuple[Int]): Json = {
         val encodedTuple = Json.fromLong(
-          in.toList.zipWithIndex.foldLeft(0L) { case (acc, (v, index)) => acc + ((v.toLong & 0xFFFL) << (12*index)) }
+          in.toList.zipWithIndex.foldLeft(0L) { case (acc, (v, index)) => acc + ((v.toLong & 0x3FFL) << (10*index)) }
         )
         encodedTuple
       }

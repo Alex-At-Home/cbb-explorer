@@ -21,7 +21,7 @@ if [[ "$DAILY_IMPORT" == "yes" ]]; then
    ############
 
    echo "Download / parse / upload new data"
-   PING="lpong" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
+   PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
 else
    echo "Skipping daily import, use DAILY_IMPORT='yes' to include"
 fi

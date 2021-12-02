@@ -20,7 +20,7 @@ object BuildEfficiency {
         |--in=<<in-dir-from-crawler>>
         |--out=<<out-dir-in-which-file-is-placed>>
         |[--team]=<<only include teams matching this regex>>
-        |[--year]=<<year-extracted-default-2020>>
+        |[--year]=<<year-extracted-default-2022>>
         """)
       System.exit(-1)
     }
@@ -46,7 +46,7 @@ object BuildEfficiency {
 
     val year_int = args
       .map(_.trim).filter(_.startsWith("--year="))
-      .headOption.map(_.split("=", 2)(1)).map(_.toInt).getOrElse(2020)
+      .headOption.map(_.split("=", 2)(1)).map(_.toInt).getOrElse(2022)
 
     val eff_root = Path(in_dir)
 

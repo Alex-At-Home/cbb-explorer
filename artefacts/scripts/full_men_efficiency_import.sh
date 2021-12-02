@@ -4,7 +4,7 @@
 # Ensure ".scripts.env" has been run
 
 export CURR_TIME=${CURR_TIME:=$(date +"%s")}
-export CURR_YEAR=${CURR_YEAR:="2022"}
+export CURR_EFF_YEAR=${CURR_EFF_YEAR:="2022"}
 
 if [ "$1" != "--skip-download" ]; then
   if [ -z "$COOKIE" ]; then
@@ -22,7 +22,7 @@ else
   echo "Bypassing login and skipping download"
 fi
 
-echo ">>>>>>> Extracting from [$CURR_TIME] for [$CURR_YEAR]"
+echo ">>>>>>> Extracting from [$CURR_TIME] for [$CURR_EFF_YEAR]"
 
 mkdir -p $PBP_OUT_DIR/archive
 mv $PBP_OUT_DIR/*.ndjson $PBP_OUT_DIR/archive
@@ -46,13 +46,14 @@ java -cp "$PBP_SRC_ROOT/target/scala-2.12/cbb-explorer-assembly-0.1-deps.jar:$PB
     org.piggottfamily.cbb_explorer.BuildEfficiency \
     --in=$EFF_CRAWL_PATH/${EFF_ROOT_URL}/ \
     --out=$PBP_OUT_DIR \
-    --year=$CURR_YEAR >> $PBP_OUT_DIR/efficiency_logs_${CURR_TIME}.log
+    --year=$CURR_EFF_YEAR >> $PBP_OUT_DIR/efficiency_logs_${CURR_TIME}.log
 
 # Show any errors:
 grep "ERROR" $PBP_OUT_DIR/efficiency_logs_${CURR_TIME}.log
 
 # Always re-import regardless, it just overwrites any existing records
-# (once imported for the first time using the "kenpom_id_pipeline")
+# (once imported for the first time using the "men_efficiency_id_pipeline")
+#TODO: actually this doesn't update, duplicates are dropped, need to delete first
 echo "Re-importing/updating new records":
 echo "$ELASTIC_FILEBEAT_BIN -c $ELASTIC_FILEBEAT_CONFIG_ROOT/filebeat_efficiency.yaml --once"
 $ELASTIC_FILEBEAT_BIN -c $ELASTIC_FILEBEAT_CONFIG_ROOT/filebeat_efficiency.yaml --once

@@ -54,6 +54,17 @@ grep "ERROR" $PBP_OUT_DIR/efficiency_logs_${CURR_TIME}.log
 # Always re-import regardless, it just overwrites any existing records
 # (once imported for the first time using the "men_efficiency_id_pipeline")
 #TODO: actually this doesn't update, duplicates are dropped, need to delete first
+if ! grep -q "ERROR" $PBP_OUT_DIR/efficiency_logs_${CURR_TIME}.log; then
+  echo "Deleting current efficiency prior to import..."
+  curl -XPOST -H 'Content-Type: application/json' -u "$ELASTIC_USER:$ELASTIC_PASS" "https://$ELASTIC_URL/kenpom_all/_delete_by_query" -d "{
+    \"query\": {
+      \"term\": {
+        \"team_season.year\": $CURR_EFF_YEAR
+      }
+    }
+  }"
+  sleep 5
+fi
 echo "Re-importing/updating new records":
 echo "$ELASTIC_FILEBEAT_BIN -c $ELASTIC_FILEBEAT_CONFIG_ROOT/filebeat_efficiency.yaml --once"
 $ELASTIC_FILEBEAT_BIN -c $ELASTIC_FILEBEAT_CONFIG_ROOT/filebeat_efficiency.yaml --once

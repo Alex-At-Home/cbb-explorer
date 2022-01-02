@@ -26,9 +26,9 @@ else
    echo "Skipping daily import, use DAILY_IMPORT='yes' to include"
 fi
 
-# cron: Wed and Sun
+# cron: Mon,Wed,Fri,Sun
 echo "Checking to whether recalculate efficiency policy=[$BUILD_EFFICIENCY] day=[$(date +%u)]":
-if [[ "$BUILD_EFFICIENCY" == "yes" ]] || [[ "$BUILD_EFFICIENCY" == "cron" && $(date +%u) =~ [37] ]]; then
+if [[ "$BUILD_EFFICIENCY" == "yes" ]] || [[ "$BUILD_EFFICIENCY" == "cron" && $(date +%u) =~ [1357] ]]; then
    echo "Recalculating men's efficiency stats..."
    sh $PBP_SRC_ROOT/artefacts/scripts/full_men_efficiency_import.sh
 

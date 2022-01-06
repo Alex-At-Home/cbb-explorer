@@ -8,7 +8,11 @@
 YEAR=2020
 CONF=women_misc_conf
 array=(
+'77.0/15500::BYU'
+'260.0/15500::Gonzaga'
 '649.0/15500::South+Dakota+St.'
+'650.0/15500::South+Dakota'
+'669.0/15500::Missouri+St.'
 )
 
 for index in "${array[@]}" ; do

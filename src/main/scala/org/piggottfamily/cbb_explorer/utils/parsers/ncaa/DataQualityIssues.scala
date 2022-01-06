@@ -55,6 +55,9 @@ object DataQualityIssues {
     // Syracuse 2021/22 Christianna and Chrislyn Carr .. both starting! Sorry Chrislyn :)
     combos("Chrislyn", "Carr") ++
 
+    // Gonzaga 2020/21 (W) "Truong, Kaylynne" and "Truong, Kayleigh" - Kayleigh is the starter
+    combos("Kaylynne", "Truong") ++
+
     Nil
   ):_*).map(_.toLowerCase)
 
@@ -84,6 +87,12 @@ object DataQualityIssues {
     /////////////////////////////////
 
     // Roster/BOX Mispellings
+
+    Option(TeamId("BYU")) -> Map(( //(MWC)
+      // roster/box name difference women - 2020/21 (using the longer version allows PbP to work)
+      //TODO: should be able to handle this surname/first-name mismatch automatically?
+      alias_combos(("Babalu", "Ugwu") -> "Stewart, Babalu")
+    ):_*),
 
     Option(TeamId("Morgan St.")) -> Map( //(MEAC)
       // roster/box name difference 2020/21 (using the longer version allows PbP to work)

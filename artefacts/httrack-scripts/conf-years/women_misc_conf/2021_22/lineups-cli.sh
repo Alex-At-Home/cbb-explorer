@@ -14,6 +14,7 @@ array=(
 '649.0/15866::South+Dakota+St.'
 '650.0/15866::South+Dakota'
 '669.0/15866::Missouri+St.'
+'28755.0/15866::FGCU'
 )
 
 for index in "${array[@]}" ; do

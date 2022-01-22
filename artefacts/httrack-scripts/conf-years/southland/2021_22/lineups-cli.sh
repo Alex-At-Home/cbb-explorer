@@ -5,7 +5,7 @@ YEAR=2021
 CONF=southland
 array=(
    '402.0/15881::McNeese'
-   '483.0/15881::Nicholls+St.'
+   '483.0/15881::Nicholls'
    '2743.0/15881::UIW'
    '287.0/15881::Houston+Baptist'
    '474.0/15881::New+Orleans'

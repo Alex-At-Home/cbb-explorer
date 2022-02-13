@@ -57,6 +57,7 @@ if [[ "$BUILD_LEADERBOARDS" == "yes" ]] || [[ "$BUILD_LEADERBOARDS" = "cron" && 
    npm run build_leaderboards -- --tier=High
    npm run build_leaderboards -- --tier=Medium
    npm run build_leaderboards -- --tier=Low
+   npm run build_leaderboards -- --tier=Combo
    npm run build_leaderboards -- --gender=Women --tier=High
 
    # Upload to GCS (and delete on success)

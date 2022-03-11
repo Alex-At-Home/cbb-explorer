@@ -145,12 +145,13 @@ object ExtractorUtils {
   /** Pulls team name from "title" table element, matching the target and opponent teams
     * returns the target team, the opposing team, and whether the target team is first (vs second)
   */
-  def parse_team_name(teams: List[String], target_team: TeamId)
+  def parse_team_name(teams: List[String], target_team: TeamId, year: Year)
     : Either[ParseError, (String, String, Boolean)] =
   {
     val target_team_str = target_team.name
     teams.collect {
-      case extract_team_regex(_, just_team, _) => just_team
+      case extract_team_regex(_, just_team, _) => 
+        DataQualityIssues.team_aliases.getOrElse(year, Map()).getOrElse(TeamId(just_team), TeamId(just_team)).name
     }.map(_.trim) match {
       case List(`target_team_str`, opponent) =>
         Right((target_team_str, opponent, true))
@@ -159,9 +160,9 @@ object ExtractorUtils {
         Right((target_team_str, opponent, false))
 
       case _ =>
-      Left(ParseUtils.build_sub_error("team")(
-        s"Could not find/match team names (target=[$target_team]): ${teams.mkString("/")}"
-      ))
+        Left(ParseUtils.build_sub_error("team")(
+          s"Could not find/match team names (target=[$target_team]): ${teams.mkString("/")}"
+        ))
     }
   }
 

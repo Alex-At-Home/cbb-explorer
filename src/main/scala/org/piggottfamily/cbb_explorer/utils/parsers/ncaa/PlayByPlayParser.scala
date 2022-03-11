@@ -72,7 +72,7 @@ trait PlayByPlayParser {
   ): Either[List[ParseError], (List[LineupEvent], List[LineupEvent])] = {
     val player_codes = box_lineup.players.map(_.code).toSet
 
-    parse_game_events(filename, in, box_lineup.team.team).map { reversed_events =>
+    parse_game_events(filename, in, box_lineup.team.team, box_lineup.team.year).map { reversed_events =>
       // There is a weird bug that has happened one time where the scores got swapped
       // So we'll identify and fix this case
       fix_possible_score_swap_bug(
@@ -118,7 +118,8 @@ trait PlayByPlayParser {
   protected def parse_game_events(
     filename: String,
     in: String,
-    target_team: TeamId
+    target_team: TeamId,
+    year: Year
   ): Either[List[ParseError], List[Model.PlayByPlayEvent]] =
   {
     val doc_request_builder = ParseUtils.build_request[Document](`ncaa.parse_playbyplay`, filename) _
@@ -129,7 +130,7 @@ trait PlayByPlayParser {
       doc <- doc_request_builder(browser.parseString(in))
 
       team_info <- parse_team_name(
-        builders.team_finder(doc), target_team
+        builders.team_finder(doc), target_team, year
       ).left.map(single_error_completer)
 
       (_, _, target_team_first) = team_info //SI-5589

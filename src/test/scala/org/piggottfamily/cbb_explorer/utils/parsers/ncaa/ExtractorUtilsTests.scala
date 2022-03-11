@@ -67,17 +67,24 @@ object ExtractorUtilsTests extends TestSuite {
         //TODO add some other cases (single name, no space for intermediate)
       }
       "parse_team_name" - {
-        TestUtils.inside(parse_team_name(List("TeamA", "TeamB"), TeamId("TeamA"))) {
+        TestUtils.inside(parse_team_name(List("TeamA", "TeamB"), TeamId("TeamA"), Year(2018))) {
           case Right(("TeamA", "TeamB", true)) =>
         }
-        TestUtils.inside(parse_team_name(List("TeamB", "TeamA"), TeamId("TeamA"))) {
+        TestUtils.inside(parse_team_name(List("TeamB", "TeamA"), TeamId("TeamA"), Year(2018))) {
           case Right(("TeamA", "TeamB", false)) =>
         }
-        TestUtils.inside(parse_team_name(List("#1 TeamA", "#3 TeamB"), TeamId("TeamA"))) {
+        TestUtils.inside(parse_team_name(List("#1 TeamA", "#3 TeamB"), TeamId("TeamA"), Year(2018))) {
           case Right(("TeamA", "TeamB", true)) =>
         }
-        TestUtils.inside(parse_team_name(List("#1 TeamA (1-1)", "TeamB (4-1)"), TeamId("TeamA"))) {
+        TestUtils.inside(parse_team_name(List("#1 TeamA (1-1)", "TeamB (4-1)"), TeamId("TeamA"), Year(2018))) {
           case Right(("TeamA", "TeamB", true)) =>
+        }
+        // Data quality overrides:
+        TestUtils.inside(parse_team_name(List("NIU", "TeamB"), TeamId("NIU"), Year(2018))) {
+          case Right(("NIU", "TeamB", true)) =>
+        }
+        TestUtils.inside(parse_team_name(List("NIU", "NIU"), TeamId("Northern Ill."), Year(2021))) {
+          case Right(("Northern Ill.", "Northern Ill.", true)) =>
         }
       }
 

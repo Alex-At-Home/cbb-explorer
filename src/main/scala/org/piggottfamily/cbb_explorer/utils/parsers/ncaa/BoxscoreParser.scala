@@ -72,12 +72,6 @@ trait BoxscoreParser {
       period <- parse_period_from_filename(filename)
                   .left.map(single_error_completer)
 
-      team_info <- parse_team_name(
-        builders.team_finder(doc), team_id
-      ).left.map(single_error_completer)
-
-      (team, opponent, target_team_first) = team_info //SI-5589
-
       maybe_date_str = builders.date_finder(doc)
 
       date <- parse_date(
@@ -85,6 +79,12 @@ trait BoxscoreParser {
       ).left.map(single_error_completer)
 
       year = Year(if (date.monthOfYear.get >= 6) date.year.get else (date.year.get - 1))
+
+      team_info <- parse_team_name(
+        builders.team_finder(doc), team_id, year
+      ).left.map(single_error_completer)
+
+      (team, opponent, target_team_first) = team_info //SI-5589
 
       location_type = maybe_date_str.map(_.split(" ")(0)) match { //(get rid of optiomnal time)
         case Some(date_str) if neutral_game_dates.contains(date_str) => Game.LocationType.Neutral

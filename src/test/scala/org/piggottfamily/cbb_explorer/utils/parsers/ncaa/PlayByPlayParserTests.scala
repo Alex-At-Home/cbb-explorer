@@ -124,7 +124,7 @@ object PlayByPlayParserTests extends TestSuite with PlayByPlayParser {
       }
 
       "parse_game_events" - {
-        TestUtils.inside(parse_game_events("filename_test", play_by_play_html, TeamId("TeamA"))) {
+        TestUtils.inside(parse_game_events("filename_test", play_by_play_html, TeamId("TeamA"), Year(2018))) {
           case Right(game_events) =>
             game_events.size ==> 567
             // grep -c 'smtext' src/test/resources/ncaa/test_play_by_play.html

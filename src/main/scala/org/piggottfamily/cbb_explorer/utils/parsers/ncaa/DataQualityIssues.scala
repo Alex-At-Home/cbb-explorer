@@ -5,6 +5,13 @@ import org.piggottfamily.cbb_explorer.models.Year
 
 object DataQualityIssues {
 
+  /** Had teams change names mid-season */
+  val team_aliases: Map[Year, Map[TeamId, TeamId]] = Map(
+    Year(2021) -> Map(
+      TeamId("NIU") -> TeamId("Northern Ill.")
+    )
+  )
+
   /** Will be in format "LASTNAME,FIRSTNAME" or "Lastname, Firstname" */
   val players_missing_from_boxscore: Map[TeamId, Map[Year, List[String]]] = Map(
     TeamId("La Salle") -> Map( //A10

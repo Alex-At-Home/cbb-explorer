@@ -30,7 +30,7 @@ mv $PBP_OUT_DIR/*.ndjson $PBP_OUT_DIR/archive
 rm -f $PBP_OUT_DIR/efficiency_logs_${CURR_TIME}.log
 
 if [ "$1" != "--skip-download" ]; then
-  export COOKIE_FRAGMENT=$(echo "$COOKIE" | grep -E -o "[a-z0-9]{26}" )
+  export COOKIE_FRAGMENT=$(echo "$COOKIE" | grep -E -o "[a-z0-9]{20,}" )
   sed s/COOKIE_FRAGMENT/"$COOKIE_FRAGMENT"/ $PWD/cookies_template.txt > $PWD/cookies.txt
   echo "Using [$COOKIE_FRAGMENT] for authentication"
 

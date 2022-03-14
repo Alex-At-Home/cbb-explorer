@@ -1,9 +1,6 @@
 # Need to set up authentication first, ie "cookies.txt" in the working directory in the format
 # (NOT the EFF_CRAWL_PATH, the _working_ path!)
-# $EFF_ROOT_URL      TRUE    /       FALSE   1999999999      PHPSESSID     ADD_SESSION_ID
-#EFF_CRAWL_PATH=$1
-#EFF_ROOT_URL=$2
-
+# $EFF_ROOT_URL      TRUE    /       FALSE   1999999999      PHPSESSID     COOKIE_FRAGMENT
 # Check if we have a valid cookie:
 if ! curl --cookie $PWD/cookies.txt -I "https://$EFF_ROOT_URL/summary.php" | grep "HTTP/[0-9.]* 200"; then
   echo "[ERROR] You must create an authentication context first"

@@ -70,16 +70,23 @@ object BuildTransferLookup {
       // Read in transfer list from file as CSV
       val file = Path(in_file)
       val transfer_csv = read.lines(file).mkString("\n")
-      type TransferEntry = (Int, String, String, String, String, Int, String, String, String, String)
+      type TransferEntry = (String, String, String, String, String, String, String, String, String, String)
          //stars/pos/name/class/ht/wt/eligible/jan-eligible/school/dest
       case class TransferInfo(name: String, team: String)
+
+
       val transfers = transfer_csv.asCsvReader[TransferEntry](rfc).toList.flatMap(_.toOption).flatMap { entry => 
          val preproc_name = entry._3
+         val postproc_name = preproc_name.substring(0, preproc_name.size/2)
          val preproc_team = entry._9.replace("State", "St.")
          val postproc_team = ExtractorUtils.remove_diacritics(team_lut.getOrElse(preproc_team, preproc_team))
+
+         //Diag:
+         //System.out.println(s"Player: [${postproc_name}][${postproc_team}][${entry._10}]")
+
          if ((entry._10 == "") && (postproc_team != "NOT_D1")) { // already found a destination or not a D1 player
             Some(TransferInfo(
-               name = preproc_name.substring(0, preproc_name.size/2),
+               name = postproc_name,
                team = postproc_team
             ))
          } else {

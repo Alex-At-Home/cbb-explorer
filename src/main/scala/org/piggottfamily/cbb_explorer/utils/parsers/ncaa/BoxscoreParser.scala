@@ -120,7 +120,7 @@ trait BoxscoreParser {
         opponent_stats = LineupEventStats.empty
       )
 
-      ordered_lineup = inject_validated_players(ordered_lineup_from_box, temp_box_score , external_roster)
+      ordered_lineup = inject_validated_players(ordered_lineup_from_box, temp_box_score, external_roster)
 
       final_validated_lineup <- validate_box_score(
         TeamId(team), ordered_lineup

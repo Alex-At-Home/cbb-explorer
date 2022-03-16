@@ -152,6 +152,22 @@ class StorageController(d: StorageController.Dependencies = StorageController.De
    )
  }
 
+ /** Reads stored roster maps in JSON for a single team */
+ def read_roster(
+   file_path: Path
+ ): Map[String, RosterEntry] = {
+  d.file_manager.read_lines_from_file(
+     file_path
+   ).map { json_str =>
+     decode[Map[String, RosterEntry]](json_str)
+   }.headOption.collect {
+      case Right(team_roster) => team_roster
+      case Left(t) => throw t
+   }.getOrElse {
+     throw new Exception(s"Roster [$file_path] is empty")
+   }
+ }
+
   /** Store lineups in a NDJSON format */
   def write_lineups(
     lineups: List[LineupEvent],

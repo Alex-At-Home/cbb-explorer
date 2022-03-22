@@ -79,6 +79,11 @@ object BuildTransferLookup {
          val preproc_name = entry._3
          val postproc_name = preproc_name.substring(0, preproc_name.size/2)
          val preproc_team = entry._9.replace("State", "St.")
+         //some more tidy up:
+         val name_frags = postproc_name.split(" ")
+         val tidied_postproc_name = if (name_frags.size == 2) {
+            s"${name_frags(0)}, ${name_frags(1)}" //(matches standard roster format)
+         } else postproc_name
          val postproc_team = ExtractorUtils.remove_diacritics(team_lut.getOrElse(preproc_team, preproc_team))
 
          //Diag:
@@ -86,7 +91,7 @@ object BuildTransferLookup {
 
          if ((entry._10 == "") && (postproc_team != "NOT_D1")) { // already found a destination or not a D1 player
             Some(TransferInfo(
-               name = postproc_name,
+               name = tidied_postproc_name,
                team = postproc_team
             ))
          } else {
@@ -127,7 +132,6 @@ object BuildTransferLookup {
             val tidy_ctx = LineupErrorAnalysisUtils.build_tidy_player_context(roster)
             val (fixed_player, _) = LineupErrorAnalysisUtils.tidy_player(transfer_entry.name, tidy_ctx)
             val maybe_fixed_player_code = roster.players.find(_.id.name == fixed_player).map(_.code)
-
             maybe_fixed_player_code match {
                case None => 
                   //Useful debug

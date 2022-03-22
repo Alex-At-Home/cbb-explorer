@@ -595,19 +595,20 @@ object LineupErrorAnalysisUtils {
 
         case (l @ (strong :: other_strong), _, _, _) =>
           if  (other_strong.nonEmpty) {
-            l.sortWith(_.score > _.score) match {
+            val sorted_l = l.sortWith(_.score > _.score)
+            sorted_l match {
               case best_strong :: less_good_strong =>
                 val threshold_score = best_strong.score - 10
                 val new_candidates = less_good_strong.filter(_.score > threshold_score)
 
                 if (new_candidates.nonEmpty) {
-                  val context_string = s"ERROR.1A: multiple strong matches: [$candidate] vs [$l]"
+                  val context_string = s"ERROR.1A: multiple strong matches: [$candidate] vs [$sorted_l]"
                   log_info(None, context_string)
                   Left(context_string)
                 } else {
-                  val context_string = s"SUCCESS.1B: multiple strong matches, but clear winner: [$candidate] vs [$l]"
-                  log_info(Some(strong.box_name), context_string)
-                  Right(strong.box_name)
+                  val context_string = s"SUCCESS.1B: multiple strong matches, but clear winner: [$candidate] vs [$sorted_l]"
+                  log_info(Some(best_strong.box_name), context_string)
+                  Right(best_strong.box_name)
                 }
 
               case l2 @ _ => Left(s"(internal logic error: [$l2])")

@@ -45,9 +45,20 @@ if [[ "$DAILY_IMPORT" == "yes" ]]; then
    source .env
 fi
 
+#TODO: offseason only, first thing in the morning: download transfers
+echo "Checking whether to download transfers"
+if [[ $(date +%H) -lt 7 ]]; then
+   echo "Downloading transfers"
+
+   sh $PBP_SRC_ROOT/artefacts/scripts/build_transfer_filter.sh
+
+   #TODO: once the season ends need to start re-deploying since won't be doing anything with the data
+fi
+
 # cron: before 7a EST
 echo "Checking whether to build leaderboards policy=[$BUILD_LEADERBOARDS] hour=[$(date +%H)]":
 if [[ "$BUILD_LEADERBOARDS" == "yes" ]] || [[ "$BUILD_LEADERBOARDS" = "cron" && $(date +%H) -lt 7 ]]; then
+
    echo "Building leaderboards"
    if [[ "$DAILY_IMPORT" == "yes" ]]; then
       echo "Waiting 3min for the app to redeploy then recalculating leaderboard stats..."

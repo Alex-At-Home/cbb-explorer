@@ -9,6 +9,7 @@ YEAR=2016
 CONF=misc_conf
 array=(
   '392.0/12480::Maryland'
+  '635.0/12480::Seton+Hall'
 )
 
 for index in "${array[@]}" ; do

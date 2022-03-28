@@ -32,6 +32,7 @@ object BuildTransferLookup {
          |--rosters=<<json-roster-dir>>
          |--out=<<out-file-in-which-JSON-output-is-placed>
          |--year=<<year-in-which-the-season-starts>>
+         |--[completed-transfers] (else only shows available transfers)
          """)
          System.exit(-1)
       }
@@ -60,6 +61,7 @@ object BuildTransferLookup {
          .getOrElse {
             throw new Exception("--year is needed")
          }
+      val completed_transfers = args.map(_.trim).exists(_.startsWith("--year=")) //(ONLY completed, else ONLY available)
 
       // Build team LUT
 
@@ -89,7 +91,7 @@ object BuildTransferLookup {
          //Diag:
          //System.out.println(s"Player: [${postproc_name}][${postproc_team}][${entry._10}]")
 
-         if ((entry._10 == "") && (postproc_team != "NOT_D1")) { // already found a destination or not a D1 player
+         if (((entry._10 == "") != completed_transfers) && (postproc_team != "NOT_D1")) { // already found a destination or not a D1 player
             Some(TransferInfo(
                name = tidied_postproc_name,
                team = postproc_team

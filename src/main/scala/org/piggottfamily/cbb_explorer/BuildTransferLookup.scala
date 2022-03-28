@@ -32,7 +32,7 @@ object BuildTransferLookup {
          |--rosters=<<json-roster-dir>>
          |--out=<<out-file-in-which-JSON-output-is-placed>
          |--year=<<year-in-which-the-season-starts>>
-         |--[completed-transfers] (else only shows available transfers)
+         |[--completed-transfers] (else only shows available transfers)
          """)
          System.exit(-1)
       }
@@ -61,7 +61,7 @@ object BuildTransferLookup {
          .getOrElse {
             throw new Exception("--year is needed")
          }
-      val completed_transfers = args.map(_.trim).exists(_.startsWith("--year=")) //(ONLY completed, else ONLY available)
+      val completed_transfers = args.map(_.trim).exists(_.startsWith("--completed-transfers")) //(ONLY completed, else ONLY available)
 
       // Build team LUT
 

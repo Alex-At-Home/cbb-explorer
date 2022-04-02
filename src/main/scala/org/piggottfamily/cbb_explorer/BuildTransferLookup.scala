@@ -32,7 +32,6 @@ object BuildTransferLookup {
          |--rosters=<<json-roster-dir>>
          |--out=<<out-file-in-which-JSON-output-is-placed>
          |--year=<<year-in-which-the-season-starts>>
-         |[--completed-transfers] (else only shows available transfers)
          """)
          System.exit(-1)
       }
@@ -61,7 +60,6 @@ object BuildTransferLookup {
          .getOrElse {
             throw new Exception("--year is needed")
          }
-      val completed_transfers = args.map(_.trim).exists(_.startsWith("--completed-transfers")) //(ONLY completed, else ONLY available)
 
       // Build team LUT
 
@@ -74,27 +72,30 @@ object BuildTransferLookup {
       val transfer_csv = read.lines(file).mkString("\n")
       type TransferEntry = (String, String, String, String, String, String, String, String, String, String)
          //stars/pos/name/class/ht/wt/eligible/jan-eligible/school/dest
-      case class TransferInfo(name: String, team: String)
+      case class TransferInfo(name: String, team: String, dest: Option[String])
 
 
       val transfers = transfer_csv.asCsvReader[TransferEntry](rfc).toList.flatMap(_.toOption).flatMap { entry => 
          val preproc_name = entry._3
          val postproc_name = preproc_name.substring(0, preproc_name.size/2)
          val preproc_team = entry._9.replace("State", "St.")
+         val preproc_dest = entry._10.replace("State", "St.")
          //some more tidy up:
          val name_frags = postproc_name.split(" ")
          val tidied_postproc_name = if (name_frags.size == 2) {
             s"${name_frags(0)}, ${name_frags(1)}" //(matches standard roster format)
          } else postproc_name
          val postproc_team = ExtractorUtils.remove_diacritics(team_lut.getOrElse(preproc_team, preproc_team))
+         val postproc_dest = ExtractorUtils.remove_diacritics(team_lut.getOrElse(preproc_dest, preproc_dest))
 
          //Diag:
          //System.out.println(s"Player: [${postproc_name}][${postproc_team}][${entry._10}]")
 
-         if (((entry._10 == "") != completed_transfers) && (postproc_team != "NOT_D1")) { // already found a destination or not a D1 player
+         if (postproc_team != "NOT_D1") { // already found a destination or not a D1 player
             Some(TransferInfo(
                name = tidied_postproc_name,
-               team = postproc_team
+               team = postproc_team,
+               dest = Some(postproc_dest).filter(_ != "")
             ))
          } else {
             None
@@ -128,7 +129,9 @@ object BuildTransferLookup {
 
       // Parse the names and find the codes
 
-      val transfer_codes_to_team: Map[String, List[String]] = transfers.flatMap { transfer_entry =>
+      case class TransferToFrom(f: String, t: Option[String])
+
+      val transfer_codes_to_team: Map[String, List[TransferToFrom]] = transfers.flatMap { transfer_entry =>
          val maybe_roster = roster_vs_team.get(transfer_entry.team)
          maybe_roster.flatMap { roster =>
             val tidy_ctx = LineupErrorAnalysisUtils.build_tidy_player_context(roster)
@@ -145,10 +148,11 @@ object BuildTransferLookup {
                transfer_entry.copy(name = player_code)
             }
          }
-      }.groupBy(_.name).mapValues(_.map(_.team))
+      }.groupBy(_.name).mapValues { tt => tt.map(t => TransferToFrom(f = t.team, t = t.dest)) }
 
       System.out.println(s"BuildTransferLookup: successfully identified [${transfer_codes_to_team.values.flatten.size}] players")
 
-      write.over(Path(out_path), transfer_codes_to_team.asJson.toString)
+      val printer = Printer.noSpaces.copy(dropNullValues = true)
+      write.over(Path(out_path), printer.pretty(transfer_codes_to_team.asJson))
    }
 }

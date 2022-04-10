@@ -1,6 +1,16 @@
 #!/bin/bash
 # (put = in TEAM_FILTER to make it exact match vs URL-encoded string)
 
+#Off season mode: do nothing except keep track of transfers
+export OFFSEASON_MODE="yes"
+if [[ "$OFFSEASON_MODE" == "yes" ]]; then
+   echo "In Off-season mode, will just keep track of transfers"
+   export DAILY_IMPORT="no"
+   export BUILD_EFFICIENCY="no"
+   export BUILD_LEADERBOARDS="no"
+fi
+
+
 ENV_FILE=${ENV_FILE:=$PBP_SRC_ROOT/.scripts.env}
 if [ "$ENV_FILE" = "/.scripts.env" ]; then
    echo "Need an initial ENV_FILE or PBP_SRC_ROOT"
@@ -52,7 +62,10 @@ if [[ $(date +%H) -lt 7 ]]; then
 
    sh $PBP_SRC_ROOT/artefacts/scripts/build_transfer_filter.sh
 
-   #TODO: once the season ends need to start re-deploying since won't be doing anything with the data
+   if [[ "$OFFSEASON_MODE" == "yes" ]]; then
+      # redeploy since nothing else is happening in off-season mode
+      sh handle-updated-data.sh
+   fi
 fi
 
 # cron: before 7a EST

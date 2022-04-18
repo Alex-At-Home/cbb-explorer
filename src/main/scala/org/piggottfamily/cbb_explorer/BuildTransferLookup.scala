@@ -11,6 +11,7 @@ import scala.util.Try
 import java.net.URLEncoder
 import org.joda.time.DateTime
 import scala.util.matching.Regex
+import org.piggottfamily.cbb_explorer.utils.parsers.offseason.NbaDeclarationParser
 import org.piggottfamily.cbb_explorer.utils.parsers.ncaa.TeamIdParser
 import org.piggottfamily.cbb_explorer.utils.parsers.ncaa.LineupErrorAnalysisUtils
 import org.piggottfamily.cbb_explorer.utils.parsers.ncaa.ExtractorUtils
@@ -29,6 +30,7 @@ object BuildTransferLookup {
       if (args.length < 4) {
          println("""
          |--in=<<csv-file-to-read>>
+         |[--in-nba=<<html-nba-file-to-read>>]
          |--rosters=<<json-roster-dir>>
          |--out=<<out-file-in-which-JSON-output-is-placed>
          |--year=<<year-in-which-the-season-starts>>
@@ -41,6 +43,10 @@ object BuildTransferLookup {
          .getOrElse {
             throw new Exception("--in is needed")
          }
+      val maybe_in_nba_file = args.toList
+         .map(_.trim).filter(_.startsWith("--in-nba="))
+         .headOption.map(_.split("=", 2)(1))
+
       val out_path = args
          .map(_.trim).filter(_.startsWith("--out="))
          .headOption.map(_.split("=", 2)(1))
@@ -74,7 +80,6 @@ object BuildTransferLookup {
          //stars/pos/name/class/ht/wt/eligible/jan-eligible/school/dest
       case class TransferInfo(name: String, team: String, dest: Option[String])
 
-
       val transfers = transfer_csv.asCsvReader[TransferEntry](rfc).toList.flatMap(_.toOption).flatMap { entry => 
          val preproc_name = entry._3
          val postproc_name = preproc_name.substring(0, preproc_name.size/2)
@@ -105,11 +110,30 @@ object BuildTransferLookup {
       
       System.out.println(s"BuildTransferLookup: Ingested [${transfers.size}] transfers")
 
+      // Get NBA
+
+      val nba_transfers: List[TransferInfo] = maybe_in_nba_file.map { filename =>
+         val nba_file = Path(filename)
+         val nba_html = read.lines(nba_file).mkString("\n")
+
+         val nba_pairs = NbaDeclarationParser.get_early_declarations(filename, nba_html).getOrElse(List()).map {
+            case (name, team) => 
+               val preproc_team = team.replace("State", "St.").replace("’", "'")
+               TransferInfo(
+                  name, team_lut.getOrElse(preproc_team, preproc_team), Some("NBA")
+               )
+         }
+
+         System.out.println(s"BuildTransferLookup: Ingested [${nba_pairs.size}] early declarations")
+
+         nba_pairs
+      }.getOrElse(List())
+
       // Get a list of teams and read in their rosters:
 
       val storage_controller = new StorageController()
 
-      val roster_vs_team: Map[String, LineupEvent] = transfers.map(_.team).distinct.flatMap { team_name =>
+      val roster_vs_team: Map[String, LineupEvent] = (nba_transfers ++ transfers).map(_.team).distinct.flatMap { team_name =>
          val encoded_team_name = URLEncoder.encode(team_name, "UTF-8").replace(" ", "+")
          Try {
             storage_controller.read_roster(Path(roster_dir) / s"Men_$year" / s"$encoded_team_name.json")
@@ -131,7 +155,7 @@ object BuildTransferLookup {
 
       case class TransferToFrom(f: String, t: Option[String])
 
-      val transfer_codes_to_team: Map[String, List[TransferToFrom]] = transfers.flatMap { transfer_entry =>
+      val transfer_codes_to_team: Map[String, List[TransferToFrom]] = (nba_transfers ++ transfers).flatMap { transfer_entry =>
          val maybe_roster = roster_vs_team.get(transfer_entry.team)
          maybe_roster.flatMap { roster =>
             val tidy_ctx = LineupErrorAnalysisUtils.build_tidy_player_context(roster)

@@ -33,8 +33,12 @@ trait NbaDeclarationParser {
   // Holds all the HTML parsing logic
   protected object builders {
 
-    def early_declaration_finder(doc: Document): List[String] = 
-        (doc >?> elementList("h2:contains(college underclassmen) + p + ol li")).map(els => els.map(_.text)).getOrElse(List())
+   def early_declaration_finder(doc: Document): List[String] = 
+      (doc >?> elementList("h2:contains(college underclassmen) + p + ol li")).map(els => els.map(_.text)).getOrElse(List())
+
+   def early_declaration_finder_2020(doc: Document): List[String] = 
+      (doc >?> elementList("h3:contains(college players) + p + ol li")).map(els => els.map(_.text)).getOrElse(List())
+
   }
 
   /** Output format player / team */
@@ -52,7 +56,8 @@ trait NbaDeclarationParser {
     for {
       doc <- doc_request_builder(browser.parseString(in))
 
-      names = builders.early_declaration_finder(doc)
+      names = if (filename.contains("2020")) 
+         builders.early_declaration_finder_2020(doc) else builders.early_declaration_finder(doc)
 
       name_team_pairs = names.flatMap { csv =>
          csv.split(" *, *").toList match {

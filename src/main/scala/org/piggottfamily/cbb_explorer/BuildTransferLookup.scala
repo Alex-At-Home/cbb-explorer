@@ -155,6 +155,11 @@ object BuildTransferLookup {
 
       case class TransferToFrom(f: String, t: Option[String])
 
+      val manual_overrides = Map(
+         "JaYoung/Charlotte" -> "Maryland",
+         "JaItuka/Marist" -> "Wake Forest"
+      )
+
       val transfer_codes_to_team: Map[String, List[TransferToFrom]] = (nba_transfers ++ transfers).flatMap { transfer_entry =>
          val maybe_roster = roster_vs_team.get(transfer_entry.team)
          maybe_roster.flatMap { roster =>
@@ -169,7 +174,12 @@ object BuildTransferLookup {
             }
 
             maybe_fixed_player_code.map { player_code =>
-               transfer_entry.copy(name = player_code)
+               val maybe_override_key = s"$player_code/${transfer_entry.team}"
+
+               transfer_entry.copy(
+                  name = player_code, 
+                  dest = transfer_entry.dest.orElse(manual_overrides.get(maybe_override_key))
+               )
             }
          }
       }.groupBy(_.name).mapValues { tt => tt.map(t => TransferToFrom(f = t.team, t = t.dest)) }

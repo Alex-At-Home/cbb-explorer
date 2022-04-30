@@ -156,8 +156,7 @@ object BuildTransferLookup {
       case class TransferToFrom(f: String, t: Option[String])
 
       val manual_overrides = Map(
-         "JaYoung/Charlotte" -> "Maryland",
-         "JaItuka/Marist" -> "Wake Forest"
+         //(use if it's taking too long to update)
       )
 
       val transfer_codes_to_team: Map[String, List[TransferToFrom]] = (nba_transfers ++ transfers).flatMap { transfer_entry =>

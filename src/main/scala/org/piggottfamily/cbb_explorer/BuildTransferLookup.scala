@@ -155,7 +155,7 @@ object BuildTransferLookup {
 
       case class TransferToFrom(f: String, t: Option[String])
 
-      val manual_overrides = Map(
+      val manual_overrides: Map[String, String] = Map(
          //(use if it's taking too long to update)
       )
 

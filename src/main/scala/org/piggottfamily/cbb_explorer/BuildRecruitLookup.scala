@@ -101,12 +101,13 @@ object BuildRecruitLookup {
 
       // Parse the names and find the codes
 
-      case class MinimalRecruitInfo(pos: String, pr: String, c: String)
+      case class MinimalRecruitInfo(pos: String, pr: String, c: String, h: String)
+      def build_height(h_in: Int) = s"${h_in/12}-${h_in%12}"
 
       val transfer_codes_to_team: Map[String, Map[String, MinimalRecruitInfo]] = recruits
          .groupBy(_.team).mapValues { rr => rr.map(r => {
             val code = ExtractorUtils.build_player_code(r.name, team = None).code;
-            (r.name, MinimalRecruitInfo(r.pos, r.profile.getOrElse("UR"), code))
+            (r.name, MinimalRecruitInfo(r.pos, r.profile.getOrElse("UR"), code, build_height(r.height_in)))
          }).toMap }
 
       val printer = Printer.noSpaces.copy(dropNullValues = true)

@@ -6,7 +6,10 @@
 CURR_YEAR_P1=$((CURR_YEAR+1))
 HTMLTAB_LOC=/Users/alex/Library/Python/3.8/bin/
 
-$HTMLTAB_LOC/htmltab --select "table#player-rankings" "https://verbalcommits.com/transfers/$CURR_YEAR_P1" > $PBP_OUT_DIR/transfers.csv
+curl -H 'Cache-Control: no-cache' \
+   -o $PBP_OUT_DIR/transfers.html "https://verbalcommits.com/transfers/$CURR_YEAR_P1"
+
+$HTMLTAB_LOC/htmltab --select "table#player-rankings" $PBP_OUT_DIR/transfers.html > $PBP_OUT_DIR/transfers.csv
 
 echo "" > $PBP_OUT_DIR/nba_declarations_$CURR_YEAR_P1.html
 if [ "$CURR_YEAR_P1" -eq "2022" ]; then

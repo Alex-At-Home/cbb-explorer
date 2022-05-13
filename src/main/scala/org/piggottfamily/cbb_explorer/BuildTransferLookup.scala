@@ -118,6 +118,10 @@ object BuildTransferLookup {
 
          val nba_pairs = NbaDeclarationParser.get_early_declarations(filename, nba_html).getOrElse(List()).map {
             case (name, team) => 
+
+               //(diag:)
+               //System.out.println(s"Declared: [$name][$team]")
+
                val preproc_team = team.replace("State", "St.").replace("’", "'")
                TransferInfo(
                   name, team_lut.getOrElse(preproc_team, preproc_team), Some("NBA")
@@ -156,9 +160,6 @@ object BuildTransferLookup {
       case class TransferToFrom(f: String, t: Option[String])
 
       val manual_overrides: Map[String, String] = Map( //(format: s"$player_code/${transfer_entry.team}")
-         //(use if it's taking too long to update)
-         "AnCarr/Delaware" -> "Wake Forest",
-         "TyAppleby/Florida" -> "Wake Forest",
       )
 
       val transfer_codes_to_team: Map[String, List[TransferToFrom]] = (nba_transfers ++ transfers).flatMap { transfer_entry =>
@@ -166,6 +167,7 @@ object BuildTransferLookup {
          maybe_roster.flatMap { roster =>
             val tidy_ctx = LineupErrorAnalysisUtils.build_tidy_player_context(roster)
             val (fixed_player, _) = LineupErrorAnalysisUtils.tidy_player(transfer_entry.name, tidy_ctx)
+            
             val maybe_fixed_player_code = roster.players.find(_.id.name == fixed_player).map(_.code)
             maybe_fixed_player_code match {
                case None => 

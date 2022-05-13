@@ -23,6 +23,17 @@ import kantan.csv.ops._
 
 object BuildRecruitLookup {
 
+   // Mid majors with T200 recruits
+   val mid_majors = Set(
+      "App State", "UC Santa Barbara", "Ohio", "New Mexico", "Harvard", 
+      "Pepperdine", "Nevada", 
+   )
+   // Mid majors with T200 recruits
+   val mid_high_majors = Set(
+      "Davidson", "San Diego St.",
+      "Fordham", "Cincinatti", "Saint Mary's (CA)", 
+   )
+
    def main(args: Array[String]): Unit = {
 
       // Command line args processing
@@ -90,9 +101,14 @@ object BuildRecruitLookup {
             pos = positional_role,
             profile = Some(profile)
          )
-      }
+      }.filter { 
+         case recruit => (mid_majors.contains(recruit.team), mid_high_majors.contains(recruit.team)) match {
+         case (true, false) => true //mid any 3* will do
+         case (false, true) => recruit.rating >= 0.910 //mid-high, only count if T150+
+         case _ => recruit.rating >= 0.960 //high, only count if 4*+
+      }}.sortBy(-_.rating)
 
-      System.out.println(s"BuildRecruitLookup: Ingested [${recruits.size}] recruits")
+      System.out.println(s"BuildRecruitLookup: Ingested [${recruits.size}] recruits, post filter")
 
 
       // Get a list of teams and read in their rosters:

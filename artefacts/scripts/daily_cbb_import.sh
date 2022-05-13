@@ -22,7 +22,7 @@ cd $PBP_OUT_DIR
 
 if [[ "$DAILY_IMPORT" == "yes" ]]; then
 
-   echo "Fix broken play-by-play files"
+   echo "daily_cbb_import: [$(date)] Fix broken play-by-play files"
 
    for i in $(find $PBP_CRAWL_PATH -name "*.zip" | grep "/$CURR_YEAR/"); do
       j=$(unzip -l $i | grep box_score | grep -E "\s+[0-9][0-9][0-9]?\s+" | grep -o 'https:.*') && echo "$i /// $j" && zip -d $i "$j";
@@ -30,16 +30,16 @@ if [[ "$DAILY_IMPORT" == "yes" ]]; then
 
    ############
 
-   echo "Download / parse / upload new data"
+   echo "daily_cbb_import: [$(date)] Download / parse / upload new data"
    PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
 else
-   echo "Skipping daily import, use DAILY_IMPORT='yes' to include"
+   echo "daily_cbb_import: [$(date)] Skipping daily import, use DAILY_IMPORT='yes' to include"
 fi
 
 # cron: Mon,Wed,Fri,Sun
-echo "Checking to whether recalculate efficiency policy=[$BUILD_EFFICIENCY] day=[$(date +%u)]":
+echo "daily_cbb_import: [$(date)] Checking to whether recalculate efficiency policy=[$BUILD_EFFICIENCY] day=[$(date +%u)]":
 if [[ "$BUILD_EFFICIENCY" == "yes" ]] || [[ "$BUILD_EFFICIENCY" == "cron" && $(date +%u) =~ [1357] ]]; then
-   echo "Recalculating men's efficiency stats..."
+   echo "daily_cbb_import: [$(date)] Recalculating men's efficiency stats..."
    sh $PBP_SRC_ROOT/artefacts/scripts/full_men_efficiency_import.sh
 
    #TODO: women's stats
@@ -56,9 +56,9 @@ if [[ "$DAILY_IMPORT" == "yes" ]]; then
 fi
 
 #TODO: offseason only, first thing in the morning: download transfers
-echo "Checking whether to download transfers"
+echo "daily_cbb_import: [$(date)] Checking whether to download transfers"
 if [[ $(date +%H) -lt 7 ]]; then
-   echo "Downloading transfers"
+   echo "daily_cbb_import: [$(date)] Downloading transfers"
 
    sh $PBP_SRC_ROOT/artefacts/scripts/build_transfer_filter.sh
 
@@ -69,10 +69,10 @@ if [[ $(date +%H) -lt 7 ]]; then
 fi
 
 # cron: before 7a EST
-echo "Checking whether to build leaderboards policy=[$BUILD_LEADERBOARDS] hour=[$(date +%H)]":
+echo "daily_cbb_import: [$(date)] Checking whether to build leaderboards policy=[$BUILD_LEADERBOARDS] hour=[$(date +%H)]":
 if [[ "$BUILD_LEADERBOARDS" == "yes" ]] || [[ "$BUILD_LEADERBOARDS" = "cron" && $(date +%H) -lt 7 ]]; then
 
-   echo "Building leaderboards"
+   echo "daily_cbb_import: [$(date)] Building leaderboards"
    if [[ "$DAILY_IMPORT" == "yes" ]]; then
       echo "Waiting 3min for the app to redeploy then recalculating leaderboard stats..."
       sleep 180

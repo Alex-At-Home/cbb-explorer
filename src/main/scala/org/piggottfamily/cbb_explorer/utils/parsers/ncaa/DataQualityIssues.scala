@@ -34,8 +34,8 @@ object DataQualityIssues {
     combos("Makhi", "Mitchell") ++ combos("Makhel", "Mitchell") ++
     // Hamilton brothers (BC 18-19/20)
     combos("Jared", "Hamilton") ++ combos("Jairus", "Hamilton") ++
-    // Wisconsin team-mates, leave Jordan with Jo and Jonathan/Johnny gets J?
-    // TODO: need to reimport 2020/21 where I did this the other way round for some reason
+    // Wisconsin team-mates, give Jordan "Jn" and Jonathan/Johnny gets "Jo"
+    // TODO: need to reimport 2020/21 where I did this the other way round for some reason (Jonathan is Jn)
     combos("Jordan", "Davis") ++ 
     // Cumberland relatives (Cinci)
     // These two have the same name regardless of strategy! Use misspellings to tuncate Jaev's name

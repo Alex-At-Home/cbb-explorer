@@ -58,7 +58,7 @@ trait RecruitParser {
   }
 
   /** Output format player / team */
-  def get_early_declarations(filename: String, in: String): Either[List[ParseError], List[Recruit]] = {
+  def get_recruits(filename: String, in: String): Either[List[ParseError], List[Recruit]] = {
 
     val browser = JsoupBrowser()
 

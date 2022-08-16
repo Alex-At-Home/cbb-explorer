@@ -1,5 +1,17 @@
 # Get data from http://www.barttorvik.com/getadvstats.php?year=2020&csv=1 etc
+# Use data frame visualization to import latest csv (copy ingest pipeline and mapping from elasticsearch-mappings)
+# Add to the trank_players_all index
+# Clear the existing index with: POST combined_trank_players/_delete_by_query?q=*
+# Delete and re-create the transform
+
+#Example API:
 #POST _data_frame/transforms/_preview
+#POST _data_frame/transforms/trank_aggregator/_start
+#POST _data_frame/transforms/trank_aggregator/_stop?force
+#DELETE _data_frame/transforms/trank_aggregator
+#GET _data_frame/transforms/trank_aggregator
+#GET _data_frame/transforms/trank_aggregator/_stats
+
 PUT _data_frame/transforms/trank_aggregator
 {
   "source": {
@@ -21,7 +33,240 @@ PUT _data_frame/transforms/trank_aggregator
                      "_name_": "composite",
                      "fixed_prefix": false
                   },
-//INSERT FROM .PAINLESS
+
+"init_script": """
+//////////////////////////////////////////////////////////////
+//
+// Init
+
+state.collect = [:];
+state.build_lists = params.build_lists;
+""",
+
+"map_script": """
+//////////////////////////////////////////////////////////////
+//
+// Map
+
+def obj = state.collect;
+def prefix = params.fixed_prefix ? "" : doc["yr"].value.toLowerCase() + "_";
+
+//(a bit of data quality)
+def supported_prefixes = new HashSet(["", "fr_", "so_", "jr_", "sr_"]);
+
+// Complicated:
+
+if (null == obj.num_years) {
+   obj.num_years = new HashSet();
+}
+if (!obj.num_years.contains(prefix) && supported_prefixes.contains(prefix)) {
+   //(dup check)
+   obj.num_years.add(prefix);
+
+  if (state.build_lists) {
+
+    if (null == obj.missing_fields) {
+       obj.missing_fields = new HashSet();
+    }
+
+    if (null == obj.classes) {
+       obj.classes = new HashSet();
+    }
+    obj.classes.add(doc["yr"].value);
+
+  }//END if (state.build_lists)
+
+  // Simple:
+
+  obj["player_name"] = doc["player_name"].value;
+
+  def fields = [
+  "player_name","team","conf","GP","Min_per","ORtg","usg","eFG","TS_per","ORB_per","DRB_per","AST_per","TO_per","FTM","FTA","FT_per","twoPM","twoPA","twoP_per","TPM","TPA","TP_per","blk_per","stl_per","ftr","yr","ht","num","porpag","adjoe","pfr","year","pid","type","Rec Rank",
+  "ast/tov","rimmade","rimmade_p_rimmiss","midmade","midmade_p_midmiss","rimmade_by_rimmade_p_rimmiss","midmade_by_midmade_p_midmiss","dunksmade","dunksmiss_p_dunksmade","dunksmade_by_dunksmade_p_dunksmiss","pick","drtg","adrtg","dporpag","stops","bpm","obpm","dbpm","gbpm","mp","ogbpm","dgbpm","oreb","dreb","treb","ast","stl","blk","pts",
+  "role"
+  ];
+
+  for (def i: fields) {
+     def field = i == "ast/tov" ?
+      "ast_tov" : (i == "Rec Rank" ?
+        "rec_rank" : i
+      )
+      ; //(fix mistakes in mapping)
+     if (doc[i].size() > 0) {
+        obj[prefix + field] = doc[i].value;
+     } else {
+        if (state.build_lists) {
+           obj.missing_fields.add(prefix + field);
+           obj.missing_fields.add(field);
+        }
+     }
+  }//END for
+
+  // Handle height separately:
+  def height_str = doc["ht"];
+  if (height_str.size() > 0) {
+    def height_str_val = height_str.value;
+    if (height_str_val.length() >= 3) {
+      def feet_str = height_str_val.substring(0, 1);
+      def in_str = height_str_val.substring(2);
+
+      obj[prefix + "ht_in"] = Integer.parseInt(feet_str)*12 + Integer.parseInt(in_str);
+    }
+  }
+
+  // DunkR, RimR, MidR and 3PR as fields:
+  def twoga = doc["twoPA"];
+  def threega = doc["TPA"];
+  if (twoga.size() > 0 && threega.size() > 0 && (twoga.value + threega.value) > 0) {
+    def total_attempts = twoga.value + threega.value;
+    def eFG = doc["eFG"].value/100.0;
+    if (eFG == 0) eFG = 1;
+
+    // (Also build a quality independent set of relative shooting ability metrics)
+
+    def dunk_attempts = doc["dunksmiss_p_dunksmade"];
+    if (dunk_attempts.size() > 0) {
+      obj[prefix + "dunk_rate"] = 100.0 * dunk_attempts.value / total_attempts;
+    } else {
+      obj[prefix + "dunk_rate"] = 0.0;
+    }
+    def rim_attempts = doc["rimmade_p_rimmiss"];
+    def rim_pct = doc["rimmade_by_rimmade_p_rimmiss"];
+    if (rim_attempts.size() > 0) {
+      obj[prefix + "rim_rate"] = 100.0 * rim_attempts.value / total_attempts;
+      obj[prefix + "rim_relative"] = rim_pct.size() > 0 ? 100.0*rim_pct.value/eFG : 0.0;
+
+    } else {
+      obj[prefix + "rim_rate"] = 0.0;
+      obj[prefix + "rim_relative"] = 0.0;
+    }
+    def mid_attempts = doc["midmade_p_midmiss"];
+    def mid_pct = doc["midmade_by_midmade_p_midmiss"];
+    if (mid_attempts.size() > 0) {
+      obj[prefix + "mid_rate"] = 100.0 * mid_attempts.value / total_attempts;
+      obj[prefix + "mid_relative"] = mid_pct.size() > 0 ? 100.0*mid_pct.value/eFG : 0.0;
+    } else {
+      obj[prefix + "mid_rate"] = 0.0;
+      obj[prefix + "mid_relative"] = 0.0;
+    }
+    obj[prefix + "three_rate"] = 100.0* threega.value / total_attempts;
+    obj[prefix + "three_relative"] = 150.0*doc["TP_per"].value/eFG; //(1.5x because eFG scale)
+  } else {
+    obj[prefix + "rim_rate"] = 0.0;
+    obj[prefix + "mid_rate"] = 0.0;
+    obj[prefix + "three_rate"] = 0.0;
+    obj[prefix + "rim_relative"] = 0.0;
+    obj[prefix + "mid_relative"] = 0.0;
+    obj[prefix + "three_relative"] = 0.0;
+  }
+
+  // Assists per FG (might be useful as a pos classifier)
+  def assists = doc["ast"];
+  def games = doc["GP"];
+  if (assists.size() > 0 && games.size() > 0 && twoga.size() > 0 && threega.size() > 0 &&
+    (twoga.value + threega.value) > 0)
+  {
+    def total_attempts = twoga.value + threega.value;
+    def total_assists = assists.value*games.value;
+    obj[prefix + "assist_per_fga"] = 100.0*total_assists/total_attempts;
+  } else {
+    obj[prefix + "assist_per_fga"] = 0.0;
+  }
+  //END if (!obj.num_years.contains(prefix))
+}
+""",
+
+"combine_script": """
+//(IMPORTANT NOTE: can't ship multi-shard HashSet from map/combine -> reduce)
+//////////////////////////////////////////////////////////////
+//
+// Combine
+
+def fields = [ "missing_fields", "num_years", "classes" ];
+for (def kk: fields) {
+    if (null != state.collect[kk]) {
+      state.collect[kk] = new ArrayList(state.collect[kk]);
+    }
+}
+return state.collect;
+""",
+
+"reduce_script": """
+//////////////////////////////////////////////////////////////
+//
+// Reduce
+
+def finalObj = [:];
+def teams = new HashSet();
+
+for (def o: states) {
+   for (def kk: o.keySet()) {
+      if (kk.substring(3) == "team") { //(in every object, just overwrite)
+        teams.add(o[kk]);
+        finalObj[kk] = o[kk];
+      } else if (kk == "player_name") { //(in every object, just overwrite)
+        finalObj[kk] = o[kk];
+      } else if ((kk == "missing_fields") || (kk == "num_years") || (kk == "classes")) {
+         if (null == finalObj[kk]) {
+            finalObj[kk] = new HashSet();
+         }
+         finalObj[kk].addAll(o[kk]);
+      }
+      else {
+         finalObj[kk] = o[kk];
+      }
+   }
+}
+
+// Find the most recent conference transfer
+def prev_conf = null;
+def prev_team = null;
+def after_yr = null;
+def before_yr = null;
+for (def yr: [ "sr_", "jr_", "so_", "fr_"  ]) {
+  def conf = finalObj[yr + "conf"];
+  def team = finalObj[yr + "team"];
+  if ((null != conf) && (null != team)) {
+    if ((null != prev_team) && (prev_conf != conf) && (prev_team != team)) {
+      before_yr = yr;
+      break;
+    }
+    after_yr = yr;
+    prev_conf = conf;
+    prev_team = team;
+  }
+}
+finalObj.conf_transferred = null != before_yr;
+
+// Duplicate all the from before/after the final conference transfer
+if (finalObj.conf_transferred) {
+  def transferObj = [:];
+  for (def kk: finalObj.keySet()) {
+    def new_field = null;
+    if (kk.startsWith(before_yr)) {
+      new_field = "pre_";
+    } else if (kk.startsWith(after_yr)) {
+      new_field = "post_";
+    }
+    if (null != new_field) {
+      transferObj[new_field + kk.substring(3)] = finalObj[kk];
+    }
+  }
+  for (def kk: transferObj.keySet()) {
+    finalObj[kk] = transferObj[kk];
+  }
+}
+
+finalObj.transferred = teams.size() > 1;
+finalObj.teams = teams.join(";");
+
+finalObj.num_years = finalObj.num_years.size();
+if ((null != finalObj.missing_fields) && (finalObj.missing_fields.size() > 0)) {
+  finalObj.is_valid = false;
+}
+
+return finalObj;
+"""
                }
         }
     }
@@ -32,50 +277,3 @@ PUT _data_frame/transforms/trank_aggregator
 }
 
 
-PUT _data_frame/transforms/trank_tidier
-{
-  "source": {
-    "index": "trank_players_all"
-  },
-  "pivot": {
-    "group_by": {
-      "name": {
-         "terms": {
-            "field": "player_name"
-         }
-      },
-      "team": {
-         "terms": {
-            "field": "team"
-         }
-      },
-      "yr": {
-         "terms": {
-            "field": "yr"
-         }
-      }
-    },
-    "aggregations": {
-      "combined": {
-        "scripted_metric":   {
-                  "params": {
-                     "build_lists": false,
-                     "fixed_prefix": true,
-                     "_name_": "composite"
-                  },
-//INSERT FROM PAINLESS
-               }
-        }
-    }
-  },
-  "dest": {
-    "index": "tidied_trank_players"
-  }
-}
-
-
-POST _data_frame/transforms/trank_aggregator/_start
-POST _data_frame/transforms/trank_aggregator/_stop?force
-DELETE _data_frame/transforms/trank_aggregator
-GET _data_frame/transforms/trank_aggregator
-GET _data_frame/transforms/trank_aggregator/_stats

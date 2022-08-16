@@ -1,0 +1,235 @@
+{
+   "mappings" : {
+     "_meta" : {
+       "created_by" : "ml-file-data-visualizer"
+     },
+     "properties" : {
+       "AST_per" : {
+         "type" : "double"
+       },
+       "DRB_per" : {
+         "type" : "double"
+       },
+       "FTA" : {
+         "type" : "long"
+       },
+       "FTM" : {
+         "type" : "long"
+       },
+       "FT_per" : {
+         "type" : "double"
+       },
+       "GP" : {
+         "type" : "long"
+       },
+       "Min_per" : {
+         "type" : "double"
+       },
+       "ORB_per" : {
+         "type" : "double"
+       },
+       "ORtg" : {
+         "type" : "double"
+       },
+       "Rec Rank" : {
+         "type" : "double"
+       },
+       "TO_per" : {
+         "type" : "double"
+       },
+       "TPA" : {
+         "type" : "long"
+       },
+       "TPA_100" : {
+         "type" : "float"
+       },
+       "TPM" : {
+         "type" : "long"
+       },
+       "TP_per" : {
+         "type" : "double"
+       },
+       "TS_per" : {
+         "type" : "double"
+       },
+       "adjoe" : {
+         "type" : "double"
+       },
+       "adrtg" : {
+         "type" : "double"
+       },
+       "ast" : {
+         "type" : "double"
+       },
+       "ast/tov" : {
+         "type" : "double"
+       },
+       "blk" : {
+         "type" : "double"
+       },
+       "blk_per" : {
+         "type" : "double"
+       },
+       "bpm" : {
+         "type" : "double"
+       },
+       "conf" : {
+         "type" : "keyword"
+       },
+       "dbpm" : {
+         "type" : "double"
+       },
+       "dgbpm" : {
+         "type" : "double"
+       },
+       "dporpag" : {
+         "type" : "double"
+       },
+       "dreb" : {
+         "type" : "double"
+       },
+       "drtg" : {
+         "type" : "double"
+       },
+       "dunksmade" : {
+         "type" : "long"
+       },
+       "dunksmade/" : {
+         "type" : "float"
+       },
+       "dunksmade_by_dunksmade_p_dunksmiss" : {
+         "type" : "double"
+       },
+       "dunksmiss+" : {
+         "type" : "long"
+       },
+       "dunksmiss_p_dunksmade" : {
+         "type" : "long"
+       },
+       "eFG" : {
+         "type" : "double"
+       },
+       "ftr" : {
+         "type" : "double"
+       },
+       "gbpm" : {
+         "type" : "double"
+       },
+       "ht" : {
+         "type" : "keyword"
+       },
+       "midmade" : {
+         "type" : "long"
+       },
+       "midmade+m" : {
+         "type" : "long"
+       },
+       "midmade/(m" : {
+         "type" : "float"
+       },
+       "midmade_by_midmade_p_midmiss" : {
+         "type" : "double"
+       },
+       "midmade_p_midmiss" : {
+         "type" : "long"
+       },
+       "mp" : {
+         "type" : "double"
+       },
+       "num" : {
+         "type" : "long"
+       },
+       "obpm" : {
+         "type" : "double"
+       },
+       "ogbpm" : {
+         "type" : "double"
+       },
+       "oreb" : {
+         "type" : "double"
+       },
+       "pfr" : {
+         "type" : "double"
+       },
+       "pick" : {
+         "type" : "long"
+       },
+       "pid" : {
+         "type" : "long"
+       },
+       "player_name" : {
+         "type" : "keyword",
+         "fields" : {
+           "raw" : {
+             "type" : "text"
+           }
+         }
+       },
+       "porpag" : {
+         "type" : "double"
+       },
+       "pts" : {
+         "type" : "double"
+       },
+       "rimmade" : {
+         "type" : "long"
+       },
+       "rimmade+ri" : {
+         "type" : "long"
+       },
+       "rimmade/(ri" : {
+         "type" : "float"
+       },
+       "rimmade_by_rimmade_p_rimmiss" : {
+         "type" : "double"
+       },
+       "rimmade_p_rimmiss" : {
+         "type" : "long"
+       },
+       "role" : {
+         "type" : "keyword"
+       },
+       "stl" : {
+         "type" : "double"
+       },
+       "stl_per" : {
+         "type" : "double"
+       },
+       "stops" : {
+         "type" : "double"
+       },
+       "team" : {
+         "type" : "keyword",
+         "fields" : {
+           "raw" : {
+             "type" : "text"
+           }
+         }
+       },
+       "treb" : {
+         "type" : "double"
+       },
+       "twoPA" : {
+         "type" : "long"
+       },
+       "twoPM" : {
+         "type" : "long"
+       },
+       "twoP_per" : {
+         "type" : "double"
+       },
+       "type" : {
+         "type" : "keyword"
+       },
+       "usg" : {
+         "type" : "double"
+       },
+       "year" : {
+         "type" : "long"
+       },
+       "yr" : {
+         "type" : "keyword"
+       }
+     }
+   }
+ }

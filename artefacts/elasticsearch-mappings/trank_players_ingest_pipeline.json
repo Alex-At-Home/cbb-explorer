@@ -1,0 +1,491 @@
+{
+   "trank_players-pipeline" : {
+      "description" : "Ingest pipeline created by file structure finder",
+      "processors" : [
+        {
+          "csv" : {
+            "field" : "message",
+            "target_fields" : [
+              "player_name",
+              "team",
+              "conf",
+              "GP",
+              "Min_per",
+              "ORtg",
+              "usg",
+              "eFG",
+              "TS_per",
+              "ORB_per",
+              "DRB_per",
+              "AST_per",
+              "TO_per",
+              "FTM",
+              "FTA",
+              "FT_per",
+              "twoPM",
+              "twoPA",
+              "twoP_per",
+              "TPM",
+              "TPA",
+              "TP_per",
+              "blk_per",
+              "stl_per",
+              "ftr",
+              "yr",
+              "ht",
+              "num",
+              "porpag",
+              "adjoe",
+              "pfr",
+              "year",
+              "pid",
+              "type",
+              "Rec Rank",
+              "ast/tov",
+              "rimmade",
+              "rimmade_p_rimmiss",
+              "midmade",
+              "midmade_p_midmiss",
+              "rimmade_by_rimmade_p_rimmiss",
+              "midmade_by_midmade_p_midmiss",
+              "dunksmade",
+              "dunksmiss_p_dunksmade",
+              "dunksmade_by_dunksmade_p_dunksmiss",
+              "pick",
+              "drtg",
+              "adrtg",
+              "dporpag",
+              "stops",
+              "bpm",
+              "obpm",
+              "dbpm",
+              "gbpm",
+              "mp",
+              "ogbpm",
+              "dgbpm",
+              "oreb",
+              "dreb",
+              "treb",
+              "ast",
+              "stl",
+              "blk",
+              "pts",
+              "role"
+            ],
+            "ignore_missing" : false
+          }
+        },
+        {
+          "convert" : {
+            "field" : "AST_per",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "DRB_per",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "FTA",
+            "type" : "long",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "FTM",
+            "type" : "long",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "FT_per",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "GP",
+            "type" : "long",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "Min_per",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "ORB_per",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "ORtg",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "Rec Rank",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "TO_per",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "TPA",
+            "type" : "long",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "TPM",
+            "type" : "long",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "TP_per",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "TS_per",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "adjoe",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "adrtg",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "ast",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "ast/tov",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "blk",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "blk_per",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "bpm",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "dbpm",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "dgbpm",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "dporpag",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "dreb",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "drtg",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "dunksmade",
+            "type" : "long",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "dunksmade_by_dunksmade_p_dunksmiss",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "dunksmiss_p_dunksmade",
+            "type" : "long",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "eFG",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "ftr",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "gbpm",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "midmade",
+            "type" : "long",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "midmade_by_midmade_p_midmiss",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "midmade_p_midmiss",
+            "type" : "long",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "mp",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "num",
+            "type" : "long",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "obpm",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "ogbpm",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "oreb",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "pfr",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "pick",
+            "type" : "long",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "pid",
+            "type" : "long",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "porpag",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "pts",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "rimmade",
+            "type" : "long",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "rimmade_by_rimmade_p_rimmiss",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "rimmade_p_rimmiss",
+            "type" : "long",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "stl",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "stl_per",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "stops",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "treb",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "twoPA",
+            "type" : "long",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "twoPM",
+            "type" : "long",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "twoP_per",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "usg",
+            "type" : "double",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "convert" : {
+            "field" : "year",
+            "type" : "long",
+            "ignore_missing" : true
+          }
+        },
+        {
+          "remove" : {
+            "field" : "message"
+          }
+        }
+      ]
+    }  
+}

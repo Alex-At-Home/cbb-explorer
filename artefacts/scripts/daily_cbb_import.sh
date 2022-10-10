@@ -2,7 +2,7 @@
 # (put = in TEAM_FILTER to make it exact match vs URL-encoded string)
 
 #Off season mode: do nothing except keep track of transfers
-export OFFSEASON_MODE="yes"
+export OFFSEASON_MODE="no"
 if [[ "$OFFSEASON_MODE" == "yes" ]]; then
    echo "In Off-season mode, will just keep track of transfers"
    export DAILY_IMPORT="no"

@@ -35,7 +35,7 @@ object DataQualityIssues {
     // Hamilton brothers (BC 18-19/20)
     combos("Jared", "Hamilton") ++ combos("Jairus", "Hamilton") ++
     // Wisconsin team-mates, give Jordan "Jn" and Jonathan/Johnny gets "Jo"
-    // TODO: need to reimport 2020/21 where I did this the other way round for some reason (Jonathan is Jn)
+// TODO: need to reimport 2020/21 where I did this the other way round for some reason (Jonathan is Jn)
     combos("Jordan", "Davis") ++ 
     // Cumberland relatives (Cinci)
     // These two have the same name regardless of strategy! Use misspellings to tuncate Jaev's name
@@ -45,25 +45,56 @@ object DataQualityIssues {
 
     // These caused issues during roster import:
 
+    // Men 20/21
+
     // Bama 20/21 - Quinerly bros(?) Jahvon and Jaden, leave Jahvon with Ja, Jadon gets Jn
     combos("Jaden", "Quinerly") ++
     // Wichita St 20/21 - Trey and Trevin Wade. Trevin gets Tn
     combos("Trevin", "Wade")  ++
     // Ohio 20/21 - Miles and Michael Brown. Micheal gets  Ml
     combos("Michael", "Brown") ++
+
+    // Men 22/23
+
+    // Arizona St. 2022/23, 2x Cambridge transfers one played ~20mpg at Auburn, other 30mpg at Nevada (change both)
+//TODO: will make the history view in hoop-explorer not work    
+    combos("Devan", "Cambridge") ++ combos("Desmond", "Cambridge Jr.") ++
+
+    // Kansas City, 2022/23, Precious and Promise Idiaru ... we'll change both
+    combos("Precious", "Idiaru") ++ combos("Promise", "Idiaru") ++
+
+    // CSU Bakersfield 2022/23, Kareem and Kaseem Watson
+    // see also under misspellings, go with Kareem->Ka, Kaseem->Ks
+    combos("Kas", "Watson") ++ 
+
+    // Women 18/19
+
     // Women 2018 Wash St. Molina - Chanelle v Cherilyn (leave Chanelle else will conflict with 3rd sister Celena!)
     combos("Cherilyn", "Molina") ++
+
+    // Women 19/20
+
     // Women 2019 Cinci - Scott, Jadyn / Jada
     combos("Jadyn", "Scott") ++ combos("Jada", "Scott") ++
     // Women 2019 Memphis - Williams, Lanetta / Lanyce (->Le)
     combos("Lanyce", "Williams") ++
+
+    // Women 20/21
+
+    // Gonzaga 2020/21 (W) "Truong, Kaylynne" and "Truong, Kayleigh" - Kayleigh is the starter
+    combos("Kaylynne", "Truong") ++
+
+    // Women 21/22
+
     // Florida 2021/22 Tatiana and Taliyah Wyche ... make Taliyah be Th because otherwise they are both Ta!
     combos("Taliyah", "Wyche") ++
     // Syracuse 2021/22 Christianna and Chrislyn Carr .. both starting! Sorry Chrislyn :)
     combos("Chrislyn", "Carr") ++
 
-    // Gonzaga 2020/21 (W) "Truong, Kaylynne" and "Truong, Kayleigh" - Kayleigh is the starter
-    combos("Kaylynne", "Truong") ++
+    // Women 22/23
+
+    // Miami 22/23: Haley and Hannah Cavinder, both from Fresno St so change both since neither in DB currently
+    combos("Haley", "Cavinder") ++ combos("Hannah", "Cavinder") ++
 
     Nil
   ):_*).map(_.toLowerCase)
@@ -124,6 +155,12 @@ object DataQualityIssues {
       // Truncate Jaevin's name (sorry Jaevin!)
       Seq("CUMBERLAND,J" -> "Cumberland, Jarron") ++ //(some legacy typo, just in case!)
       alias_combos(("Jaevin", "Cumberland") -> "Cumberland, Jaev")
+    ):_*),
+
+    Option(TeamId("CSU Bakersfield")) -> Map((
+      // The Watsons have caused quite a mess!
+      // Truncate Kaseem's name (sorry Kaseem!)
+      alias_combos(("Kaseem", "Watson") -> "Watson, Kas")
     ):_*)
 
   ).mapValues(

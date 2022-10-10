@@ -4,7 +4,7 @@
 # Ensure ".scripts.env" has been run
 
 export CURR_TIME=${CURR_TIME:=$(date +"%s")}
-export CURR_EFF_YEAR=${CURR_EFF_YEAR:="2022"}
+export CURR_EFF_YEAR=${CURR_EFF_YEAR:="2023"}
 
 if [ "$1" != "--skip-download" ]; then
   if [ -z "$COOKIE" ]; then

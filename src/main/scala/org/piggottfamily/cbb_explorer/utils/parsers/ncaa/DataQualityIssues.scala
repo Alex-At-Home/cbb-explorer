@@ -67,6 +67,13 @@ object DataQualityIssues {
     // see also under misspellings, go with Kareem->Ka, Kaseem->Ks
     combos("Kas", "Watson") ++ 
 
+    // Seton Hall 2022/23, new! JaQuan Harris, old Jamir Harris
+    combos("JaQuan", "Harris") ++ 
+
+    // Southern U 2022/23, Jaronn+Jariyon Wilkens, neither played D1 last year
+    // see also under misspellings, go with Jariyon->(Jariy)->Jy, Jaronn can jeep Ja.
+    combos("Jariy", "Wilkens") ++ 
+
     // Women 18/19
 
     // Women 2018 Wash St. Molina - Chanelle v Cherilyn (leave Chanelle else will conflict with 3rd sister Celena!)
@@ -161,6 +168,12 @@ object DataQualityIssues {
       // The Watsons have caused quite a mess!
       // Truncate Kaseem's name (sorry Kaseem!)
       alias_combos(("Kaseem", "Watson") -> "Watson, Kas")
+    ):_*),
+
+    Option(TeamId("Southern U.")) -> Map((
+      // The Wilkens have caused quite a mess!
+      // Truncate Jariyon's name (sorry Jariyon!)
+      alias_combos(("Jariyon", "Wilkens") -> "Wilkens, Jariy")
     ):_*)
 
   ).mapValues(

@@ -15,7 +15,9 @@ import scala.io.Source
 import scala.util.{Try, Success, Failure}
 import java.net.URLDecoder
 
-/** Reads the ingest pipeline and builds a team list for the web page */
+/** Reads the ingest pipeline and builds a team list for the web page 
+ * java -cp "$PBP_SRC_ROOT/target/scala-2.12/cbb-explorer-assembly-0.1-deps.jar:$PBP_SRC_ROOT/target/scala-2.12/cbb-explorer_2.12-0.1.jar" org.piggottfamily.cbb_explorer.ParseIngestPipeline --in=$HOME/websites/NCAA_by_conf
+*/
 object ParseIngestPipeline {
 
   val ncaa_conf_map = Map( 
@@ -64,6 +66,7 @@ object ParseIngestPipeline {
     "2019" -> "2019/20",
     "2020" -> "2020/21",
     "2021" -> "2021/22",
+    "2022" -> "2022/23",
   )
 
   def main(args: Array[String]): Unit = {

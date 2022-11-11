@@ -7,7 +7,7 @@ array=(
    '402.0/16060::McNeese'
    '483.0/16060::Nicholls'
    '2743.0/16060::UIW'
-   '287.0/16060::Houston+Baptist'
+   '287.0/16060::Houston+Christian'
    '474.0/16060::New+Orleans'
    '508.0/16060::Northwestern+St.'
    '26172.0/16060::A%26M-Corpus+Christi'

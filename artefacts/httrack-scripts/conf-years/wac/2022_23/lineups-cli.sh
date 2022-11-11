@@ -16,7 +16,7 @@ array=(
    '30135.0/16060::California+Baptist'
    '1395.0/16060::Tarleton+St.'
    '346.0/16060::Lamar+University'
-   '30095.0/16060::Dixie+St.'
+   '30095.0/16060::Utah+Tech'
    '667.0/16060::Southern+Utah'
    '702.0/16060::UT+Arlington'
 )

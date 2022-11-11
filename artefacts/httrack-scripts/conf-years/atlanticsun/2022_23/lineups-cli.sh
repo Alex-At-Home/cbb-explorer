@@ -13,7 +13,7 @@ array=(
    '1157.0/16060::Kennesaw+St.'
    '52.0/16060::Bellarmine'
    '487.0/16060::North+Ala.'
-   '1004.0/16060::Central+Ark'
+   '1004.0/16060::Central+Ark.'
    '202.0/16060::Eastern+Ky.'
    '315.0/16060::Jacksonville+St.'
    '43.0/16060::Austin+Peay'

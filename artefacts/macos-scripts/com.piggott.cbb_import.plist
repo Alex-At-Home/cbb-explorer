@@ -33,7 +33,7 @@
       <string>yes</string>
 
       <key>BUILD_EFFICIENCY</key>
-      <string>no</string>
+      <string>yes</string>
 
       <key>BUILD_LEADERBOARDS</key>
       <string>cron</string>

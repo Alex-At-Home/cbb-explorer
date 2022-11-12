@@ -2,9 +2,16 @@
 
 //TODO:  give more details about the spreadsheet
 
+//("Team Stats" table is defined by efficiencyStatsMergeConfig)
+
+function doGet(e) {
+  uploadEfficiencyToElasticsearch()
+  return HtmlService.createHtmlOutputFromFile("WebApp") //(this is just the default HTML created by Google script engine)
+}
+
 function uploadEfficiencyToElasticsearch() {
-  // var ss = SpreadsheetApp.getActive()
-  // var sheet = ss.getSheetByName("TEST")
+  var ss = SpreadsheetApp.getActive()
+  var sheet = ss.getSheetByName("TEST")
 
   var esMeta = ManagementService_.getEsMeta()
   // sheet.getRange(1,1).setValue(esMeta.username)
@@ -15,7 +22,33 @@ function uploadEfficiencyToElasticsearch() {
       "Content-Type": "application/json"
   }
 
-  // Delete existing entries
+  // Refresh the 3P shooting LUT from the query "Team Stats"
+
+  var tableName = "Team Stats"
+  var tableConfig = ManagementService_.listSavedObjects()[tableName]
+  var queryMeta = ElasticsearchService_.getElasticsearchMetadata(tableName, tableConfig)
+  
+  var aggregationQuery = ElasticsearchService_.buildAggregationQuery(tableConfig)
+  delete aggregationQuery._source
+
+  var refreshTableUrl = esMeta.url + "/" + tableConfig.aggregation_table.index_pattern + "/_search"
+  var refreshTableOptions = {
+    "method": "post",
+    "headers": headers,
+    "payload": JSON.stringify(aggregationQuery)
+  }
+  var refreshTableResponse = UrlFetchApp.fetch(refreshTableUrl, refreshTableOptions)
+
+  // sheet.getRange(1,2).setValue(JSON.stringify(queryMeta).substring(0, 2048))
+  // sheet.getRange(2,2).setValue(tableConfig.aggregation_table.index_pattern)
+  // sheet.getRange(3,2).setValue(JSON.stringify(aggregationQuery).substring(0, 2048))
+  // sheet.getRange(4,2).setValue(refreshTableResponse.getContentText().substring(0, 2048))
+
+  ElasticsearchService_.handleAggregationResponse(
+    tableName, tableConfig, queryMeta, { response: JSON.parse(refreshTableResponse.getContentText()) }, aggregationQuery
+  )
+
+  // Then Delete existing entries
 
   var bulkDeleteUrl = esMeta.url + "/kenpom_all/_delete_by_query"
   var bulkDeleteOptions = {
@@ -32,7 +65,7 @@ function uploadEfficiencyToElasticsearch() {
   var bulkDeleteResponse = UrlFetchApp.fetch(bulkDeleteUrl, bulkDeleteOptions)
   // sheet.getRange(3,1).setValue(bulkDeleteResponse.getContentText())
 
-  // Now bulk upload new entries:
+  // Now bulk upload new entries from data range "KenPomRange":
 
   var toUpload = LookupService_.getJsonLookup("KenPomRange")
   var toUploadJson = []
@@ -56,5 +89,3 @@ function uploadEfficiencyToElasticsearch() {
   var bulkUploadResponse = UrlFetchApp.fetch(bulkUploadUrl, bulkUploadOptions)
   // sheet.getRange(6,1).setValue(bulkUploadResponse.getContentText().substring(0, 1024))
 }
-
-

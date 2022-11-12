@@ -1,0 +1,148 @@
+{
+   "aggregation_table": {
+      "pipelines": [],
+      "map_reduce": {
+         "reduce": "//Called once on \"states\",\n//a list of the return\n//values from each shard's\n//combine:\n//return states.stream()\n//   .collect(finalCollector);",
+         "init": "//Init \"state\" variable, eg:\n//(list or map)\n//state.collect = [];\n//state.collect = [:];",
+         "lib": "//Add internal logic here\n//to keep the map/etc scripts\n//easier to follow.\n//Everything in here is \n//available to all other\n//scripts. Eg:\n//def myFunction(def param) {\n// return value   \n//}",
+         "params": {},
+         "map": "//Update state with info\n//from \"doc\" or \"params._source\"\n//(called once per doc)\n//eg state.collect.add(\n//    doc['field'].value\n// );\n// or (fold)\n// state.collect.stat += \n//    doc['field'].value;",
+         "combine": "//Called once per shard\n//once all docs processed\n//eg:\n//return state.collect\n//   .stream()\n//   .filter(t => true)\n//   .collect(shardCollector);"
+      },
+      "query": {
+         "_source": "$$field_filters",
+         "query": {
+            "bool": {
+               "filter": [],
+               "must_not": [],
+               "should": [],
+               "must": [
+                  {
+                     "query_string": {
+                        "query": "$$query"
+                     }
+                  }
+               ]
+            }
+         }
+      },
+      "buckets": [
+         {
+            "agg_type": "terms",
+            "name": "team",
+            "config": {
+               "field": "team.team.keyword",
+               "size": 500
+            },
+            "field_filter": "-doc_count_error_upper_bound,-sum_other_doc_count"
+         }
+      ],
+      "script_fields": [],
+      "metrics": [
+         {
+            "agg_type": "sum",
+            "name": "possessions",
+            "config": {
+               "field": "team_stats.num_possessions"
+            }
+         },
+         {
+            "agg_type": "sum",
+            "name": "_3pa",
+            "config": {
+               "field": "team_stats.fg_3p.attempts.total"
+            }
+         },
+         {
+            "agg_type": "sum",
+            "name": "_3pm",
+            "config": {
+               "field": "team_stats.fg_3p.made.total"
+            }
+         }
+      ],
+      "index_pattern": "*_2022,-bad*,-women*,-player_events*",
+      "enabled": true
+   },
+   "trigger": "control_change",
+   "common": {
+      "headers": {
+         "position": "top",
+         "field_filters": [
+            "# eg -x.*.y / +x.y (start with -s where possible)",
+            "# pre-built groups: $$<name> ($$skipN for blank cols)",
+            "#(note fields are laid out in match order)"
+         ],
+         "exclude_filtered_fields_from_autocomplete": true,
+         "field_aliases": [
+            "#field.path=Alias To Use",
+            "#(note fields are laid out in order within filter matches)"
+         ],
+         "autocomplete_filters": [
+            "# eg x, -x.*.y, +x.y (start with -s if possible)",
+            "# pre-built groups: $$<name>"
+         ]
+      },
+      "pagination": {
+         "local": {
+            "position": "bottom"
+         },
+         "source": "none"
+      },
+      "global_control_triggers": [],
+      "query": {
+         "global": {
+            "range_name": "[sheet!]range"
+         },
+         "local": {
+            "position": "top"
+         },
+         "source": "local"
+      },
+      "skip": {},
+      "global_content_triggers": [],
+      "formatting": {
+         "theme": "minimal",
+         "include_note": true
+      },
+      "status": {
+         "global": {
+            "range_name": "[sheet!]range"
+         },
+         "merge": false,
+         "position": "top"
+      }
+   },
+   "sql_table": {
+      "enabled": false,
+      "query": "--SHOW TABLES\n--DESCRIBE \"$$index\"\n--SELECT * FROM \"$$index\" WHERE $$query $$pagination"
+   },
+   "cat_table": {
+      "options": [],
+      "endpoint": "",
+      "enabled": false
+   },
+   "data_table": {
+      "script_fields": [],
+      "enabled": false,
+      "query": {
+         "from": "$$pagination_from",
+         "_source": "$$field_filters",
+         "size": "$$pagination_size",
+         "query": {
+            "bool": {
+               "filter": [],
+               "must_not": [],
+               "should": [],
+               "must": [
+                  {
+                     "query_string": {
+                        "query": "$$query"
+                     }
+                  }
+               ]
+            }
+         }
+      }
+   }
+}

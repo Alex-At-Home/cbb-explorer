@@ -39,8 +39,15 @@ fi
 # cron: Mon,Wed,Fri,Sun
 echo "daily_cbb_import: [$(date)] Checking to whether recalculate efficiency policy=[$BUILD_EFFICIENCY] day=[$(date +%u)]":
 if [[ "$BUILD_EFFICIENCY" == "yes" ]] || [[ "$BUILD_EFFICIENCY" == "cron" && $(date +%u) =~ [1357] ]]; then
-   echo "daily_cbb_import: [$(date)] Recalculating men's efficiency stats..."
-   sh $PBP_SRC_ROOT/artefacts/scripts/full_men_efficiency_import.sh
+   if [[ "$EFF_TRIGGER_UPLOAD" == "" ]]; then
+      echo "daily_cbb_import: [$(date)] Recalculating full men's efficiency stats..."
+      sh $PBP_SRC_ROOT/artefacts/scripts/full_men_efficiency_import.sh
+   else 
+      echo "daily_cbb_import: [$(date)] Triggering mens efficiency tracking spreadsheet..."
+      curl "$EFF_TRIGGER_UPLOAD"
+      #(Ensure ES is updated)
+      sleep 10
+   fi
 
    #TODO: women's stats
 
@@ -56,15 +63,17 @@ if [[ "$DAILY_IMPORT" == "yes" ]]; then
 fi
 
 #TODO: offseason only, first thing in the morning: download transfers
-echo "daily_cbb_import: [$(date)] Checking whether to download transfers"
-if [[ $(date +%H) -lt 7 ]]; then
-   echo "daily_cbb_import: [$(date)] Downloading transfers"
+if [[ "$OFFSEASON_MODE" == "yes" ]]; then
+   echo "daily_cbb_import: [$(date)] Checking whether to download transfers"
+   if [[ $(date +%H) -lt 7 ]]; then
+      echo "daily_cbb_import: [$(date)] Downloading transfers"
 
-   sh $PBP_SRC_ROOT/artefacts/scripts/build_transfer_filter.sh
+      sh $PBP_SRC_ROOT/artefacts/scripts/build_transfer_filter.sh
 
-   if [[ "$OFFSEASON_MODE" == "yes" ]]; then
-      # redeploy since nothing else is happening in off-season mode
-      sh handle-updated-data.sh
+      if [[ "$OFFSEASON_MODE" == "yes" ]]; then
+         # redeploy since nothing else is happening in off-season mode
+         sh handle-updated-data.sh
+      fi
    fi
 fi
 
@@ -84,9 +93,9 @@ if [[ "$BUILD_LEADERBOARDS" == "yes" ]] || [[ "$BUILD_LEADERBOARDS" = "cron" && 
    npm run build_leaderboards -- --tier=Combo
    npm run build_leaderboards -- --gender=Women --tier=High
 
-   # Upload to GCS (and delete on success)
-   gsutil cp ./public/leaderboards/lineups/*2021*.json gs://$LEADERBOARD_BUCKET/ && \
-      rm -f ./public/leaderboards/lineups/*2021*.json
+   # Upload to GCS (and delete on success) - (High/Med/Low/Combo but not Preseason)
+   gsutil cp ./public/leaderboards/lineups/*2022_[HLMC]*.json gs://$LEADERBOARD_BUCKET/ && \
+      rm -f ./public/leaderboards/lineups/*2022_[HLMC]*.json
 
    # Now need to redeploy _again_ to clear the cache
    sh handle-updated-data.sh

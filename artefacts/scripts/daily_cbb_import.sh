@@ -43,13 +43,19 @@ if [[ "$BUILD_EFFICIENCY" == "yes" ]] || [[ "$BUILD_EFFICIENCY" == "cron" && $(d
       echo "daily_cbb_import: [$(date)] Recalculating full men's efficiency stats..."
       sh $PBP_SRC_ROOT/artefacts/scripts/full_men_efficiency_import.sh
    else 
-      echo "daily_cbb_import: [$(date)] Triggering mens efficiency tracking spreadsheet..."
+      echo "daily_cbb_import: [$(date)] Triggering men's efficiency tracking spreadsheet..."
       curl "$EFF_TRIGGER_UPLOAD"
       #(Ensure ES is updated)
       sleep 10
    fi
-
-   #TODO: women's stats
+   if [[ "$EFF_WOMEN_TRIGGER_UPLOAD" != "" ]]; then
+      echo "daily_cbb_import: [$(date)] Triggering women's efficiency tracking spreadsheet..."
+      sh $PBP_SRC_ROOT/artefacts/scripts/women_efficiency_import.sh
+      #(Ensure ES is updated)
+      sleep 10
+   else
+      echo "(Women's efficiency pipeline not configured)"
+   fi
 
    export DAILY_IMPORT="yes"
 fi

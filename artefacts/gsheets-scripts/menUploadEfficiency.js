@@ -2,7 +2,7 @@
 
 //TODO:  give more details about the spreadsheet
 
-//("Team Stats" table is defined by efficiencyStatsMergeConfig)
+//("Team Stats" table is defined by menEfficiencyStatsMergeConfig)
 
 function doGet(e) {
   uploadEfficiencyToElasticsearch()

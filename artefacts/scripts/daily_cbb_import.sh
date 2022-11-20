@@ -99,9 +99,14 @@ if [[ "$BUILD_LEADERBOARDS" == "yes" ]] || [[ "$BUILD_LEADERBOARDS" = "cron" && 
    npm run build_leaderboards -- --tier=Combo
    npm run build_leaderboards -- --gender=Women --tier=High
 
+   # compress all the files
+   for i in $(ls ./public/leaderboards/lineups/*2022_[HLMC]*.json); do
+      gzip $i
+   done
+
    # Upload to GCS (and delete on success) - (High/Med/Low/Combo but not Preseason)
-   gsutil cp ./public/leaderboards/lineups/*2022_[HLMC]*.json gs://$LEADERBOARD_BUCKET/ && \
-      rm -f ./public/leaderboards/lineups/*2022_[HLMC]*.json
+   gsutil cp ./public/leaderboards/lineups/*2022_[HLMC]*.json.gz gs://$LEADERBOARD_BUCKET/ && \
+      rm -f ./public/leaderboards/lineups/*2022_[HLMC]*.json.gz
 
    # Now need to redeploy _again_ to clear the cache
    sh handle-updated-data.sh

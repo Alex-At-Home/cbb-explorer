@@ -159,6 +159,7 @@ object BuildPlayerLists {
 
       System.out.println(s"BuildPlayerLists: successfully identified [${player_codes.size}] players")
 
+      //TODO: would be nice to either use team(s) or first name as a distinguishing factor
       System.out.println(player_codes.mkString(","))
    }
 }

@@ -43,7 +43,28 @@ for i in $CONFS; do
   echo "******* Extracting conference [$i]"
   if [ "$DOWNLOAD" == "yes" ]; then
     echo "Downloading PBP files..."
-    $PBP_SRC_ROOT/artefacts/httrack-scripts/conf-years/${i}/${CURR_YEAR_STR}/lineups-cli.sh
+    $PBP_SRC_ROOT/artefacts/httrack-scripts/conf-years/${i}/${CURR_YEAR_STR}/lineups-cli.sh \
+      | tee $PBP_OUT_DIR/tmp_download_logs.txt
+
+    # Some error checking for a common httrack/server issue that crops up:
+    # (see also daily_cbb_import.sh - but this version fixes it on the fly)
+    if grep -F "************ ERRORS" $PBP_OUT_DIR/tmp_download_logs.txt; then
+      echo "Found errors in PBP downloads, see [$PBP_OUT_DIR/tmp_download_errs_$CONFS.txt]"
+      grep -F "************ ERRORS" $PBP_OUT_DIR/tmp_download_logs.txt |  cut -d" " -f3 > $PBP_OUT_DIR/tmp_download_errs_$CONFS.txt
+      for err_file in $(cat $PBP_OUT_DIR/tmp_download_errs_$CONFS.txt); do
+        echo "Checking [$err_file] for possible fix"
+        grep "Error" $err_file | grep "500" | grep -o "at link https://[^ ]*" | grep -o "https://[^ ]*" > /tmp/cbb-explorer-tofix
+        if [ -s /tmp/cbb-explorer-tofix ]; then
+          export ERR_DIR=$(dirname $err_file)
+          export ERR_LINK=$(cat /tmp/cbb-explorer-tofix | head -n 1)
+          echo "Found fixable issue: [zip -d $ERR_DIR/hts-cache/new.zip $ERR_LINK]"
+          zip -d $ERR_DIR/hts-cache/new.zip $ERR_LINK
+          echo "Now retry download (ignoring any further errors until next run)"
+          $PBP_SRC_ROOT/artefacts/httrack-scripts/conf-years/${i}/${CURR_YEAR_STR}/lineups-cli.sh
+        fi
+      done
+    fi
+    rm -f $PBP_OUT_DIR/tmp_download_logs.txt
   else
     echo "Skipping download"
   fi

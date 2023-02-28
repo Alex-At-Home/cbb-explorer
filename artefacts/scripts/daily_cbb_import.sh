@@ -22,10 +22,20 @@ cd $PBP_OUT_DIR
 
 if [[ "$DAILY_IMPORT" == "yes" ]]; then
 
-   echo "daily_cbb_import: [$(date)] Fix broken play-by-play files"
+   echo "daily_cbb_import: [$(date)] Fix broken play-by-play files TEST 1"
+   #^ (error in the zip file)
 
    for i in $(find $PBP_CRAWL_PATH -name "*.zip" | grep "/$CURR_YEAR/"); do
-      j=$(unzip -l $i | grep box_score | grep -E "\s+[0-9][0-9][0-9]?\s+" | grep -o 'https:.*') && echo "$i /// $j" && zip -d $i "$j";
+      j=$(unzip -l $i | grep box_score | grep -E "\s+[0-9][0-9][0-9]?\s+" | grep -o 'https:.*') && \
+         echo "FIX BROKEN1: $i /// $j" && zip -d $i "$j";
+   done
+
+   echo "daily_cbb_import: [$(date)] Fix broken play-by-play files TEST 2"
+   #^ (error in the cache - this is also done in bulk_lineup_import.sh)
+
+   for i in $(find $PBP_CRAWL_PATH -name "hts-log.txt" | grep "/$CURR_YEAR/"); do
+      j=$(cat $i | grep "Error" | grep "500" | grep -o "at link https://[^ ]*" | head -n 1 | grep -o "https://[^ ]*") && \
+         echo "FIX BROKEN2: $i /// $j" && zip -d $(dirname $i)/hts-cache/new.zip "$j";
    done
 
    ############

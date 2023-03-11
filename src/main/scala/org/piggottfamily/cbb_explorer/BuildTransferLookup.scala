@@ -29,7 +29,7 @@ object BuildTransferLookup {
 
       if (args.length < 4) {
          println("""
-         |--in=<<csv-file-to-read>>
+         |--in=<<csv-or-json-file-to-read>>
          |[--in-nba=<<html-nba-file-to-read>>]
          |--rosters=<<json-roster-dir>>
          |--out=<<out-file-in-which-JSON-output-is-placed>
@@ -73,40 +73,94 @@ object BuildTransferLookup {
       type TeamLutEntry = (String, String)
       val team_lut: Map[String, String] = team_lut_str.asCsvReader[TeamLutEntry](rfc).toList.flatMap(_.toOption).toMap
 
-      // Read in transfer list from file as CSV
-      val file = Path(in_file)
-      val transfer_csv = read.lines(file).mkString("\n")
-      type TransferEntry = (String, String, String, String, String, String, String, String, String, String)
-         //stars/pos/name/class/ht/wt/eligible/jan-eligible/school/dest
       case class TransferInfo(name: String, team: String, dest: Option[String])
 
-      val transfers = transfer_csv.asCsvReader[TransferEntry](rfc).toList.flatMap(_.toOption).flatMap { entry => 
-         val preproc_name = entry._3
-         val postproc_name = preproc_name.substring(0, preproc_name.size/2)
-         val preproc_team = entry._9.replace("State", "St.")
-         val preproc_dest = entry._10.replace("State", "St.")
-         //some more tidy up:
-         val name_frags = postproc_name.split(" ")
-         val tidied_postproc_name = if (name_frags.size == 2) {
-            s"${name_frags(0)}, ${name_frags(1)}" //(matches standard roster format)
-         } else postproc_name
-         val postproc_team = ExtractorUtils.remove_diacritics(team_lut.getOrElse(preproc_team, preproc_team))
-         val postproc_dest = ExtractorUtils.remove_diacritics(team_lut.getOrElse(preproc_dest, preproc_dest))
+      def normalize_team_name(in: String) = {
+         val preproc_team = in.replace("State", "St.")
+         ExtractorUtils.remove_diacritics(team_lut.getOrElse(preproc_team, preproc_team))
+      }
 
-         //Diag:
-         //System.out.println(s"Player: [${postproc_name}][${postproc_team}][${entry._10}]")
+      val transfers = if (in_file.endsWith(".csv")) {
 
-         if (postproc_team != "NOT_D1") { // already found a destination or not a D1 player
-            Some(TransferInfo(
-               name = tidied_postproc_name,
-               team = postproc_team,
-               dest = Some(postproc_dest).filter(_ != "")
-            ))
-         } else {
-            None
+         // Read in transfer list from file as CSV
+         val file = Path(in_file)
+         val transfer_csv = read.lines(file).mkString("\n")
+         type TransferEntry = (String, String, String, String, String, String, String, String, String, String)
+            //stars/pos/name/class/ht/wt/eligible/jan-eligible/school/dest
+
+         transfer_csv.asCsvReader[TransferEntry](rfc).toList.flatMap(_.toOption).flatMap { entry => 
+            val preproc_name = entry._3
+            val postproc_name = preproc_name.substring(0, preproc_name.size/2)
+            //some more tidy up:
+            val name_frags = postproc_name.split(" ")
+            val tidied_postproc_name = if (name_frags.size == 2) {
+               s"${name_frags(0)}, ${name_frags(1)}" //(matches standard roster format)
+            } else postproc_name
+
+            val postproc_team = normalize_team_name(entry._9)
+            val postproc_dest = normalize_team_name(entry._10)
+
+            //Diag:
+            //System.out.println(s"Player: [${postproc_name}][${postproc_team}][${entry._10}]")
+
+            if (postproc_team != "NOT_D1") { // already found a destination or not a D1 player
+               Some(TransferInfo(
+                  name = tidied_postproc_name,
+                  team = postproc_team,
+                  dest = Some(postproc_dest).filter(_ != "")
+               ))
+            } else {
+               None
+            }
+
+         }.toList
+      } else if (in_file.endsWith(".json")) {
+         // Read in transfer list from file as JSON
+         val file = Path(in_file)
+         val transfer_json_str = read.lines(file).mkString("\n")
+
+         implicit val decoder: Decoder[TransferInfo] = new Decoder[TransferInfo] {
+            override def apply(hCursor: HCursor): Decoder.Result[TransferInfo] = {
+               for {
+                  player_obj <- hCursor.downField("player").as[Json]
+                  player_cursor = player_obj.hcursor
+                  first_name <- player_cursor.downField("firstName").as[String]
+                  last_name <- player_cursor.downField("lastName").as[String]
+
+                  nested_obj <- hCursor.downField("offer").as[Json]
+                  nested_obj_cursor = nested_obj.hcursor
+
+                  transfer_obj <- nested_obj_cursor.downField("transferData").as[Json]
+                  transfer_cursor = transfer_obj.hcursor
+
+                  _ = System.out.println(transfer_obj.asJson)
+
+                  curr_school <- transfer_cursor.downField("fromSchoolName").as[String]
+                  maybe_dest_school <- transfer_cursor.downField("toSchoolName").as[Option[String]]
+
+               } yield {
+                  TransferInfo(
+                     s"$last_name, $first_name",
+                     normalize_team_name(curr_school),
+                     maybe_dest_school.map(normalize_team_name)
+                  )
+               }
+            }
          }
+         def decodeListTolerantly[A: Decoder]: Decoder[List[A]] =
+         Decoder.decodeList(Decoder[A].either(Decoder[Json])).map(
+            _.flatMap(_.left.toOption)
+         )
+         val myTolerantDecoder = decodeListTolerantly[TransferInfo]    
+         parser.decode[List[TransferInfo]](transfer_json_str)(myTolerantDecoder) match {
+            case Right(transfers: List[TransferInfo]) => transfers
+            case Left(ex) => 
+               throw new Exception(s"Parse failure(s): [${ex.getMessage}] vs [${transfer_json_str.substring(0, 128)}...]", ex)
+         }         
 
-      }.toList
+      } else { 
+         throw new Exception(s"--in [$in_file] needs to end .csv (legacy) or .json")
+      }
       
       System.out.println(s"BuildTransferLookup: Ingested [${transfers.size}] transfers")
 

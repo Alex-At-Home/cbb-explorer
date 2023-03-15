@@ -133,7 +133,8 @@ object BuildTransferLookup {
                   transfer_obj <- nested_obj_cursor.downField("transferData").as[Json]
                   transfer_cursor = transfer_obj.hcursor
 
-                  _ = System.out.println(transfer_obj.asJson)
+                  //Diag:
+                  //_ = System.out.println(transfer_obj.asJson)
 
                   curr_school <- transfer_cursor.downField("fromSchoolName").as[String]
                   maybe_dest_school <- transfer_cursor.downField("toSchoolName").as[Option[String]]

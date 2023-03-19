@@ -49,9 +49,9 @@ for i in $CONFS; do
     # Some error checking for a common httrack/server issue that crops up:
     # (see also daily_cbb_import.sh - but this version fixes it on the fly)
     if grep -F "************ ERRORS" $PBP_OUT_DIR/tmp_download_logs.txt; then
-      echo "Found errors in PBP downloads, see [$PBP_OUT_DIR/tmp_download_errs_$CONFS.txt]"
-      grep -F "************ ERRORS" $PBP_OUT_DIR/tmp_download_logs.txt |  cut -d" " -f3 > $PBP_OUT_DIR/tmp_download_errs_$CONFS.txt
-      for err_file in $(cat $PBP_OUT_DIR/tmp_download_errs_$CONFS.txt); do
+      echo "Found errors in PBP downloads, see [$PBP_OUT_DIR/tmp_download_errs_$i.txt]"
+      grep -F "************ ERRORS" $PBP_OUT_DIR/tmp_download_logs.txt |  cut -d" " -f3 > $PBP_OUT_DIR/tmp_download_errs_$i.txt
+      for err_file in $(cat $PBP_OUT_DIR/tmp_download_errs_$i.txt); do
         echo "Checking [$err_file] for possible fix"
         grep "Error" $err_file | grep "500" | grep -o "at link https://[^ ]*" | grep -o "https://[^ ]*" > /tmp/cbb-explorer-tofix
         if [ -s /tmp/cbb-explorer-tofix ]; then

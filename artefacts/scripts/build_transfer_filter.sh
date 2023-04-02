@@ -60,6 +60,9 @@ else
 fi
 
 echo "" > $PBP_OUT_DIR/nba_declarations_$CURR_YEAR_P1.html
+if [ "$CURR_YEAR_P1" -eq "2023" ]; then
+   curl -o $PBP_OUT_DIR/nba_declarations_$CURR_YEAR_P1.html "https://www.hoopsrumors.com/2023/03/2023-nba-draft-early-entrants-list.html"
+fi
 if [ "$CURR_YEAR_P1" -eq "2022" ]; then
    curl -o $PBP_OUT_DIR/nba_declarations_$CURR_YEAR_P1.html "https://www.hoopsrumors.com/2022/03/2022-nba-draft-early-entrants-list.html"
 fi
@@ -74,8 +77,7 @@ NUM_NBA=$(grep -c 'www.sports-reference.com' $PBP_OUT_DIR/nba_declarations_$CURR
 echo "build_transfer_filter: [$(date)] Downloaded [$NUM_NBA] lines of NBA declarations"
 echo "build_transfer_filter: [$(date)] Downloaded [$NUM_TRANSFERS] transfers"
 
-#if [[ $NUM_TRANSFERS -gt 0 ]] && [[ $NUM_NBA -gt 0 ]]; then
-if [[ $NUM_TRANSFERS -gt 0 ]]; then
+if [[ $NUM_TRANSFERS -gt 0 ]] && [[ $NUM_NBA -gt 0 ]]; then
    java -cp "$PBP_SRC_ROOT/target/scala-2.12/cbb-explorer-assembly-0.1-deps.jar:$PBP_SRC_ROOT/target/scala-2.12/cbb-explorer_2.12-0.1.jar" \
       org.piggottfamily.cbb_explorer.BuildTransferLookup --in=$TXFER_FILE_TO_PARSE \
       --in-nba=$PBP_OUT_DIR/nba_declarations_$CURR_YEAR_P1.html \

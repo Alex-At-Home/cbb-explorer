@@ -155,6 +155,16 @@ object DataQualityIssues {
 
     /////////////////////////////////
 
+    // Verbal commits
+
+    Option(TeamId("Oral Roberts")) -> Map(( //Summit
+      // Lots of box scores has him by this nickname (Josh "Colon" Navarro), as do PbP
+      alias_combos(("Max", "Abams") -> "Abmas, Max")
+    ):_*),
+
+
+    /////////////////////////////////
+
     // Hack to workaround duplicate name
 
     Option(TeamId("Cincinnati")) -> Map((

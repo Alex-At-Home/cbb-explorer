@@ -16,7 +16,7 @@ if [[ "$LEGACY_MODE" == "true" ]]; then
       echo "" > $PBP_OUT_DIR/transfers.csv.SAVED
    fi
 
-   curl -H 'Cache-Control: no-cache' \
+   curl -k -H 'Cache-Control: no-cache' \
       -o $PBP_OUT_DIR/transfers.html "https://verbalcommits.com/transfers/$CURR_YEAR_P1"
 
    $HTMLTAB_LOC/htmltab --select "table#player-rankings" $PBP_OUT_DIR/transfers.html > $PBP_OUT_DIR/transfers.csv
@@ -41,7 +41,7 @@ else
       echo "" > $PBP_OUT_DIR/transfers.json.SAVED
    fi
 
-   curl -H 'Cache-Control: no-cache' \
+   curl -k -H 'Cache-Control: no-cache' \
          -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.3 Safari/605.1.15' \
          -H 'Origin: https://verbalcommits.com' \
          -H 'Referer: https://verbalcommits.com/' \
@@ -61,16 +61,16 @@ fi
 
 echo "" > $PBP_OUT_DIR/nba_declarations_$CURR_YEAR_P1.html
 if [ "$CURR_YEAR_P1" -eq "2023" ]; then
-   curl -o $PBP_OUT_DIR/nba_declarations_$CURR_YEAR_P1.html "https://www.hoopsrumors.com/2023/03/2023-nba-draft-early-entrants-list.html"
+   curl -k -o $PBP_OUT_DIR/nba_declarations_$CURR_YEAR_P1.html "https://www.hoopsrumors.com/2023/03/2023-nba-draft-early-entrants-list.html"
 fi
 if [ "$CURR_YEAR_P1" -eq "2022" ]; then
-   curl -o $PBP_OUT_DIR/nba_declarations_$CURR_YEAR_P1.html "https://www.hoopsrumors.com/2022/03/2022-nba-draft-early-entrants-list.html"
+   curl -k -o $PBP_OUT_DIR/nba_declarations_$CURR_YEAR_P1.html "https://www.hoopsrumors.com/2022/03/2022-nba-draft-early-entrants-list.html"
 fi
 if [ "$CURR_YEAR_P1" -eq "2021" ]; then
-   curl -o $PBP_OUT_DIR/nba_declarations_$CURR_YEAR_P1.html "https://www.hoopsrumors.com/2021/04/2021-nba-draft-early-entrants-list.html"
+   curl -k -o $PBP_OUT_DIR/nba_declarations_$CURR_YEAR_P1.html "https://www.hoopsrumors.com/2021/04/2021-nba-draft-early-entrants-list.html"
 fi
 if [ "$CURR_YEAR_P1" -eq "2020" ]; then
-   curl -o $PBP_OUT_DIR/nba_declarations_$CURR_YEAR_P1.html "https://www.hoopsrumors.com/2020/03/2020-nba-draft-early-entrants-list.html"
+   curl -k -o $PBP_OUT_DIR/nba_declarations_$CURR_YEAR_P1.html "https://www.hoopsrumors.com/2020/03/2020-nba-draft-early-entrants-list.html"
 fi
 
 NUM_NBA=$(grep -c 'www.sports-reference.com' $PBP_OUT_DIR/nba_declarations_$CURR_YEAR_P1.html) 

@@ -133,10 +133,14 @@ object BuildTransferLookup {
                   transfer_obj <- nested_obj_cursor.downField("transferData").as[Json]
                   transfer_cursor = transfer_obj.hcursor
 
-                  //Diag:
-                  //_ = System.out.println(transfer_obj.asJson)
+                  maybe_curr_school_1 = transfer_cursor.downField("fromSchoolName").as[String]
+                  maybe_curr_school_2 = nested_obj_cursor.downField("schoolName").as[String]
 
-                  curr_school <- transfer_cursor.downField("fromSchoolName").as[String]
+                  curr_school <- if (maybe_curr_school_1.isRight) maybe_curr_school_1 else maybe_curr_school_2
+
+                  //Diag:
+                  //_ = if System.out.println(transfer_obj.asJson)
+
                   maybe_dest_school <- transfer_cursor.downField("toSchoolName").as[Option[String]]
 
                } yield {
@@ -218,6 +222,7 @@ object BuildTransferLookup {
       )
 
       val transfer_codes_to_team: Map[String, List[TransferToFrom]] = (nba_transfers ++ transfers).flatMap { transfer_entry =>
+
          val maybe_roster = roster_vs_team.get(transfer_entry.team)
          maybe_roster.flatMap { roster =>
             val tidy_ctx = LineupErrorAnalysisUtils.build_tidy_player_context(roster)

@@ -1,8 +1,11 @@
 #!/bin/bash
 # (put = in TEAM_FILTER to make it exact match vs URL-encoded string)
 
+#(ATTN: Before starting new season - there are some 2022 and 2023 literals that need to be fixed)
+
 #Off season mode: do nothing except keep track of transfers
 export OFFSEASON_MODE="yes"
+export PRESEASON_LEADERBOARD_MODE="yes" #(this is "no" until it settles down a bit, say mid April)
 if [[ "$OFFSEASON_MODE" == "yes" ]]; then
    echo "In Off-season mode, will just keep track of transfers"
    export DAILY_IMPORT="no"
@@ -70,6 +73,7 @@ if [[ "$BUILD_EFFICIENCY" == "yes" ]] || [[ "$BUILD_EFFICIENCY" == "cron" && $(d
    export DAILY_IMPORT="yes"
 fi
 
+# All steps below this one run from this directory
 cd $HOOPEXP_SRC_DIR
 source .env
 if [[ "$DAILY_IMPORT" == "yes" ]]; then
@@ -78,13 +82,25 @@ if [[ "$DAILY_IMPORT" == "yes" ]]; then
    source .env
 fi
 
-#TODO: offseason only, first thing in the morning: download transfers
+# Offseason only, first thing in the morning: download transfers, update pre-season prediction
 if [[ "$OFFSEASON_MODE" == "yes" ]]; then
    echo "daily_cbb_import: [$(date)] Checking whether to download transfers"
-   if [[ $(date +%H) -lt 7 ]]; then
+#   if [[ $(date +%H) -lt 7 ]]; then
+   if [[ true ]]; then
       echo "daily_cbb_import: [$(date)] Downloading transfers"
 
       sh $PBP_SRC_ROOT/artefacts/scripts/build_transfer_filter.sh
+
+      # Now we've update the transfers, recalculate the pre-season leaderboard and update GCS with the new file
+      if [[ "$PRESEASON_LEADERBOARD_MODE" == "yes" ]]; then
+         echo "daily_cbb_import: [$(date)] Updating pre-season leaderboard"      
+         cp $PBP_OUT_DIR/transfers_2023.json $HOOPEXP_SRC_DIR
+         BUILD_OFFSEASON_STATS_LEADERBOARD=true npm run test src/__tests__/buildOffseasonStatsLeaderboard.test.ts  -- --coverage=false
+         gzip ./stats_all_Men_2023_Preseason.json
+         gsutil cp ./stats_all_Men_2023_Preseason.json.gz gs://$LEADERBOARD_BUCKET/ && \
+            rm -f ./stats_all_Men_2023_Preseason.json.gz && \
+            rm -f $HOOPEXP_SRC_DIR/transfers_2023.json
+      fi
 
       if [[ "$OFFSEASON_MODE" == "yes" ]]; then
          # redeploy since nothing else is happening in off-season mode

@@ -36,13 +36,16 @@ trait NbaDeclarationParser {
    def early_declaration_finder(doc: Document): List[String] = 
       (doc >?> elementList("h2:contains(college underclassmen) + p + ol li")).map(els => els.map(_.text)).getOrElse(List())
 
+   def senior_declaration_finder(doc: Document): List[String] = 
+      (doc >?> elementList("h2:contains(college seniors) + p + ol li")).map(els => els.map(_.text)).getOrElse(List())
+
    def early_declaration_finder_2020(doc: Document): List[String] = 
       (doc >?> elementList("h3:contains(college players) + p + ol li")).map(els => els.map(_.text)).getOrElse(List())
 
   }
 
   /** Output format player / team */
-  def get_early_declarations(filename: String, in: String): Either[List[ParseError], List[(String, String)]] = {
+  def get_declarations(filename: String, in: String): Either[List[ParseError], List[(String, String)]] = {
 
     val browser = JsoupBrowser()
 
@@ -51,13 +54,17 @@ trait NbaDeclarationParser {
     val single_error_completer = ParseUtils.enrich_sub_error(`offseason.parse_nba_declarations`, filename) _
 
 
-    val team_extractor = "^([^(]+) [(].*$".r //<<team name>> (<<class>>)
+    //TODO: note this will mis-extract some team names , eg Miami (FL) - gets handled in the team name normalizer
+    val team_extractor = "^([^(]+)(?: [(].*)?$".r //<<team name>> (<<class-if-underclassman>>) 
 
     for {
       doc <- doc_request_builder(browser.parseString(in))
 
-      names = if (filename.contains("2020")) 
-         builders.early_declaration_finder_2020(doc) else builders.early_declaration_finder(doc)
+      names = if (filename.contains("2020")) {
+         builders.early_declaration_finder_2020(doc) 
+      } else {
+         builders.early_declaration_finder(doc) ++ builders.senior_declaration_finder(doc)
+      }
 
       name_team_pairs = names.flatMap { csv =>
          csv.split(" *, *").toList match {

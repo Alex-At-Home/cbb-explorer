@@ -175,7 +175,7 @@ object BuildTransferLookup {
          val nba_file = Path(filename)
          val nba_html = read.lines(nba_file).mkString("\n")
 
-         val nba_pairs = NbaDeclarationParser.get_early_declarations(filename, nba_html).getOrElse(List()).map {
+         val nba_pairs = NbaDeclarationParser.get_declarations(filename, nba_html).getOrElse(List()).map {
             case (name, team) => 
 
                //(diag:)

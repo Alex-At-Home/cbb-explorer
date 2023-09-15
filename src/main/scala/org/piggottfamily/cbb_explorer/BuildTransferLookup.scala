@@ -73,7 +73,7 @@ object BuildTransferLookup {
       type TeamLutEntry = (String, String)
       val team_lut: Map[String, String] = team_lut_str.asCsvReader[TeamLutEntry](rfc).toList.flatMap(_.toOption).toMap
 
-      case class TransferInfo(name: String, team: String, dest: Option[String])
+      case class TransferInfo(uuid: String, name: String, team: String, dest: Option[String], date: Option[String], graduating_year: Option[Int] = None)
 
       def normalize_team_name(in: String) = {
          val preproc_team = in.replace("State", "St.")
@@ -105,9 +105,11 @@ object BuildTransferLookup {
 
             if (postproc_team != "NOT_D1") { // already found a destination or not a D1 player
                Some(TransferInfo(
+                  uuid = s"$tidied_postproc_name:$postproc_team:$postproc_dest",
                   name = tidied_postproc_name,
                   team = postproc_team,
-                  dest = Some(postproc_dest).filter(_ != "")
+                  dest = Some(postproc_dest).filter(_ != ""),
+                  date = None
                ))
             } else {
                None
@@ -124,8 +126,10 @@ object BuildTransferLookup {
                for {
                   player_obj <- hCursor.downField("player").as[Json]
                   player_cursor = player_obj.hcursor
+                  uuid <- player_cursor.downField("uuid").as[String]
                   first_name <- player_cursor.downField("firstName").as[String]
                   last_name <- player_cursor.downField("lastName").as[String]
+                  graduating_year <- player_cursor.downField("highSchoolGraduationYear").as[Option[Int]]
 
                   nested_obj <- hCursor.downField("offer").as[Json]
                   nested_obj_cursor = nested_obj.hcursor
@@ -133,8 +137,11 @@ object BuildTransferLookup {
                   transfer_obj <- nested_obj_cursor.downField("transferData").as[Json]
                   transfer_cursor = transfer_obj.hcursor
 
+                  maybe_date_of_occurrence <- transfer_cursor.downField("dateOfOccurrence").as[Option[String]]
+
                   maybe_curr_school_1 = transfer_cursor.downField("fromSchoolName").as[String]
                   maybe_curr_school_2 = nested_obj_cursor.downField("schoolName").as[String]
+                  
 
                   curr_school <- if (maybe_curr_school_1.isRight) maybe_curr_school_1 else maybe_curr_school_2
 
@@ -143,11 +150,18 @@ object BuildTransferLookup {
 
                   maybe_dest_school <- transfer_cursor.downField("toSchoolName").as[Option[String]]
 
+                  _ = if (graduating_year.exists(_ > year)) {
+                     System.out.println(s"BuildTransferLookup: IGNORE FRESHMAN TRANSFER Player [$last_name],[$first_name]: [$curr_school] -> [$maybe_dest_school]") 
+                  } else ()
+
                } yield {
                   TransferInfo(
+                     uuid,
                      s"$last_name, $first_name",
                      normalize_team_name(curr_school),
-                     maybe_dest_school.map(normalize_team_name)
+                     maybe_dest_school.map(normalize_team_name),
+                     maybe_date_of_occurrence,
+                     graduating_year
                   )
                }
             }
@@ -157,11 +171,29 @@ object BuildTransferLookup {
             _.flatMap(_.left.toOption)
          )
          val myTolerantDecoder = decodeListTolerantly[TransferInfo]    
-         parser.decode[List[TransferInfo]](transfer_json_str)(myTolerantDecoder) match {
-            case Right(transfers: List[TransferInfo]) => transfers
+         (parser.decode[List[TransferInfo]](transfer_json_str)(myTolerantDecoder) match {
+            case Right(transfers: List[TransferInfo]) =>
+               //(remove _rising_ Freshmen from the list)
+               transfers.filter(_.graduating_year.forall(_ <= year))
             case Left(ex) => 
                throw new Exception(s"Parse failure(s): [${ex.getMessage}] vs [${transfer_json_str.substring(0, 128)}...]", ex)
-         }         
+         }).groupBy(_.uuid).map {
+            // handle players who transfer multiple times
+            case (uuid, teams) if teams.size > 1 =>
+               val sorted_teams = teams.sortBy(_.date)
+               val original_txfer = sorted_teams.headOption
+               val most_recent_txfer = sorted_teams.lastOption.toList
+               System.out.println(s"BuildTransferLookup: pick DUP [$uuid][name:${original_txfer.map(_.name)}][from:${original_txfer.map(_.team)}] [${teams}] -> [${most_recent_txfer.map(_.dest)}]")
+               most_recent_txfer.filter(
+                  _.dest.nonEmpty //(otherwise their most recent action was to re-enter the portal)
+               ).map(
+                  // need to get the player's original team so we can match them up vs the roster to get their hoop-explorer name
+                  last => last.copy(team = original_txfer.map(_.team).getOrElse(last.team))
+               )
+
+            case (_, teams) =>
+               teams
+         }.flatten.toList
 
       } else { 
          throw new Exception(s"--in [$in_file] needs to end .csv (legacy) or .json")
@@ -183,7 +215,7 @@ object BuildTransferLookup {
 
                val preproc_team = team.replace("State", "St.").replace("’", "'")
                TransferInfo(
-                  name, team_lut.getOrElse(preproc_team, preproc_team), Some("NBA")
+                  s"$name:$preproc_team", name, team_lut.getOrElse(preproc_team, preproc_team), Some("NBA"), None
                )
          }
 

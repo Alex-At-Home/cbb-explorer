@@ -4,17 +4,16 @@
 YEAR=2023
 CONF=conferenceusa
 array=(
-   '229.0/16501::Fla.+Atlantic'
    '231.0/16501::FIU'
-   '574.0/16501::Rice'
-   '706.0/16501::UTSA'
-   '497.0/16501::North+Texas'
-   '9.0/16501::UAB'
    '772.0/16501::Western+Ky.'
    '366.0/16501::Louisiana+Tech'
    '704.0/16501::UTEP'
-   '458.0/16501::Charlotte'
    '419.0/16501::Middle+Tenn.'
+   '315.0/16501::Jacksonville+St.'
+   '1157.0/16501::Kennesaw+St.'
+   '355.0/16501::Liberty'
+   '472.0/16501::New+Mexico+St.'
+   '624.0/16501::Sam+Houston'
 )
 
 for index in "${array[@]}" ; do

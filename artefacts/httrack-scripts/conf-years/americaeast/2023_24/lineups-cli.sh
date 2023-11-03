@@ -10,7 +10,6 @@ array=(
    '368.0/16501::UMass+Lowell'
    '469.0/16501::New+Hampshire'
    '471.0/16501::NJIT'
-   '272.0/16501::Hartford'
    '62.0/16501::Binghamton'
    '380.0/16501::Maine'
    '81.0/16501::Bryant'

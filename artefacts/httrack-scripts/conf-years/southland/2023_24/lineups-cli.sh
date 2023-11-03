@@ -13,6 +13,7 @@ array=(
    '26172.0/16501::A%26M-Corpus+Christi'
    '655.0/16501::Southeastern+La.'
    '199.0/16501::Tex.+A%26M-Commerce'
+   '346.0/16501::Lamar+University'
 )
 
 for index in "${array[@]}" ; do

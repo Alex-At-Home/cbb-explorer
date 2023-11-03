@@ -6,7 +6,6 @@ CONF=wcc
 array=(
    '260.0/16501::Gonzaga'
    '541.0/16501::Pepperdine'
-   '77.0/16501::BYU'
    '629.0/16501::San+Francisco'
    '551.0/16501::Portland'
    '370.0/16501::LMU+%28CA%29'

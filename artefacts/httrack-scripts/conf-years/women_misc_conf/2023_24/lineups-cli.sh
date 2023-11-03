@@ -8,7 +8,6 @@
 YEAR=2023
 CONF=women_misc_conf
 array=(
-'77.0/16500::BYU'
 '260.0/16500::Gonzaga'
 '554.0/16500::Princeton'
 '649.0/16500::South+Dakota+St.'

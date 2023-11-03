@@ -4,7 +4,6 @@
 YEAR=2023
 CONF=nec
 array=(
-   '599.0/16501::St.+Francis+Brooklyn'
    '361.0/16501::LIU'
    '222.0/16501::Fairleigh+Dickinson'
    '127.0/16501::Central+Conn.+St.'

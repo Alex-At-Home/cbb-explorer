@@ -17,6 +17,7 @@ array=(
    '439.0/16501::Monmouth'
    '488.0/16501::N.C.+A%26T'
    '683.0/16501::Stony+Brook'
+   '115.0/16501::Campbell'
 )
 
 for index in "${array[@]}" ; do

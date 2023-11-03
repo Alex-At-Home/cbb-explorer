@@ -14,6 +14,10 @@ array=(
    '311.0/16501::Iowa+St.'
    '698.0/16501::TCU'
    '327.0/16501::Kansas+St.'
+   '140.0/16501::Cincinnati'
+   '288.0/16501::Houston'
+   '128.0/16501::UCF'
+   '77.0/16501::BYU'
 )
 
 for index in "${array[@]}" ; do

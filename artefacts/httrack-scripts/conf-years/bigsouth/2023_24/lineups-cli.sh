@@ -6,7 +6,6 @@ CONF=bigsouth
 array=(
    '792.0/16501::Winthrop'
    '456.0/16501::UNC+Asheville'
-   '115.0/16501::Campbell'
    '1092.0/16501::Gardner-Webb'
    '19651.0/16501::High+Point'
    '10411.0/16501::USC+Upstate'

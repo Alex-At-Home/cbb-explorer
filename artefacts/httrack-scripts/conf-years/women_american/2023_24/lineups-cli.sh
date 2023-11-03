@@ -5,16 +5,14 @@ YEAR=2023
 CONF=women_american
 array=(
    '718.0/16500::Tulane'
-   '288.0/16500::Houston'
    '651.0/16500::South+Fla.'
    '782.0/16500::Wichita+St.'
    '690.0/16500::Temple'
-   '140.0/16500::Cincinnati'
    '404.0/16500::Memphis'
    '196.0/16500::East+Carolina'
-   '128.0/16500::UCF'
    '719.0/16500::Tulsa'
    '663.0/16500::SMU'
+   #(missing some schools taken from C-USA)
 )
 
 for index in "${array[@]}" ; do

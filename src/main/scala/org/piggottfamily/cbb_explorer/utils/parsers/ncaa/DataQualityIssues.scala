@@ -74,6 +74,11 @@ object DataQualityIssues {
     // see also under misspellings, go with Jariyon->(Jariy)->Jy, Jaronn can jeep Ja.
     combos("Jariy", "Wilkens") ++ 
 
+    // Men 23/24
+
+    // Colorado St. 2023/24, Kyle and Kyan Evans. Kyan's a Fr, sorry kid
+    combos("Kyan", "Evans") ++ 
+
     // Women 18/19
 
     // Women 2018 Wash St. Molina - Chanelle v Cherilyn (leave Chanelle else will conflict with 3rd sister Celena!)

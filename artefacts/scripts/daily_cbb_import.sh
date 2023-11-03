@@ -1,11 +1,12 @@
 #!/bin/bash
 # (put = in TEAM_FILTER to make it exact match vs URL-encoded string)
 
-#(ATTN: Before starting new season - there are some 2022 and 2023 literals that need to be fixed)
+#(ATTN: Before starting new season - there are some 2022 literals that need to be fixed)
+#(ATTN: Before starting the off-season - there are some 2023 literals that need to be fixed)
 
 #Off season mode: do nothing except keep track of transfers
-export OFFSEASON_MODE="yes"
-export PRESEASON_LEADERBOARD_MODE="yes" #(this is "no" until it settles down a bit, say mid April)
+export OFFSEASON_MODE="no"
+export PRESEASON_LEADERBOARD_MODE="no" #(this is "no" until it settles down a bit, say mid April)
 if [[ "$OFFSEASON_MODE" == "yes" ]]; then
    echo "In Off-season mode, will just keep track of transfers"
    export DAILY_IMPORT="no"
@@ -126,13 +127,13 @@ if [[ "$BUILD_LEADERBOARDS" == "yes" ]] || [[ "$BUILD_LEADERBOARDS" = "cron" && 
    npm run build_leaderboards -- --gender=Women --tier=High
 
    # compress all the files
-   for i in $(ls ./public/leaderboards/lineups/*2022_[HLMC]*.json); do
+   for i in $(ls ./public/leaderboards/lineups/*2023_[HLMC]*.json); do
       gzip $i
    done
 
    # Upload to GCS (and delete on success) - (High/Med/Low/Combo but not Preseason)
-   gsutil cp ./public/leaderboards/lineups/*2022_[HLMC]*.json.gz gs://$LEADERBOARD_BUCKET/ && \
-      rm -f ./public/leaderboards/lineups/*2022_[HLMC]*.json.gz
+   gsutil cp ./public/leaderboards/lineups/*2023_[HLMC]*.json.gz gs://$LEADERBOARD_BUCKET/ && \
+      rm -f ./public/leaderboards/lineups/*2023_[HLMC]*.json.gz
 
    # Now need to redeploy _again_ to clear the cache
    sh handle-updated-data.sh

@@ -11,6 +11,8 @@ export MEN_NEXT_ID=16501
 export WOMEN_PREV_ID=16061
 export WOMEN_NEXT_ID=16500
 
+echo "You should first duplicate and build the men's efficiency gsheet for this season and check for any new teams!"
+
 echo "Summary:"
 echo "REBUILD_EXISTING=$REBUILD_EXISTING PREV_YEAR=$PREV_YEAR PREV_YEAR_START=$PREV_YEAR_START NEXT_YEAR=$NEXT_YEAR NEXT_YEAR_START=$NEXT_YEAR_START"
 echo "MEN_PREV_ID=$MEN_PREV_ID MEN_NEXT_ID=$MEN_NEXT_ID WOMEN_PREV_ID=$WOMEN_PREV_ID WOMEN_NEXT_ID=$WOMEN_NEXT_ID"

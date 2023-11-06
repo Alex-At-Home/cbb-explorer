@@ -11,6 +11,7 @@ array=(
    '748.0/16501::Wagner'
    '600.0/16501::Saint+Francis+%28PA%29'
    '410.0/16501::Merrimack'
+   '349.0/16501::Le+Moyne'
 )
 
 for index in "${array[@]}" ; do

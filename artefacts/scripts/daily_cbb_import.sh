@@ -95,12 +95,12 @@ if [[ "$OFFSEASON_MODE" == "yes" ]]; then
       # Now we've update the transfers, recalculate the pre-season leaderboard and update GCS with the new file
       if [[ "$PRESEASON_LEADERBOARD_MODE" == "yes" ]]; then
          echo "daily_cbb_import: [$(date)] Updating pre-season leaderboard"      
-         cp $PBP_OUT_DIR/transfers_2023.json $HOOPEXP_SRC_DIR
+         cp $PBP_OUT_DIR/transfers_2024.json $HOOPEXP_SRC_DIR
          BUILD_OFFSEASON_STATS_LEADERBOARD=true npm run test src/__tests__/buildOffseasonStatsLeaderboard.test.ts  -- --coverage=false
-         gzip ./stats_all_Men_2023_Preseason.json
-         gsutil cp ./stats_all_Men_2023_Preseason.json.gz gs://$LEADERBOARD_BUCKET/ && \
-            rm -f ./stats_all_Men_2023_Preseason.json.gz && \
-            rm -f $HOOPEXP_SRC_DIR/transfers_2023.json
+         gzip ./stats_all_Men_2024_Preseason.json
+         gsutil cp ./stats_all_Men_2024_Preseason.json.gz gs://$LEADERBOARD_BUCKET/ && \
+            rm -f ./stats_all_Men_2024_Preseason.json.gz && \
+            rm -f $HOOPEXP_SRC_DIR/transfers_2024.json
       fi
 
       if [[ "$OFFSEASON_MODE" == "yes" ]]; then

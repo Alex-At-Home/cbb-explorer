@@ -14,6 +14,20 @@ if [[ "$OFFSEASON_MODE" == "yes" ]]; then
    export BUILD_LEADERBOARDS="no"
 fi
 
+# For some reason launchctl "randomly" runs as "root" not the user whose domain I specified
+# So we switch to alex and re-run self
+# TODO take user to run as from environment
+WHOAMI=$(whoami)
+if [[ "$WHOAMI" != "alex" ]]; then
+   if [[ "$WHOAMI" == "root" ]]; then
+      echo "Switching from root to [alex] and executing [$0]"
+      su alex "$0"
+      exit
+   fi
+   echo -n "Need to run as [alex], not: "
+   id
+   exit -1
+fi
 
 ENV_FILE=${ENV_FILE:=$PBP_SRC_ROOT/.scripts.env}
 if [ "$ENV_FILE" = "/.scripts.env" ]; then

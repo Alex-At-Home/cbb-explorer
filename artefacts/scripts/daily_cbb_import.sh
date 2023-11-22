@@ -60,6 +60,21 @@ if [[ "$DAILY_IMPORT" == "yes" ]]; then
 
    echo "daily_cbb_import: [$(date)] Download / parse / upload new data"
    PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
+
+   # Check for errors (will also alert on old errors, you have to delete import_out.txt to start again)
+   cat import_out.txt| grep ERRORS > tmp_alert_file.txt
+   if [ -s tmp_alert_file.txt ]; then
+      echo "ERRORS in this file!"
+      cat $PBP_SRC_ROOT/artefacts/gmail-scripts/import_errors_mail.txt tmp_alert_file.txt > tmp_alert_mail.txt
+      curl --ssl-reqd \
+         --url 'smtps://smtp.gmail.com:465' \
+         --user "hoop.explorer@gmail.com:$HOOPEXP_GMAIL" \
+         --mail-from 'hoop.explorer@gmail.com' \
+         --mail-rcpt 'hoop.explorer@gmail.com' \
+         --upload-file tmp_alert_mail.txt
+      rm -f tmp_alert_mail.txt
+   fi
+   rm -f tmp_alert_file.txt
 else
    echo "daily_cbb_import: [$(date)] Skipping daily import, use DAILY_IMPORT='yes' to include"
 fi

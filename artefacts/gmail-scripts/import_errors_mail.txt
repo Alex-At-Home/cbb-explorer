@@ -1,0 +1,6 @@
+From: "Hoop Explorer" <hoop.explorer@gmail.com>
+To: "Hoop Explorer" <hoop.explorer@gmail.com>
+Subject: ALERT! ERRORS in your daily import
+
+Go check out import_out.txt | grep ERRORS:
+

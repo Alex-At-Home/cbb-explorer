@@ -18,21 +18,30 @@ fi
 # So we switch to alex and re-run self
 # TODO take user to run as from environment
 WHOAMI=$(whoami)
+echo "daily_cbb_import: [$(date)] Running as [$(whoami)], user validation"
 if [[ "$WHOAMI" != "alex" ]]; then
    if [[ "$WHOAMI" == "root" ]]; then
-      echo "Switching from root to [alex] and executing [$0]"
+      echo "daily_cbb_import: [$(date)] Switching from root to [alex] and executing [$0]"
       su alex "$0"
-      exit
+      exit 0
    fi
-   echo -n "Need to run as [alex], not: "
+   echo -n "daily_cbb_import: [$(date)] Need to run as [alex], not: "
    id
-   exit -1
+   exit 1
+fi
+
+# For reasons I am currently debugging, two versions of this script are being run concurrently
+export LOCK_DIR=/tmp/daily_cbb_import.lockdir
+echo "daily_cbb_import: [$(date)] Running as [$(whoami)], check lock file"
+if ! mkdir $LOCK_DIR 2>/dev/null; then
+   echo "daily_cbb_import: [$(date)] Lock file exists: [$(stat $LOCK_DIR)]"
+   exit 1
 fi
 
 ENV_FILE=${ENV_FILE:=$PBP_SRC_ROOT/.scripts.env}
 if [ "$ENV_FILE" = "/.scripts.env" ]; then
    echo "Need an initial ENV_FILE or PBP_SRC_ROOT"
-   exit -1
+   exit 1
 fi
 
 source $ENV_FILE
@@ -64,8 +73,21 @@ if [[ "$DAILY_IMPORT" == "yes" ]]; then
    # Check for errors (will also alert on old errors, you have to delete import_out.txt to start again)
    cat import_out.txt| grep ERRORS > tmp_alert_file.txt
    if [ -s tmp_alert_file.txt ]; then
-      echo "ERRORS in this file!"
+      echo "daily_cbb_import: [$(date)] ERRORS in this file, send e-mail"
       cat $PBP_SRC_ROOT/artefacts/gmail-scripts/import_errors_mail.txt tmp_alert_file.txt > tmp_alert_mail.txt
+      curl --ssl-reqd \
+         --url 'smtps://smtp.gmail.com:465' \
+         --user "hoop.explorer@gmail.com:$HOOPEXP_GMAIL" \
+         --mail-from 'hoop.explorer@gmail.com' \
+         --mail-rcpt 'hoop.explorer@gmail.com' \
+         --upload-file tmp_alert_mail.txt
+      rm -f tmp_alert_mail.txt
+   fi
+   rm -f tmp_alert_file.txt
+   cat import_out.txt| grep "ERROR[.]" > tmp_alert_file.txt
+   if [ -s tmp_alert_file.txt ]; then
+      echo "daily_cbb_import: [$(date)] WARNINGS in this file, send e-mail"
+      cat $PBP_SRC_ROOT/artefacts/gmail-scripts/import_warnings_mail.txt tmp_alert_file.txt > tmp_alert_mail.txt
       curl --ssl-reqd \
          --url 'smtps://smtp.gmail.com:465' \
          --user "hoop.explorer@gmail.com:$HOOPEXP_GMAIL" \
@@ -168,3 +190,5 @@ if [[ "$BUILD_LEADERBOARDS" == "yes" ]] || [[ "$BUILD_LEADERBOARDS" = "cron" && 
    sh handle-updated-data.sh
 fi
 
+# Clear out the lock dir
+rmdir $LOCK_DIR

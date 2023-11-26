@@ -149,6 +149,11 @@ object DataQualityIssues {
       "Devonish, Sherwyn" -> "Devonish-Prince, Sherwyn"
     ),
 
+    Option(TeamId("NJIT")) -> Map( //(America East)
+      // box score has this misspelling 23/24
+      "Lewal, Levi" -> "Lawal, Levi"
+    ),
+
     /////////////////////////////////
 
     // Both PBP and BOX

@@ -393,7 +393,8 @@ object ExtractorUtils {
             // Always put FTs tied to pre-sub events in the first group
             case ev: Model.MiscGameEvent
               if EventUtils.ParseFreeThrowAttempt.unapply(ev.event_string).nonEmpty &&
-                state.direction_team.exists(_ == ev.is_team_dir)
+                state.direction_team.exists(_ == ev.is_team_dir) &&
+                !event_refs_player(ev, sub_ins) //(unless a player being subbed-in is taking the FT! It happens...)
             =>
               state.copy(group_1 = ev :: state.group_1)
 
@@ -448,7 +449,15 @@ object ExtractorUtils {
     in: Option[String] = None, out: Option[String] = None
   ): LineupEvent = {
 
-    //println("**** NLE" + prev.players + " / " + in + " / " + out)
+    // println("**** NLE" + prev.players + " / " + in + " / " + out)
+    // println(
+    //   s"""
+    //   ************Analysis: [${prev.team_stats.num_possessions}]:
+    //   --
+    //   [${prev.raw_game_events}]
+    //   [${List(prev).mkString("\n======\n")}]
+    //   """
+    // )
 
     LineupEvent(
       date = prev.date.plusMillis((prev.duration_mins*60000.0).toInt),

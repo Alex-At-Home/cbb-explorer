@@ -53,7 +53,7 @@ for i in $CONFS; do
       grep -F "************ ERRORS" $PBP_OUT_DIR/tmp_download_logs.txt |  cut -d" " -f3 > $PBP_OUT_DIR/tmp_download_errs_$i.txt
       for err_file in $(cat $PBP_OUT_DIR/tmp_download_errs_$i.txt); do
         echo "Checking [$err_file] for possible fix"
-        grep "Error" $err_file | grep "500" | grep -o "at link https://[^ ]*" | grep -o "https://[^ ]*" > /tmp/cbb-explorer-tofix
+        grep "Error" $err_file | grep "50[03]" | grep -o "at link https://[^ ]*" | grep -o "https://[^ ]*" > /tmp/cbb-explorer-tofix
         if [ -s /tmp/cbb-explorer-tofix ]; then
           export ERR_DIR=$(dirname $err_file)
           export ERR_LINK=$(cat /tmp/cbb-explorer-tofix | head -n 1)

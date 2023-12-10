@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Deletes data for (likelt a team), eg 
-#RY_RUN="no" GENDER="men" YEAR=2021 CONF=bigtwelve QUERY="team.team:TCU" sh $PBP_SRC_ROOT/artefacts/elasticsearch-scripts/delete_data.sh
+#DRY_RUN="no" GENDER="men" YEAR=2021 CONF=bigtwelve QUERY="team.team:TCU" sh $PBP_SRC_ROOT/artefacts/elasticsearch-scripts/delete_data.sh
 
 if [ "$YEAR" == "" ]; then
   echo "Need to specify YEAR, CONF, QUERY, DRY_RUN ([YEAR])"
@@ -31,7 +31,7 @@ if [ "$DRY_RUN" != "yes" ] && [ "$DRY_RUN" != "no" ]; then
 fi
 
 
-if [ "GENDER" == "women" ]; then
+if [ "$GENDER" == "women" ]; then
    TEAM_INDEX="women_${CONF}_$YEAR"
 else
    TEAM_INDEX="${CONF}_$YEAR"

@@ -14,6 +14,7 @@ fi
 if [ "$UPLOAD" != "yes" ] && [ "$UPLOAD" != "no" ]; then
   echo "Need to specify DOWNLOAD/PARSE/UPLOAD as yes or no [UPLOAD]"
 fi
+# Use + instead of " " in this filter:
 if [ ! -z "$TEAM_FILTER" ]; then
   export TEAM_FILTER="--team=$TEAM_FILTER"
 fi
@@ -88,6 +89,9 @@ grep "LineupErrorAnalysis" $PBP_OUT_DIR/bulk_import_logs_${CURR_TIME}.log
 # Import:
 if [ "$UPLOAD" == "yes" ]; then
   echo "Uploading new game data..."
+  if [ "$(pwd)" != "$PBP_OUT_DIR" ]; then
+    echo "Warning: need to be in [$PBP_OUT_DIR], currently in $(pwd)"
+  fi 
   $ELASTIC_FILEBEAT_BIN -E PING="$PING" -c $ELASTIC_FILEBEAT_CONFIG_ROOT/filebeat_lineups.yaml --once
 else
   echo "Skipping upload"

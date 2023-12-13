@@ -13,7 +13,7 @@ if [ "$CONF" == "" ]; then
 fi
 if [ "$QUERY" == "" ]; then
   echo "Need to specify YEAR, CONF, QUERY, DRY_RUN ([QUERY])"
-  echo "Example query: 'team.team:NAME' or 'team.team:*'"
+  echo "Example query: 'team.team:NAME' or 'team.team:*' or 'team.team:NAME1 AND team.team:NAME2'"
   exit -1
 fi
 GENDER=${GENDER:-"men"}
@@ -49,7 +49,7 @@ for i in "$TEAM_INDEX" "$PLAYER_INDEX" "$BAD_INDEX"; do
       echo "(for real)"
       curl -H 'content-type: application/json' -u "$ELASTIC_USER:$ELASTIC_PASS" "https://$ELASTIC_URL/$i/_delete_by_query" -d "$QUERY"
    else
-      echo "(dry run)"
+      echo "(dry run): [$ELASTIC_URL] / [$i] / [$QUERY]"
       curl -H 'content-type: application/json' -u "$ELASTIC_USER:$ELASTIC_PASS" "https://$ELASTIC_URL/$i/_search?size=0" -d "$QUERY"
    fi
 done

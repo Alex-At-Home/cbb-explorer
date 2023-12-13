@@ -82,11 +82,18 @@ object BuildOnBallDefense {
       val team_file = Path(in_team_file)
       val team_csv = read.lines(team_file).mkString("\n")
 
+      // What you got if you ran this in 22/23:
+      // case class TeamOnBallDefense(
+      //    rank: String, team: String, gp: String, pct_time: String,
+      //    poss: String, points: String, ppp: String, fg_miss: String, fg_made: String, fga: String, fg_pct: String, efg_pct: String, 
+      //    sq: String, sqPpp: String, sqM: String,
+      //    to_pct: String, ft_pct: String, pct_score: String, sf_pct: String
+      // )
+      // As of 23/24:
       case class TeamOnBallDefense(
-         rank: String, team: String, gp: String, pct_time: String,
-         poss: String, points: String, ppp: String, fg_miss: String, fg_made: String, fga: String, fg_pct: String, efg_pct: String, 
-         sq: String, sqPpp: String, sqM: String,
-         to_pct: String, ft_pct: String, pct_score: String, sf_pct: String
+         rank: String, team: String, gp: String, poss: String, pct_time: String,
+         points: String, ppp: String, fga: String, fg_made: String, fg_miss: String, fg_pct: String, efg_pct: String, 
+         to_pct: String, ft_pct: String, ft_rate: String, sf_pct: String, pct_score: String, 
       )
 
       case class EnrichedTeamOnBallDefense(
@@ -126,11 +133,18 @@ object BuildOnBallDefense {
       val player_file = Path(in_player_file)
       val player_csv = read.lines(player_file).mkString("\n")
 
+      // What you got if you ran this in 22/23:
+      // case class PlayerOnBallDefense(
+      //    rank: String, player: String, team: String, gp: String, pct_time: String, poss: String, points: String,
+      //    ppp: String, fg_miss: String, fg_made: String, fga: String, fg_pct: String, efg_pct: String, 
+      //    sq: String, sqPpp: String, sqM: String,
+      //    to_pct: String, ft_pct: String, pct_score: String, sf_pct: String
+      // )
+      // As of 23/24:
       case class PlayerOnBallDefense(
-         rank: String, player: String, team: String, gp: String, pct_time: String, poss: String, points: String,
-         ppp: String, fg_miss: String, fg_made: String, fga: String, fg_pct: String, efg_pct: String, 
-         sq: String, sqPpp: String, sqM: String,
-         to_pct: String, ft_pct: String, pct_score: String, sf_pct: String
+         rank: String, jersey: String, player: String, team: String, gp: String, poss: String, pct_time: String,
+         points: String, ppp: String, fga: String, fg_made: String, fg_miss: String, fg_pct: String, efg_pct: String, 
+         to_pct: String, ft_pct: String, ft_rate: String, sf_pct: String, pct_score: String, 
       )
       case class EnrichedPlayerOnBallDefense(
          encoded_team: String,
@@ -186,11 +200,17 @@ object BuildOnBallDefense {
          val td = entries.head.team //(must exist by construction)
          val encoded_team_name = entries.head.encoded_team
 
-         val team_row = s"${td.rank},Team,Team,${td.gp},100%,${td.poss},${td.points},${td.ppp},${td.fg_miss},${td.fg_made},${td.fga},${td.fg_pct},${td.efg_pct},${td.to_pct},${td.ft_pct},${td.pct_score},${td.sf_pct}"
+         // 22/23-
+         // val team_row = s"${td.rank},Team,Team,${td.gp},100%,${td.poss},${td.points},${td.ppp},${td.fg_miss},${td.fg_made},${td.fga},${td.fg_pct},${td.efg_pct},${td.to_pct},${td.ft_pct},${td.pct_score},${td.sf_pct}"
+         // 23/34+ (some unused cols at the backend because JS hackily uses row size to determine which year it is)
+         val team_row = s"${td.rank},,Team,Team,${td.gp},${td.poss},100%,${td.points},${td.ppp},${td.fga},${td.fg_made},${td.fg_miss},${td.fg_pct},${td.efg_pct},${td.to_pct},${td.ft_pct},${td.ft_rate},${td.sf_pct},${td.pct_score},,,,,,,"
 
          val entry_rows = entries.map { entry =>
             val pd = entry.player
-            s"${pd.rank},${entry.name_to_use},${pd.team},${pd.gp},${pd.pct_time},${pd.poss},${pd.points},${pd.ppp},${pd.fg_miss},${pd.fg_made},${pd.fga},${pd.fg_pct},${pd.efg_pct},${pd.to_pct},${pd.ft_pct},${pd.pct_score},${pd.sf_pct}"
+            // 22/23-
+            // s"${pd.rank},${entry.name_to_use},${pd.team},${pd.gp},${pd.pct_time},${pd.poss},${pd.points},${pd.ppp},${pd.fg_miss},${pd.fg_made},${pd.fga},${pd.fg_pct},${pd.efg_pct},${pd.to_pct},${pd.ft_pct},${pd.pct_score},${pd.sf_pct}"
+            // 23/34+ (some unused cols at the backend because JS hackily uses row size to determine which year it is)
+            s"${pd.rank},${pd.jersey},${entry.name_to_use},${pd.team},${pd.gp},${pd.poss},${pd.pct_time},${pd.points},${pd.ppp},${pd.fga},${pd.fg_made},${pd.fg_miss},${pd.fg_pct},${pd.efg_pct},${pd.to_pct},${pd.ft_pct},${pd.ft_rate},${pd.sf_pct},${pd.pct_score},,,,,,,"
          }
 
          write.over(Path(out_path) / year.toString / s"${encoded_team_name}.txt", (List(team_row) ++ entry_rows).mkString("\n"))

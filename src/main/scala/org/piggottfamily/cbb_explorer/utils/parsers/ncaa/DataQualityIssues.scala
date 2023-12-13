@@ -154,6 +154,16 @@ object DataQualityIssues {
       "Lewal, Levi" -> "Lawal, Levi"
     ),
 
+    Option(TeamId("Morgan St.")) -> Map( //(MEAC)
+      // roster/box name difference 2020/21 (using the longer version allows PbP to work)
+      "Devonish, Sherwyn" -> "Devonish-Prince, Sherwyn"
+    ),
+
+    Option(TeamId("Southern California")) -> Map( //(PAC-12)
+      // roster/box name difference 2023/24 (NCAA is confused whether to use married name or not)
+      "Darius, Dominique" -> "Onu, Dominique"
+    ),
+
     /////////////////////////////////
 
     // Both PBP and BOX

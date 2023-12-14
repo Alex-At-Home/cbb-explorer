@@ -5,7 +5,7 @@ YEAR=2023
 CONF=nec
 array=(
    '361.0/16501::LIU'
-   '222.0/16501::Fairleigh+Dickinson'
+   '222.0/16501::FDU'
    '127.0/16501::Central+Conn.+St.'
    '590.0/16501::Sacred+Heart'
    '748.0/16501::Wagner'

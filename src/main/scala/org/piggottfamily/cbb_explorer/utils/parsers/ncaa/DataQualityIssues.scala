@@ -159,11 +159,6 @@ object DataQualityIssues {
       "Devonish, Sherwyn" -> "Devonish-Prince, Sherwyn"
     ),
 
-    Option(TeamId("Southern California")) -> Map( //(PAC-12)
-      // roster/box name difference 2023/24 (NCAA is confused whether to use married name or not)
-      "Darius, Dominique" -> "Onu, Dominique"
-    ),
-
     /////////////////////////////////
 
     // Both PBP and BOX
@@ -172,6 +167,12 @@ object DataQualityIssues {
       // Lots of box scores has him by this nickname (Josh "Colon" Navarro), as do PbP
       alias_combos(("Josh", "Colon") -> "Navarro, Josh")
     ):_*),
+
+    Option(TeamId("Southern California")) -> Map( //(PAC-12)
+      // PbP/roster/box name difference 2023/24 (NCAA is confused whether to use married name or not)
+      "Darius, Dominique" -> "Onu, Dominique",
+      "Dominique Darius" -> "Onu, Dominique"
+    ),
 
     /////////////////////////////////
 

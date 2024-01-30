@@ -1,70 +1,80 @@
 #================================ Input =====================================
 
 filebeat.inputs:
-- type: log
-  enabled: true
-  paths:
-    - ./women_misc_conf_20*.ndjson
-    - ./misc_conf_20*.ndjson
+  - type: log
+    close_eof: ${CLOSE_EOF}
+    enabled: true
+    paths:
+      - ./women_misc_conf_20*.ndjson
+      - ./misc_conf_20*.ndjson
 
-    # Women high majors
-    - ./women_acc_20*.ndjson
-    - ./women_american_20*.ndjson
-    - ./women_bigeast_20*.ndjson
-    - ./women_bigten_20*.ndjson
-    - ./women_bigtwelve_20*.ndjson
-    - ./women_pactwelve_20*.ndjson
-    - ./women_sec_20*.ndjson
+      # Women high majors
+      - ./women_acc_20*.ndjson
+      - ./women_american_20*.ndjson
+      - ./women_bigeast_20*.ndjson
+      - ./women_bigten_20*.ndjson
+      - ./women_bigtwelve_20*.ndjson
+      - ./women_pactwelve_20*.ndjson
+      - ./women_sec_20*.ndjson
 
-    # Men high majors
-    - ./acc_20*.ndjson
-    - ./bigeast_20*.ndjson
-    - ./bigten_20*.ndjson
-    - ./bigtwelve_20*.ndjson
-    - ./pactwelve_20*.ndjson
-    - ./sec_20*.ndjson
-    # Men mid-high majors
-    - ./american_20*.ndjson
-    - ./atlanticten_20*.ndjson
-    - ./mountainwest_20*.ndjson
-    - ./wcc_20*.ndjson
-    # Men mid majors
-    - ./bigwest_20*.ndjson
-    - ./conferenceusa_20*.ndjson
-    - ./colonial_20*.ndjson
-    - ./horizon_20*.ndjson
-    - ./ivy_20*.ndjson
-    - ./mac_20*.ndjson
-    - ./mvc_20*.ndjson
-    - ./summit_20*.ndjson
-    - ./sunbelt_20*.ndjson
-    # Men mid low majors
-    - ./bigsky_20*.ndjson
-    - ./maac_20*.ndjson
-    - ./ovc_20*.ndjson
-    - ./patriot_20*.ndjson
-    - ./socon_20*.ndjson
-    - ./wac_20*.ndjson
-    # Men low majors
-    - ./americaeast_20*.ndjson
-    - ./atlanticsun_20*.ndjson
-    - ./bigsouth_20*.ndjson
-    - ./meac_20*.ndjson
-    - ./nec_20*.ndjson
-    - ./southland_20*.ndjson
-    - ./swac_20*.ndjson
+      # Men high majors
+      - ./acc_20*.ndjson
+      - ./bigeast_20*.ndjson
+      - ./bigten_20*.ndjson
+      - ./bigtwelve_20*.ndjson
+      - ./pactwelve_20*.ndjson
+      - ./sec_20*.ndjson
+      # Men mid-high majors
+      - ./american_20*.ndjson
+      - ./atlanticten_20*.ndjson
+      - ./mountainwest_20*.ndjson
+      - ./wcc_20*.ndjson
+      # Men mid majors
+      - ./bigwest_20*.ndjson
+      - ./conferenceusa_20*.ndjson
+      - ./colonial_20*.ndjson
+      - ./horizon_20*.ndjson
+      - ./ivy_20*.ndjson
+      - ./mac_20*.ndjson
+      - ./mvc_20*.ndjson
+      - ./summit_20*.ndjson
+      - ./sunbelt_20*.ndjson
+      # Men mid low majors
+      - ./bigsky_20*.ndjson
+      - ./maac_20*.ndjson
+      - ./ovc_20*.ndjson
+      - ./patriot_20*.ndjson
+      - ./socon_20*.ndjson
+      - ./wac_20*.ndjson
+      # Men low majors
+      - ./americaeast_20*.ndjson
+      - ./atlanticsun_20*.ndjson
+      - ./bigsouth_20*.ndjson
+      - ./meac_20*.ndjson
+      - ./nec_20*.ndjson
+      - ./southland_20*.ndjson
+      - ./swac_20*.ndjson
 
-    - ./bad_lineups_*_20*.ndjson
+      - ./bad_lineups_*_20*.ndjson
 
-    - ./player_events_*_20*.ndjson
+      - ./player_events_*_20*.ndjson
 
-  json.keys_under_root: true
+    json.keys_under_root: true
 
 #================================ Processing =====================================
 
 processors:
   - fingerprint:
-      fields: [ "player.code", "lineup_id", "team.team", "opponent.team", "date", "start_min", "end_min" ]
+      fields:
+        [
+          "player.code",
+          "lineup_id",
+          "team.team",
+          "opponent.team",
+          "date",
+          "start_min",
+          "end_min",
+        ]
       target_field: "@metadata._id"
       ignore_missing: true
 

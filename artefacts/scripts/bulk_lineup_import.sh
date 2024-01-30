@@ -1,4 +1,5 @@
 #!/bin/bash
+# If running interactively set CLOSE_EOF=true
 
 if [ "$PING" != "lping" ] && [ "$PING" != "lpong" ] && [ "$PING" != "ltest" ]; then
   echo "Need to specify PING env var as either 'lping' or 'lpong' (or 'ltest'), not '$PING'"
@@ -18,6 +19,8 @@ fi
 if [ ! -z "$TEAM_FILTER" ]; then
   export TEAM_FILTER="--team=$TEAM_FILTER"
 fi
+
+export CLOSE_EOF=${CLOSE_EOF:="false"}
 
 export CURR_TIME=${CURR_TIME:=$(date +"%s")}
 
@@ -92,7 +95,7 @@ if [ "$UPLOAD" == "yes" ]; then
   if [ "$(pwd)" != "$PBP_OUT_DIR" ]; then
     echo "Warning: need to be in [$PBP_OUT_DIR], currently in $(pwd)"
   fi 
-  $ELASTIC_FILEBEAT_BIN -E PING="$PING" -c $ELASTIC_FILEBEAT_CONFIG_ROOT/filebeat_lineups.yaml --once
+  $ELASTIC_FILEBEAT_BIN -E PING="$PING" -E CLOSE_EOF="$CLOSE_EOF" -c $ELASTIC_FILEBEAT_CONFIG_ROOT/filebeat_lineups.yaml --once
 else
   echo "Skipping upload"
 fi

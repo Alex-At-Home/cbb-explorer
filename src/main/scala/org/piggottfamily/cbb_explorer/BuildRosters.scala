@@ -68,7 +68,7 @@ object BuildRosters {
           val team_dir =  subdir/ "stats.ncaa.org"
           val decoded_team_name = URLDecoder.decode(team_name.replace("+", " "))
           Some((team_name, ncaa_lineup_controller.build_roster(
-            team_dir, TeamId(decoded_team_name)
+            team_dir, TeamId(decoded_team_name), include_coach = true
           )))
 
         case get_team_id(team_name, _) =>

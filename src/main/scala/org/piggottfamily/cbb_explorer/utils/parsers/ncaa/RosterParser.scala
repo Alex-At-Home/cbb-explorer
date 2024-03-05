@@ -35,6 +35,9 @@ trait RosterParser {
   // Holds all the HTML parsing logic
   protected object builders {
 
+    def coach_finder(doc: Document): Option[String] =
+      (doc >?> element("div#head_coaches_div a[href]")).map(_.text)
+
     def player_info_finder(doc: Document): Option[List[Element]] =
       (doc >?> elementList("table#stat_grid tbody tr"))
 
@@ -59,7 +62,7 @@ trait RosterParser {
 
   /** Gets the boxscore lineup from the HTML page */
   def parse_roster(
-    filename: String, in: String, team_id: TeamId
+    filename: String, in: String, team_id: TeamId, include_coach: Boolean = false
   ): Either[List[ParseError], List[RosterEntry]] =
   {
     val browser = JsoupBrowser()
@@ -70,6 +73,14 @@ trait RosterParser {
 
     for {
       doc <- doc_request_builder(browser.parseString(in))
+
+      coach <- Right(
+        builders.coach_finder(doc).filter(_ => include_coach).map { coach_name =>
+          RosterEntry(
+            LineupEvent.PlayerCodeId("__coach__", PlayerId(coach_name)), "", "", "", None, "", -1
+          )
+        }
+      )
 
       players <- Right(
         builders.player_info_finder(doc).getOrElse(Nil).flatMap { el =>
@@ -115,7 +126,7 @@ trait RosterParser {
         Right(())
       }
 
-    } yield players
+    } yield players ++ coach.toList
   }
 
   // Utils

@@ -102,13 +102,13 @@ class LineupController(d: Dependencies = Dependencies())
 
   /** Gets a list of Roster Entry objects, plus any box players missing from that list */
   def build_roster(
-    root_dir: Path, team: TeamId
+    root_dir: Path, team: TeamId, include_coach: Boolean = false
   ): (List[String], List[RosterEntry]) = {
     val roster_players = Try(
       d.file_manager.list_files(root_dir / roster_dir, Some("html"), None, recursive = true)
     ).getOrElse(Nil).headOption.flatMap { file =>
       val roster_html = d.file_manager.read_file(file)
-      val roster_lineup = RosterParser.parse_roster(file.last.toString, roster_html, team)
+      val roster_lineup = RosterParser.parse_roster(file.last.toString, roster_html, team, include_coach)
 
       roster_lineup.left.foreach { errors =>
         d.logger.error(s"Parse error with [$team][$root_dir]: [$errors]")

@@ -48,11 +48,26 @@ else
    fi
 
    if [ "$PROCESS_ONLY" != "yes" ]; then
-      curl -k -H 'Cache-Control: no-cache' \
-            -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.3 Safari/605.1.15' \
+      echo '{"name":"","queryTarget":"TRANSFER","transferYear":2024,"transferLevel":"D1","filters":[{"type":"HS_GRAD_YEAR","minValue":-1,"maxValue":5000},{"type":"HEIGHT","minValue":-1,"maxValue":5000},{"type":"WEIGHT","minValue":-1,"maxValue":5000},{"type":"RATING","minValue":-1,"maxValue":5000},{"type":"GPA","minValue":-1,"maxValue":5000},{"type":"PPG","minValue":-1,"maxValue":5000},{"type":"APG","minValue":-1,"maxValue":5000},{"type":"RPG","minValue":-1,"maxValue":5000},{"type":"BPG","minValue":-1,"maxValue":5000},{"type":"SPG","minValue":-1,"maxValue":5000},{"type":"CRAM","minValue":-1,"maxValue":5000},{"type":"RAM","minValue":-1,"maxValue":5000},{"type":"FG_PCT","minValue":-1,"maxValue":5000},{"type":"FT_PCT","minValue":-1,"maxValue":5000},{"type":"THREE_PCT","minValue":-1,"maxValue":5000},{"type":"IS_JUCO","comparand":[]},{"type":"IS_REDSHIRT","comparand":[]},{"type":"POSITION","comparand":[]},{"type":"STATUS","comparand":[]},{"type":"TRANSFER_FROM_TO","comparand":[]},{"type":"TRANSFER_FROM_TO_CONFERENCE","comparand":[]},{"type":"STATE","comparand":[]},{"type":"IS_PLAYER_PLUS","comparand":[]},{"type":"ELIGIBILITY_YEAR","comparand":[]}]}' > ./filter.json
+      curl -k  \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/plain, */*' \
+            -H 'Authorization: Bearer' \
+            -H 'Sec-Fetch-Site: same-site' \
+            -H 'Accept-Language: en-US,en;q=0.9' \
+            -H 'Accept-Encoding: gzip, deflate, br' \
+            -H 'Sec-Fetch-Mode: cors' \
+            -H 'Host: api.verbalcommits.com' \
             -H 'Origin: https://verbalcommits.com' \
+            -H 'Content-Length: 1148' \
+            -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3.1 Safari/605.1.15' \
             -H 'Referer: https://verbalcommits.com/' \
-         -o $PBP_OUT_DIR/transfers.json "https://vc-server.xyz/vc/list/transfers/$CURR_YEAR_P1/D1"
+            -H 'Connection: keep-alive' \
+            -H 'Sec-Fetch-Dest: empty' \
+            -H "$TRANSFER_AUTH_TOKEN"  \
+            -XPOST -d @./filter.json \
+         -o $PBP_OUT_DIR/transfers.json 'https://api.verbalcommits.com/vc/players/find/transfers'
+      rm ./filter.json
    fi
    PREVIOUS_JSON_SIZE=$(stat -f "%z" "$PBP_OUT_DIR/transfers.json.$CURR_YEAR_P1.SAVED")
    TODAY_JSON_SIZE=$(stat -f "%z" "$PBP_OUT_DIR/transfers.json")

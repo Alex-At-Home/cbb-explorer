@@ -123,11 +123,17 @@ if [[ "$BUILD_EFFICIENCY" == "yes" ]] || [[ "$BUILD_EFFICIENCY" == "cron" && $(d
    fi
 
    export DAILY_IMPORT="yes"
+
 fi
 
 # All steps below this one run from this directory
 cd $HOOPEXP_SRC_DIR
 source .env
+
+#TODO: during the end of the regular season also sort transfers out
+IGNORE_NBA="yes" TRANSFER="yes" PROCESS_ONLY="no" CURR_YEAR=2023 \
+   sh $PBP_SRC_ROOT/artefacts/scripts/build_transfer_filter.sh
+
 if [[ "$DAILY_IMPORT" == "yes" ]]; then
    # If we've made any changes so far then redeploy
    sh handle-updated-data.sh

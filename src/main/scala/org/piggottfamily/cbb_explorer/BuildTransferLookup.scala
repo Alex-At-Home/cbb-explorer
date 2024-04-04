@@ -121,7 +121,7 @@ object BuildTransferLookup {
          val file = Path(in_file)
          val transfer_json_str = read.lines(file).mkString("\n")
 
-         implicit val decoder: Decoder[TransferInfo] = new Decoder[TransferInfo] {
+         val oldDecoder: Decoder[TransferInfo] = new Decoder[TransferInfo] {
             override def apply(hCursor: HCursor): Decoder.Result[TransferInfo] = {
                for {
                   player_obj <- hCursor.downField("player").as[Json]
@@ -149,6 +149,39 @@ object BuildTransferLookup {
                   //_ = if System.out.println(transfer_obj.asJson)
 
                   maybe_dest_school <- transfer_cursor.downField("toSchoolName").as[Option[String]]
+
+                  _ = if (graduating_year.exists(_ > year)) {
+                     System.out.println(s"BuildTransferLookup: IGNORE FRESHMAN TRANSFER Player [$last_name],[$first_name]: [$curr_school] -> [$maybe_dest_school]") 
+                  } else ()
+
+               } yield {
+                  TransferInfo(
+                     uuid,
+                     s"$last_name, $first_name",
+                     normalize_team_name(curr_school),
+                     maybe_dest_school.map(normalize_team_name),
+                     maybe_date_of_occurrence,
+                     graduating_year
+                  )
+               }
+            }
+         }
+         implicit val decoder: Decoder[TransferInfo] = new Decoder[TransferInfo] {
+            override def apply(hCursor: HCursor): Decoder.Result[TransferInfo] = {
+               for {
+                  uuid <- hCursor.downField("playerUuid").as[String]
+                  first_name <- hCursor.downField("playerFirstName").as[String]
+                  last_name <- hCursor.downField("playerLastName").as[String]
+                  graduating_year <- hCursor.downField("playerHsGradYear").as[Option[Int]]
+
+                  maybe_date_of_occurrence <- hCursor.downField("updatedWhen").as[Option[String]]
+
+                  curr_school <- hCursor.downField("fromSchoolName").as[String]
+
+                  //Diag:
+                  //_ = if System.out.println(transfer_obj.asJson)
+
+                  maybe_dest_school <- hCursor.downField("toSchoolName").as[Option[String]]
 
                   _ = if (graduating_year.exists(_ > year)) {
                      System.out.println(s"BuildTransferLookup: IGNORE FRESHMAN TRANSFER Player [$last_name],[$first_name]: [$curr_school] -> [$maybe_dest_school]") 

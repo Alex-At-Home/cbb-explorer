@@ -5,7 +5,7 @@
 #(ATTN: Before starting the off-season - there are some 2023 literals that need to be fixed)
 
 #Off season mode: do nothing except keep track of transfers
-export OFFSEASON_MODE="no"
+export OFFSEASON_MODE="yes"
 export PRESEASON_LEADERBOARD_MODE="no" #(this is "no" until it settles down a bit, say mid April)
 if [[ "$OFFSEASON_MODE" == "yes" ]]; then
    echo "In Off-season mode, will just keep track of transfers"
@@ -130,9 +130,9 @@ fi
 cd $HOOPEXP_SRC_DIR
 source .env
 
-#TODO: during the end of the regular season also sort transfers out
-IGNORE_NBA="yes" TRANSFER="yes" PROCESS_ONLY="no" CURR_YEAR=2023 \
-   sh $PBP_SRC_ROOT/artefacts/scripts/build_transfer_filter.sh
+#Hack: during the end of the regular season also sort transfers out
+#IGNORE_NBA="yes" \
+#   sh $PBP_SRC_ROOT/artefacts/scripts/build_transfer_filter.sh | grep -v "LineupErrorAnalysisUtils"
 
 if [[ "$DAILY_IMPORT" == "yes" ]]; then
    # If we've made any changes so far then redeploy
@@ -147,7 +147,10 @@ if [[ "$OFFSEASON_MODE" == "yes" ]]; then
    if [[ true ]]; then
       echo "daily_cbb_import: [$(date)] Downloading transfers"
 
-      sh $PBP_SRC_ROOT/artefacts/scripts/build_transfer_filter.sh
+
+      #TODO: IGNORE_NBA until this info starts getting published somewhere
+      IGNORE_NBA="yes" \
+         sh $PBP_SRC_ROOT/artefacts/scripts/build_transfer_filter.sh | grep -v "LineupErrorAnalysisUtils"
 
       # Now we've update the transfers, recalculate the pre-season leaderboard and update GCS with the new file
       if [[ "$PRESEASON_LEADERBOARD_MODE" == "yes" ]]; then

@@ -10,11 +10,13 @@ USC,Southern California
 Brigham Young,BYU
 Loyola Marymount,LMU (CA)
 Saint Mary's,Saint Mary's (CA)
-Central Arkansas,Central Ark
+OLD: Central Arkansas,Central Ark
+Central Arkansas,Central Ark.
 Eastern Kentucky,Eastern Ky.
 Florida Gulf Coast,FGCU
 North Alabama,North Ala.
-Albany,Albany (NY)
+OLD: Albany,Albany (NY)
+Albany,UAlbany
 Eastern Washington,Eastern Wash.
 Northern Arizona,Northern Ariz.
 Northern Colorado,Northern Colo.
@@ -32,7 +34,8 @@ College of Charleston,Col. of Charleston
 Northern Kentucky,Northern Ky.
 Central Michigan,Central Mich.
 Eastern Michigan,Eastern Mich.
-Northern Illinois,Northern Ill.
+OLD: Northern Illinois,Northern Ill.
+Northern Illinois,NIU
 Western Michigan,Western Mich.
 Maryland Eastern Shore,UMES
 North Carolina Central,N.C. Central
@@ -67,3 +70,9 @@ UNCG,UNC Greensboro
 Western Carolina,Western Caro.
 San Francisco St.,NOT_D1
 Virginia St.,NOT_D1
+Pitt,Pittsburgh
+Fairleigh Dickinson,FDU
+Northern Ill.,NIU
+Texas A&M–Commerce,Tex. A&M-Commerce
+Sam Houston St.,Sam Houston
+Southern Indiana,Southern Ind.

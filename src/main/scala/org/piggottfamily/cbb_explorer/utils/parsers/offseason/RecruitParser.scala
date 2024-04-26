@@ -49,8 +49,10 @@ trait RecruitParser {
       (el >?> element("span.score")).map(_.text).filter(_.nonEmpty)
 
    def get_destination(el: Element): Option[String] = 
-      (el >?> element("div.status b.checkmark")).map(_.parent) //checkmark means has committed
-         .flatMap(_ >?> element("img")).flatten.map(_.attr("alt"))
+      // We'll add them if they are committed, not just signed
+      (el >?> element("div.status a.img-link img")).map(_.attr("alt")) //img-link means has committed
+      // (el >?> element("div.status b.checkmark")).map(_.parent) //checkmark means has signed
+      //    .flatMap(_ >?> element("img")).flatten.map(_.attr("alt"))
 
    def get_destination_2022(el: Element): Option[String] = 
       (el >?> element("div.status img")).map(_.attr("alt")).filter(_.nonEmpty)

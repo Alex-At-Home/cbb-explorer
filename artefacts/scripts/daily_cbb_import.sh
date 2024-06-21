@@ -142,7 +142,12 @@ fi
 
 # Offseason only, first thing in the morning: download transfers, update pre-season prediction
 if [[ "$OFFSEASON_MODE" == "yes" ]]; then
-   echo "daily_cbb_import: [$(date)] Checking whether to download transfers"
+
+   # This ensures the team editor mode also shows the results of the team leaderboard
+   # (I'm a bit undecided, I left it off until June in 2024)
+   PRESEASON_LEADERBOARD_MODE="yes"
+
+   echo "daily_cbb_import: [$(date)] Checking whether to download transfers (offseason leaderboard [$PRESEASON_LEADERBOARD_MODE])"
 #   if [[ $(date +%H) -lt 7 ]]; then
    if [[ true ]]; then
       echo "daily_cbb_import: [$(date)] Downloading transfers"
@@ -153,6 +158,7 @@ if [[ "$OFFSEASON_MODE" == "yes" ]]; then
       sh $PBP_SRC_ROOT/artefacts/scripts/build_transfer_filter.sh | grep -v "LineupErrorAnalysisUtils"
 
       # Now we've update the transfers, recalculate the pre-season leaderboard and update GCS with the new file
+      # Note this requires moving the "players_all_Men_${year_start}_*.json" to "./public/leaderboards/lineups/"
       if [[ "$PRESEASON_LEADERBOARD_MODE" == "yes" ]]; then
          echo "daily_cbb_import: [$(date)] Updating pre-season leaderboard"      
          cp $PBP_OUT_DIR/transfers_2024.json $HOOPEXP_SRC_DIR

@@ -38,6 +38,8 @@ object BuildRecruitLookup {
    def main(args: Array[String]): Unit = {
 
       // Command line args processing
+      // (inspect element, copy as html from top level, use pbpaste to write to file)
+      // java -cp "$PBP_SRC_ROOT/target/scala-2.12/cbb-explorer-assembly-0.1-deps.jar:$PBP_SRC_ROOT/target/scala-2.12/cbb-explorer_2.12-0.1.jar" org.piggottfamily.cbb_explorer.BuildRecruitLookup --in=$PBP_OUT_DIR/in_file.html --out=$PBP_OUT_DIR/out_file.json --year=2024
 
       if (args.length < 2) {
          println("""

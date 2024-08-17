@@ -2,14 +2,14 @@
 # Update this every year then call with no args
 
 export REBUILD_EXISTING=${REBUILD_EXISTING:="false"}
-export PREV_YEAR=${PREV_YEAR:=2022_23}
+export PREV_YEAR=${PREV_YEAR:=2023_24}
 export PREV_YEAR_START=${PREV_YEAR:0:4}
-export NEXT_YEAR=${NEXT_YEAR:=2023_24}
+export NEXT_YEAR=${NEXT_YEAR:=2024_25}
 export NEXT_YEAR_START=${NEXT_YEAR:0:4}
-export MEN_PREV_ID=16060
-export MEN_NEXT_ID=16501
-export WOMEN_PREV_ID=16061
-export WOMEN_NEXT_ID=16500
+export MEN_PREV_ID=16501
+export MEN_NEXT_ID=16700
+export WOMEN_PREV_ID=16500
+export WOMEN_NEXT_ID=16720
 
 echo "You should first duplicate and build the men's efficiency gsheet for this season and check for any new teams!"
 

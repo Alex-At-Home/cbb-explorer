@@ -13,6 +13,7 @@ array=(
    '355.0/16700::Liberty'
    '472.0/16700::New+Mexico+St.'
    '624.0/16700::Sam+Houston'
+   '1157.0/16700::Kennesaw+St.'
 )
 
 for index in "${array[@]}" ; do

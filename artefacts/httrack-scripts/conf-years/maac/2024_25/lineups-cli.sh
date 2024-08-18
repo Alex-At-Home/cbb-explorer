@@ -15,6 +15,8 @@ array=(
    '381.0/16700::Manhattan'
    '220.0/16700::Fairfield'
    '450.0/16700::Mount+St.+Mary%27s'
+   '590.0/16700::Sacred+Heart'
+   '410.0/16700::Merrimack'
 )
 
 for index in "${array[@]}" ; do

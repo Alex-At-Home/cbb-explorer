@@ -6,9 +6,7 @@ CONF=wac
 array=(
    '1104.0/16700::Grand+Canyon'
    '30024.0/16700::Utah+Valley'
-   '536.0/16700::UTRGV'
    '1356.0/16700::Seattle+U'
-   '136.0/16700::Chicago+St.'
    '676.0/16700::SFA'
    '2.0/16700::Abilene+Christian'
    '30135.0/16700::California+Baptist'

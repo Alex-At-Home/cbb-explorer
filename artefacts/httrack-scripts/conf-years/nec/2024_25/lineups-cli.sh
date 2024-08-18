@@ -7,11 +7,10 @@ array=(
    '361.0/16700::LIU'
    '222.0/16700::FDU'
    '127.0/16700::Central+Conn.+St.'
-   '590.0/16700::Sacred+Heart'
    '748.0/16700::Wagner'
    '600.0/16700::Saint+Francis+%28PA%29'
-   '410.0/16700::Merrimack'
    '349.0/16700::Le+Moyne'
+   '136.0/16700::Chicago+St.'
 )
 
 for index in "${array[@]}" ; do

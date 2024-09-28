@@ -136,16 +136,24 @@ class LineupController(d: Dependencies = Dependencies())
 
     // Now read all the box scores in to get any missing names:
 
-    //TODO: need to handle different format versions in here:
-
-    val all_box_players = (for {
-      box <- Try(d.file_manager.list_files(root_dir / boxscore_dir, Some("html"), None)).getOrElse(Nil).iterator
-      box_html = d.file_manager.read_file(box)
-      box_lineup <- (d.boxscore_parser.get_box_lineup(box.last.toString, box_html, team, (Nil, roster_players)) match {
-        case Right(lineup) => Some(lineup)
-        case _ => None
-      })
-    } yield box_lineup.players.map(_.id.name)).flatten.toSet.toList
+    val all_box_players = 
+        (for {
+          box <- format_version match {
+            case 0 =>
+              Try(d.file_manager.list_files(root_dir / boxscore_dir, Some("html"), None)).getOrElse(Nil).iterator
+            case _ =>
+              Try(
+                d.file_manager.list_files(root_dir / contests_dir, Some("html"), None, recursive = true)
+              ).getOrElse(Nil).iterator.filter {
+                _.last == v1_boxscore_filename
+              }              
+          }
+          box_html = d.file_manager.read_file(box)
+          box_lineup <- (d.boxscore_parser.get_box_lineup(box.last.toString, box_html, team, format_version, (Nil, roster_players)) match {
+            case Right(lineup) => Some(lineup)
+            case _ => None
+          })
+        } yield box_lineup.players.map(_.id.name)).flatten.toSet.toList
 
     (all_box_players, roster_players)
   }
@@ -164,7 +172,7 @@ class LineupController(d: Dependencies = Dependencies())
     val play_by_play_html = d.file_manager.read_file(root_dir / play_by_play_dir / playbyplay_filename)
     for {
       box_lineup <- d.boxscore_parser.get_box_lineup(
-        boxscore_filename, box_html, team, external_roster, neutral_game_dates
+        boxscore_filename, box_html, team, format_version = 0, external_roster, neutral_game_dates
       )
       _ = d.logger.info(s"Parsed box score: opponent=[${box_lineup.opponent}] venue=[${box_lineup.location_type}]")
       lineup_events <- d.playbyplay_parser.create_lineup_data(playbyplay_filename, play_by_play_html, box_lineup)
@@ -196,7 +204,12 @@ object LineupController {
   val teams_dir = RelPath("teams")
   val play_by_play_dir = RelPath("game") / RelPath("play_by_play")
   val boxscore_dir = RelPath("game") / RelPath("box_score")
+  val contests_dir = RelPath("contests")
   val roster_dir = RelPath("team")
+
+  val v1_boxscore_filename = "individual_stats.html"
+  val v1_pbp_filename = "play_by_play.html"
+  val v1_shotlocs_filename = "box_score.html"
 
   /** Dependency injection */
   case class Dependencies(

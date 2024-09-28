@@ -33,7 +33,13 @@ trait BoxscoreParser {
   protected val `ncaa.parse_boxscore` = "ncaa.parse_boxscore"
 
   // Holds all the HTML parsing logic
-  protected object builders {
+  trait base_builders {
+    def team_finder(doc: Document): List[String] 
+    def score_finder(doc: Document): List[String] 
+    def date_finder(doc: Document): Option[String]
+    def boxscore_finder(doc: Document, target_team_first: Boolean): Option[List[Element]]
+  }
+  protected object v0_builders extends base_builders {
 
     def team_finder(doc: Document): List[String] = //2020+ is 40%, 2019- is 50%
       (doc >?> elementList("div#contentarea table.mytable[width~=[45]0%] td a[href]"))
@@ -53,14 +59,38 @@ trait BoxscoreParser {
         (doc >?> elementList("div#contentarea br + table.mytable[width=1000px] td a[href]")).filter(_.nonEmpty)
     }
   }
+  protected object v1_builders extends base_builders {
+
+    def team_finder(doc: Document): List[String] = 
+      (doc >?> elementList("div.card-header img[alt]"))
+        .getOrElse(Nil).map(_.attr("alt"))
+
+    def score_finder(doc: Document): List[String] = 
+      (doc >?> elementList("div.table-responsive td[style~=font-size:36px]:matchesOwn([0-9]+)"))
+        .getOrElse(Nil).map(_.text)
+
+    def date_finder(doc: Document): Option[String] =
+      (doc >?> element("div.table-responsive > table table td:matchesOwn([0-9]+/[0-9]+/[0-9]+)")).map(_.text)
+
+    def boxscore_finder(doc: Document, target_team_first: Boolean): Option[List[Element]] =         
+      (doc >?> elementList("table.dataTable")).map(_.drop(
+        if (target_team_first) 0 else 1
+      ).take(1).headOption).flatten.flatMap(player_finder).filter(_.nonEmpty)
+
+    private def player_finder(el: Element): Option[List[Element]] =
+      el >?> elementList("td a[href]")
+
+  }
+  protected val builders_array = Array(v0_builders, v1_builders)
 
   /** Gets the boxscore lineup from the HTML page (external roster has either just names or names + numbers) */
   def get_box_lineup(
-    filename: String, in: String, team_id: TeamId,
+    filename: String, in: String, team_id: TeamId, format_version: Int,
     external_roster: (List[String], List[RosterEntry]) = (Nil, Nil), neutral_game_dates: Set[String] = Set()
   ): Either[List[ParseError], LineupEvent] =
   {
     val browser = JsoupBrowser()
+    val builders = builders_array(format_version)
 
     // Error reporters
     val doc_request_builder = ParseUtils.build_request[Document](`ncaa.parse_boxscore`, filename) _

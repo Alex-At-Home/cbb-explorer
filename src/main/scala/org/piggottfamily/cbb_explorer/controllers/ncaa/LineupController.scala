@@ -28,22 +28,31 @@ class LineupController(d: Dependencies = Dependencies())
     case class FileError(f: Path, ex: Throwable) extends LineupError
     case class ParserError(f: Path, l: List[ParseError]) extends LineupError
 
-    // Get neutral game dates
-    val neutral_games = (for {
-      team_filename <- d.file_manager.list_files(root_dir / teams_dir, Some("html")).iterator
-      team_html = d.file_manager.read_file(team_filename)
-
-      results <- TeamScheduleParser.get_neutral_games(team_filename.last, team_html) match {
+    // Get neutral game dates (and check if we are running vs new or old format games)
+    def build_neutral_games(team_filename: String, team_html: String, new_format: Boolean) = 
+      TeamScheduleParser.get_neutral_games(team_filename, team_html, new_format) match {
         case Left(error) =>
-          d.logger.info(s"Failed to parse neutral games: [$error]")
+          d.logger.info(s"[new_format=$new_format] Failed to parse neutral games: [$error]")
           None //(carry on)
         case Right((checked_team, neutral_set)) if checked_team == team =>
-          d.logger.info(s"Neutral game dates: [$neutral_set]")
+          d.logger.info(s"[new_format=$new_format]  Neutral game dates: [$neutral_set]")
           Some(neutral_set)
         case _ => //(not the right team, ignore)
           None
       }
-    } yield results).take(1).toList.headOption.getOrElse {
+
+    val neutral_games = (for {
+      team_filename <- d.file_manager.list_files(root_dir / teams_dir, Some("html")).iterator
+      team_html = d.file_manager.read_file(team_filename)
+
+      format_results <- build_neutral_games(team_filename.last, team_html, new_format = false) match {
+        case None => //try with new format
+          build_neutral_games(team_filename.last, team_html, new_format = true)
+        case results =>
+          results 
+      }
+
+    } yield format_results).take(1).toList.headOption.getOrElse {
       d.logger.info(s"Failed to find any neutral games")
       Set[String]()
     }

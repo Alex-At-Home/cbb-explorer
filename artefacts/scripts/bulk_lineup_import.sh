@@ -33,7 +33,7 @@ export CONFS=${CONFS:="acc american atlanticten bigeast bigten bigtwelve pactwel
 #export CONFS=${CONFS:="wcc mountainwest mvc conferenceusa mac socon sunbelt bigsky colonial summit"}
 #export CONFS=${CONFS:="americaeast atlanticsun bigsouth bigwest horizon ivy maac meac nec ovc patriot southland swac wac"}
 
-echo ">>>>>>> Extracting from [$CURR_TIME] for [$CURR_YEAR]/[$CURR_YEAR_STR] on [$CONFS] with [$TEAM_FILTER]"
+echo ">>>>>>> Extracting from [$CURR_TIME] for [$CURR_YEAR]/[$CURR_YEAR_STR] on [$CONFS] with [$TEAM_FILTER/$TEAMID_FILTER]"
 sleep 2
 
 if [ "$PARSE" == "yes" ]; then
@@ -87,7 +87,11 @@ for i in $CONFS; do
 done
 
 # Output a summary of the bulk import:
-grep "LineupErrorAnalysis" $PBP_OUT_DIR/bulk_import_logs_${CURR_TIME}.log
+if [ "$SHOW_ALL_LOGS" == "yes" ]; then
+  cat $PBP_OUT_DIR/bulk_import_logs_${CURR_TIME}.log
+else
+  grep "LineupErrorAnalysis" $PBP_OUT_DIR/bulk_import_logs_${CURR_TIME}.log
+fi
 
 # Import:
 if [ "$UPLOAD" == "yes" ]; then

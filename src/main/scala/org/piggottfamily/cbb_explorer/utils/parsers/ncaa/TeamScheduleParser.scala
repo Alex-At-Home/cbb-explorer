@@ -37,7 +37,7 @@ trait TeamScheduleParser {
     def team_name_finder(doc: Document): Option[String]
     def neutral_game_finder(doc: Document): List[String]
   }
-  protected object old_builders extends base_builders {
+  protected object v0_builders extends base_builders {
     def team_name_finder(doc: Document): Option[String] =
       (doc >?> element("fieldset > legend > img[alt]")).map(_.attr("alt"))
 
@@ -47,7 +47,7 @@ trait TeamScheduleParser {
         "tr:has(td:matches(.*[@][a-zA-Z]+.*)) > td:matches([0-9]+/[0-9]+/[0-9]+)"
       )).getOrElse(Nil).map(_.text)
   }
-  protected object new_builders extends base_builders {
+  protected object v1_builders extends base_builders {
     def team_name_finder(doc: Document): Option[String] =
       (doc >?> element("div.card-header > img[alt]")).map(_.attr("alt"))
 
@@ -57,9 +57,10 @@ trait TeamScheduleParser {
         "tr:has(td:matches(.*[@][a-zA-Z]+.*)) > td:matches([0-9]+/[0-9]+/[0-9]+)"
       )).getOrElse(Nil).map(_.text)
   }
+  protected val builders_from_version = Array(v0_builders, v1_builders)
 
   /** Gets a list of neutral game dates from the team schedule */
-  def get_neutral_games(filename: String, in: String, new_format: Boolean): Either[List[ParseError], (TeamId, Set[String])] = {
+  def get_neutral_games(filename: String, in: String, format_version: Int): Either[List[ParseError], (TeamId, Set[String])] = {
 
     val browser = JsoupBrowser()
 
@@ -67,7 +68,7 @@ trait TeamScheduleParser {
     val doc_request_builder = ParseUtils.build_request[Document](`ncaa.get_neutral_games`, filename) _
     val single_error_completer = ParseUtils.enrich_sub_error(`ncaa.get_neutral_games`, filename) _
 
-    val builders = if (new_format) new_builders else old_builders
+    val builders = builders_from_version(format_version)
     for {
       doc <- doc_request_builder(browser.parseString(in))
 

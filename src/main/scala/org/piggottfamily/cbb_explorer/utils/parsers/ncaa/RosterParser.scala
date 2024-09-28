@@ -33,7 +33,18 @@ trait RosterParser {
   protected val `ncaa.parse_roster` = "ncaa.parse_roster"
 
   // Holds all the HTML parsing logic
-  protected object builders {
+  trait base_builders {
+    def coach_finder(doc: Document): Option[String]
+    def player_info_finder(doc: Document): Option[List[Element]]
+    def name_finder(el: Element): Option[String]
+    def number_finder(el: Element): Option[String]
+    def pos_finder(el: Element): Option[String]
+    def height_finder(el: Element): Option[String]
+    def class_finder(el: Element): Option[String]
+    def games_played_finder(el: Element): Option[String]
+    def origin_finder(el: Element): Option[String]
+  }
+  protected object builders_v0 extends base_builders {
 
     def coach_finder(doc: Document): Option[String] =
       (doc >?> element("div#head_coaches_div a[href]")).map(_.text)
@@ -58,14 +69,47 @@ trait RosterParser {
 
     def games_played_finder(el: Element): Option[String] =
       (el >?> element("td:eq(5)")).map(_.text)
+
+    def origin_finder(el: Element): Option[String] = None //(not supported in v0)
   }
+  protected object builders_v1 extends base_builders {
+
+    def coach_finder(doc: Document): Option[String] =
+      (doc >?> element("div.card-header:contains(Coach) + div.card-body a[href]")).map(_.text)
+
+    def player_info_finder(doc: Document): Option[List[Element]] =
+      (doc >?> elementList("table.dataTable tbody tr"))
+
+    def name_finder(el: Element): Option[String] =
+      (el >?> element("td:eq(3)")).map(_.text)
+
+    def number_finder(el: Element): Option[String] =
+      (el >?> element("td:eq(2)")).map(_.text)
+
+    def pos_finder(el: Element): Option[String] =
+      (el >?> element("td:eq(5)")).map(_.text)
+
+    def height_finder(el: Element): Option[String] =
+      (el >?> element("td:eq(6)")).map(_.text)
+
+    def class_finder(el: Element): Option[String] =
+      (el >?> element("td:eq(4)")).map(_.text)
+
+    def games_played_finder(el: Element): Option[String] =
+      (el >?> element("td:eq(0)")).map(_.text)
+
+    def origin_finder(el: Element): Option[String] =
+      (el >?> element("td:eq(7)")).map(_.text)
+  }
+  protected def builders_array = Array(builders_v0, builders_v1)
 
   /** Gets the boxscore lineup from the HTML page */
   def parse_roster(
-    filename: String, in: String, team_id: TeamId, include_coach: Boolean = false
+    filename: String, in: String, team_id: TeamId, version_format: Int, include_coach: Boolean = false
   ): Either[List[ParseError], List[RosterEntry]] =
   {
     val browser = JsoupBrowser()
+    val builders = builders_array(version_format)
 
     // Error reporters
     val doc_request_builder = ParseUtils.build_request[Document](`ncaa.parse_roster`, filename) _
@@ -77,7 +121,7 @@ trait RosterParser {
       coach <- Right(
         builders.coach_finder(doc).filter(_ => include_coach).map { coach_name =>
           RosterEntry(
-            LineupEvent.PlayerCodeId("__coach__", PlayerId(coach_name)), "", "", "", None, "", -1
+            LineupEvent.PlayerCodeId("__coach__", PlayerId(coach_name)), "", "", "", None, "", -1, None
           )
         }
       )
@@ -101,9 +145,10 @@ trait RosterParser {
               case RosterEntry.height_regex(ft, in) => Some(ft.toInt*12 + in.toInt)
               case _ => None
             }
+            origin = builders.origin_finder(el)
 
           } yield RosterEntry(
-            player_code_id, number, pos, height, height_in, year_class, Try(gp.toInt).getOrElse(0)
+            player_code_id, number, pos, height, height_in, year_class, Try(gp.toInt).getOrElse(0), origin
           )).toList
         }.sortWith { // So below we dedup the smaller number of games played
           case (lhs, rhs) => 

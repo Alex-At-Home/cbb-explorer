@@ -29,32 +29,33 @@ class LineupController(d: Dependencies = Dependencies())
     case class ParserError(f: Path, l: List[ParseError]) extends LineupError
 
     // Get neutral game dates (and check if we are running vs new or old format games)
-    def build_neutral_games(team_filename: String, team_html: String, new_format: Boolean) = 
-      TeamScheduleParser.get_neutral_games(team_filename, team_html, new_format) match {
+    def build_neutral_games(team_filename: String, team_html: String, format_version: Int): Option[Set[String]] = 
+      TeamScheduleParser.get_neutral_games(team_filename, team_html, format_version) match {
         case Left(error) =>
-          d.logger.info(s"[new_format=$new_format] Failed to parse neutral games: [$error]")
+          d.logger.info(s"[format_version=$format_version] Failed to parse neutral games: [$error]")
           None //(carry on)
         case Right((checked_team, neutral_set)) if checked_team == team =>
-          d.logger.info(s"[new_format=$new_format]  Neutral game dates: [$neutral_set]")
+          d.logger.info(s"[format_version=$format_version]  Neutral game dates: [$neutral_set]")
           Some(neutral_set)
         case _ => //(not the right team, ignore)
           None
       }
 
-    val neutral_games = (for {
+    val (neutral_games, team_fileid) = (for {
       team_filename <- d.file_manager.list_files(root_dir / teams_dir, Some("html")).iterator
       team_html = d.file_manager.read_file(team_filename)
 
-      format_results <- build_neutral_games(team_filename.last, team_html, new_format = false) match {
+      format_results <- build_neutral_games(team_filename.last, team_html, format_version = 0) match {
         case None => //try with new format
-          build_neutral_games(team_filename.last, team_html, new_format = true)
+          build_neutral_games(team_filename.last, team_html, format_version = 1)
         case results =>
           results 
       }
+      team_fileid = team_filename.last.split("\\.")(0) //(remove extension)
 
-    } yield format_results).take(1).toList.headOption.getOrElse {
-      d.logger.info(s"Failed to find any neutral games")
-      Set[String]()
+    } yield format_results -> Some(team_fileid)).take(1).toList.headOption.getOrElse {
+      d.logger.info(s"Failed to find the schedule in [${root_dir / teams_dir}]")
+      Set[String]() -> None
     }
 
     // Get lineups for selected games
@@ -67,7 +68,7 @@ class LineupController(d: Dependencies = Dependencies())
 
     // Try to get the most accurate canonical list of players
     // First look for a roster - if that doesn't exist (legacy) just get all the box scores
-    val external_roster = build_roster(root_dir, team)
+    val external_roster = build_roster(root_dir, team, team_fileid)
 
     //println(s"All_box_roster_players: [$external_roster]")
 
@@ -111,21 +112,31 @@ class LineupController(d: Dependencies = Dependencies())
 
   /** Gets a list of Roster Entry objects, plus any box players missing from that list */
   def build_roster(
-    root_dir: Path, team: TeamId, include_coach: Boolean = false
+    root_dir: Path, team: TeamId, team_fileid: Option[String] = None, include_coach: Boolean = false
   ): (List[String], List[RosterEntry]) = {
-    val roster_players = Try(
-      d.file_manager.list_files(root_dir / roster_dir, Some("html"), None, recursive = true)
-    ).getOrElse(Nil).headOption.flatMap { file =>
-      val roster_html = d.file_manager.read_file(file)
-      val roster_lineup = RosterParser.parse_roster(file.last.toString, roster_html, team, include_coach)
+    val (roster_players, format_version) = ((Try(
+      d.file_manager.list_files(root_dir / roster_dir, Some("html"), None, recursive = true) -> 0
+    ).getOrElse(Nil -> 1) match {
+      case (Nil, _) if team_fileid.isDefined => 
+        d.file_manager.list_files(
+          root_dir / teams_dir / RelPath(team_fileid.getOrElse("__internal_logic_error__")), Some("html"), None, recursive = true
+        ) -> 1
+      case other => other 
+    }) match { 
+      case (file :: _, format_version) =>
+        val roster_html = d.file_manager.read_file(file)
+        val roster_lineup = RosterParser.parse_roster(file.last.toString, roster_html, team, format_version, include_coach)
 
-      roster_lineup.left.foreach { errors =>
-        d.logger.error(s"Parse error with [$team][$root_dir]: [$errors]")
-      }
-      roster_lineup.toOption
-    }.getOrElse(Nil)
+        roster_lineup.left.foreach { errors =>
+          d.logger.error(s"Parse error with [$format_version][$team][$root_dir]: [$errors]")
+        }
+        roster_lineup.toOption.map(_ -> format_version)
+      case _ => None
+    }).getOrElse(Nil -> 0)
 
     // Now read all the box scores in to get any missing names:
+
+    //TODO: need to handle different format versions in here:
 
     val all_box_players = (for {
       box <- Try(d.file_manager.list_files(root_dir / boxscore_dir, Some("html"), None)).getOrElse(Nil).iterator

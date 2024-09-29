@@ -8,3 +8,6 @@ project/project/*
 ensime.sbt
 .scripts.env
 log*.txt
+.bloop/*
+.metals/*
+project/.bloop/*

@@ -34,7 +34,16 @@ trait PlayByPlayParser {
   protected val `ncaa.parse_playbyplay` = "ncaa.parse_playbyplay"
 
   // Holds all the HTML parsing logic
-  protected object builders {
+  protected trait base_builders {
+    def team_finder(doc: Document): List[String]
+    def event_finder(doc: Document): List[Element]
+    def event_time_finder(event: Element): Option[String]
+    def event_score_finder(event: Element): Option[String]
+    def game_event_finder(event: Element): Option[String]
+    def event_team_finder(event: Element, target_team_first: Boolean): Option[String]
+    def event_opponent_finder(event: Element, target_team_first: Boolean): Option[String]
+  }
+  protected object v0_builders extends base_builders {
 
     //TODO: this doesn't work on 2019- any more, need to remove the 50% line
     def team_finder(doc: Document): List[String] = //2020+ is 40%, 2019- is 50%
@@ -63,16 +72,47 @@ trait PlayByPlayParser {
       (event >?> element(s"td.smtext:eq(${index(is = false, target_team_first)})"))
         .map(_.text).filter(_.nonEmpty)
   }
+  protected object v1_builders extends base_builders {
+
+    def team_finder(doc: Document): List[String] = //2020+ is 40%, 2019- is 50%
+      (doc >?> elementList("div#contentarea table.mytable[width~=[45]0%] td a[href]"))
+        .getOrElse(Nil).map(_.text)
+
+    def event_finder(doc: Document): List[Element] =
+      (doc >?> elementList("table.mytable tr:has(td.smtext)")).filter(_.nonEmpty).getOrElse(Nil)
+
+    def event_time_finder(event: Element): Option[String] =
+      (event >?> element("td.smtext:eq(0)")).map(_.text).filter(_.nonEmpty)
+
+    def event_score_finder(event: Element): Option[String] =
+      (event >?> element("td.smtext:eq(2)")).map(_.text).filter(_.nonEmpty)
+
+    def game_event_finder(event: Element): Option[String] =
+      (event >?> element("td.boldtext:not(.smtext)")).map(_.text).filter(_.nonEmpty)
+
+    private def index(is: Boolean, want: Boolean): Int = if (is == want) 1 else 3
+
+    def event_team_finder(event: Element, target_team_first: Boolean): Option[String] =
+      (event >?> element(s"td.smtext:eq(${index(is = true, target_team_first)})"))
+        .map(_.text).filter(_.nonEmpty)
+
+    def event_opponent_finder(event: Element, target_team_first: Boolean): Option[String] =
+      (event >?> element(s"td.smtext:eq(${index(is = false, target_team_first)})"))
+        .map(_.text).filter(_.nonEmpty)
+  }
+  protected var builders_from_version = Array(v0_builders, v1_builders)
 
   /** Combines the different methods to build a set of lineup events */
   def create_lineup_data(
     filename: String,
     in: String,
-    box_lineup: LineupEvent
+    box_lineup: LineupEvent,
+    format_version: Int
   ): Either[List[ParseError], (List[LineupEvent], List[LineupEvent])] = {
     val player_codes = box_lineup.players.map(_.code).toSet
+    val builders = builders_from_version(format_version)
 
-    parse_game_events(filename, in, box_lineup.team.team, box_lineup.team.year).map { reversed_events =>
+    parse_game_events(filename, in, box_lineup.team.team, box_lineup.team.year, builders).map { reversed_events =>
       // There is a weird bug that has happened one time where the scores got swapped
       // So we'll identify and fix this case
       fix_possible_score_swap_bug(
@@ -119,7 +159,8 @@ trait PlayByPlayParser {
     filename: String,
     in: String,
     target_team: TeamId,
-    year: Year
+    year: Year,
+    builders: base_builders
   ): Either[List[ParseError], List[Model.PlayByPlayEvent]] =
   {
     val doc_request_builder = ParseUtils.build_request[Document](`ncaa.parse_playbyplay`, filename) _
@@ -142,7 +183,7 @@ trait PlayByPlayParser {
             s"No play by play events found [$doc]"
           )))
       }
-      model_events <- html_events.map(parse_game_event(_, target_team_first)).sequence
+      model_events <- html_events.map(parse_game_event(_, target_team_first, builders)).sequence
     } yield enrich_and_reverse_game_events(model_events.flatten)
   }
 
@@ -218,7 +259,8 @@ trait PlayByPlayParser {
   */
   protected def parse_game_event(
     el: Element,
-    target_team_first: Boolean
+    target_team_first: Boolean,
+    builders: base_builders
   ): Either[List[ParseError], List[Model.PlayByPlayEvent]] =
   {
     val single_error_completer = ParseUtils.enrich_sub_error(`ncaa.parse_playbyplay`, `parent_fills_in`) _
@@ -230,8 +272,8 @@ trait PlayByPlayParser {
       for {
         _ <- Right(()) //(just determines the for type)
 
-        score_or_error = parse_game_score(el).left.map(single_error_completer)
-        time_or_error = parse_desc_game_time(el).left.map(single_error_completer)
+        score_or_error = parse_game_score(el, builders).left.map(single_error_completer)
+        time_or_error = parse_desc_game_time(el, builders).left.map(single_error_completer)
 
         score_and_time <- (score_or_error, time_or_error).parMapN((_, _))
         ((score_str, raw_score), (time_str, time_mins)) = score_and_time
@@ -270,7 +312,7 @@ trait PlayByPlayParser {
   }
 
   /** Parse a descending time of the form NN:MM into an ascending time */
-  protected def parse_game_score(el: Element)
+  protected def parse_game_score(el: Element, builders: base_builders)
     : Either[ParseError, (String, Game.Score)] =
   {
     val score_regex = "([0-9]+)[-]([0-9]+)".r
@@ -292,7 +334,7 @@ trait PlayByPlayParser {
   /** Parse a descending time of the form NN:MM into time (still descending, will
    *  make it ascend in a separate stateful block of code)
    */
-  protected def parse_desc_game_time(el: Element)
+  protected def parse_desc_game_time(el: Element, builders: base_builders)
     : Either[ParseError, (String, Double)] =
   {
     val `game_time` = "game_time"

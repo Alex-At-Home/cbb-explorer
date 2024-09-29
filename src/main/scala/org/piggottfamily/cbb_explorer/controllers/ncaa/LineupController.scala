@@ -51,7 +51,7 @@ class LineupController(d: Dependencies = Dependencies())
         case results =>
           results 
       }
-      team_fileid = team_filename.last.split("\\.")(0) //(remove extension)
+      team_fileid = team_filename.last.split("[.]")(0) //(remove extension)
 
     } yield format_results -> Some(team_fileid)).take(1).toList.headOption.getOrElse {
       d.logger.info(s"Failed to find the schedule in [${root_dir / teams_dir}]")
@@ -68,20 +68,32 @@ class LineupController(d: Dependencies = Dependencies())
 
     // Try to get the most accurate canonical list of players
     // First look for a roster - if that doesn't exist (legacy) just get all the box scores
-    val external_roster = build_roster(root_dir, team, team_fileid)
+    val (external_roster, derived_format_version) = build_roster(root_dir, team, team_fileid)
 
     //println(s"All_box_roster_players: [$external_roster]")
 
     val lineups = for {
       //(early in the season games might not exist)
-      game <- Try(d.file_manager.list_files(root_dir / play_by_play_dir, Some("html"), file_filter)).getOrElse(Nil).iterator
+      game <- derived_format_version match {
+        case 0 =>
+          Try(d.file_manager.list_files(root_dir / play_by_play_dir, Some("html"), file_filter)).getOrElse(Nil).iterator
+        case _ =>
+          Try(d.file_manager.list_files(root_dir / contests_dir, Some("html"), file_filter)).getOrElse(Nil).iterator.filter {
+            _.last == v1_pbp_filename
+          }
+      }
 
-      game_id = game.last.split("[.]")(0)
+      game_id = derived_format_version match {
+        case 0 =>
+          game.last.split("[.]")(0)
+        case _ =>
+          (game / up).last //(dirname is gameid in version 1)
+      }
       if game_id_filter.forall(_.findFirstIn(game_id).isDefined)
 
       _ = d.logger.info(s"Reading [$game]: [$game_id]")
 
-      lineup = Try { build_game_lineups(root_dir, game_id, team, external_roster, neutral_games) } match {
+      lineup = Try { build_game_lineups(root_dir, game_id, team, external_roster, neutral_games, derived_format_version) } match {
         case Success(res) => res.left.map { errs => ParserError(game, errs) }
         case Failure(ex) => Left(FileError(game, ex))
       }
@@ -113,7 +125,7 @@ class LineupController(d: Dependencies = Dependencies())
   /** Gets a list of Roster Entry objects, plus any box players missing from that list */
   def build_roster(
     root_dir: Path, team: TeamId, team_fileid: Option[String] = None, include_coach: Boolean = false
-  ): (List[String], List[RosterEntry]) = {
+  ): ((List[String], List[RosterEntry]), Int) = {
     val (roster_players, format_version) = ((Try(
       d.file_manager.list_files(root_dir / roster_dir, Some("html"), None, recursive = true) -> 0
     ).getOrElse(Nil -> 1) match {
@@ -155,27 +167,44 @@ class LineupController(d: Dependencies = Dependencies())
           })
         } yield box_lineup.players.map(_.id.name)).flatten.toSet.toList
 
-    (all_box_players, roster_players)
+    ((all_box_players, roster_players), format_version)
   }
 
   /** Given a game/team id, returns good and bad paths for that game */
   protected def build_game_lineups(
     root_dir: Path, game_id: String, team: TeamId,
     external_roster: (List[String], List[RosterEntry]),
-    neutral_game_dates: Set[String]
+    neutral_game_dates: Set[String],
+    format_version: Int
   ):
     Either[List[ParseError], (List[LineupEvent], List[LineupEvent], List[PlayerEvent])] =
   {
-    val playbyplay_filename = s"$game_id.html"
-    val boxscore_filename = s"${game_id}42b2.html" //(encoding of 1st period box score)
-    val box_html = d.file_manager.read_file(root_dir / boxscore_dir / boxscore_filename)
-    val play_by_play_html = d.file_manager.read_file(root_dir / play_by_play_dir / playbyplay_filename)
+    val (playbyplay_path, boxscore_path) = format_version match {
+      case 0 =>
+        val playbyplay_filename = s"$game_id.html"
+        val boxscore_filename = s"${game_id}42b2.html" //(encoding of 1st period box score)
+        (
+          root_dir / play_by_play_dir / playbyplay_filename,
+          root_dir / boxscore_dir / boxscore_filename
+        )
+      case _ =>
+        (
+          //TODO
+          root_dir,
+          root_dir
+        )
+    }
+
+    val play_by_play_html = d.file_manager.read_file(playbyplay_path)
+    val box_html = d.file_manager.read_file(boxscore_path)
     for {
       box_lineup <- d.boxscore_parser.get_box_lineup(
-        boxscore_filename, box_html, team, format_version = 0, external_roster, neutral_game_dates
+        boxscore_path.last, box_html, team, format_version, external_roster, neutral_game_dates
       )
       _ = d.logger.info(s"Parsed box score: opponent=[${box_lineup.opponent}] venue=[${box_lineup.location_type}]")
-      lineup_events <- d.playbyplay_parser.create_lineup_data(playbyplay_filename, play_by_play_html, box_lineup)
+      lineup_events <- d.playbyplay_parser.create_lineup_data(
+        playbyplay_path.last, play_by_play_html, box_lineup, format_version
+      )
       List(player_events_good, player_events_bad) = List(lineup_events._1, lineup_events._2).map { ls =>
         //(note we are including bad lineups in our player events since it's not such a disaster -
         // what we care about is mostly the individual stats)

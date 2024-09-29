@@ -8,6 +8,7 @@ import org.piggottfamily.cbb_explorer.controllers.ncaa.LineupController
 import org.piggottfamily.cbb_explorer.controllers.StorageController
 import org.piggottfamily.cbb_explorer.controllers.StorageController.JsonParserImplicits._
 import org.piggottfamily.cbb_explorer.utils.parsers.ncaa.LineupErrorAnalysisUtils
+import org.piggottfamily.cbb_explorer.utils.FileUtils
 import scala.util.Try
 import java.net.URLDecoder
 
@@ -66,10 +67,13 @@ object BuildRosters {
           if maybe_team_selector.forall(sel => team_name.contains(sel))
         =>
           val team_dir =  subdir/ "stats.ncaa.org"
+          val maybe_team_fileid = FileUtils.list_files(subdir / LineupController.teams_dir, Some("html")).take(1).map {
+            _.last
+          }.headOption
           val decoded_team_name = URLDecoder.decode(team_name.replace("+", " "))
           Some((team_name, ncaa_lineup_controller.build_roster(
-            team_dir, TeamId(decoded_team_name), include_coach = true
-          )))
+            team_dir, TeamId(decoded_team_name), maybe_team_fileid, include_coach = true
+          )._1))
 
         case get_team_id(team_name, _) =>
           println(s"Skipping unselected team with dir ${subdir.toString}")

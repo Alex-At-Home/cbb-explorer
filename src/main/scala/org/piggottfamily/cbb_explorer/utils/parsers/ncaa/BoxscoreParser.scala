@@ -81,7 +81,7 @@ trait BoxscoreParser {
       el >?> elementList("td a[href]")
 
   }
-  protected val builders_array = Array(v0_builders, v1_builders)
+  protected val builders_from_version = Array(v0_builders, v1_builders)
 
   /** Gets the boxscore lineup from the HTML page (external roster has either just names or names + numbers) */
   def get_box_lineup(
@@ -90,7 +90,7 @@ trait BoxscoreParser {
   ): Either[List[ParseError], LineupEvent] =
   {
     val browser = JsoupBrowser()
-    val builders = builders_array(format_version)
+    val builders = builders_from_version(format_version)
 
     // Error reporters
     val doc_request_builder = ParseUtils.build_request[Document](`ncaa.parse_boxscore`, filename) _

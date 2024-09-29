@@ -174,6 +174,7 @@ trait BoxscoreParser {
         target_team_first
       ).left.map(single_error_completer)
 
+      // Note that in v1 this is _not_ ordered by appearance, so can't be used to infer the starting lineup
       ordered_lineup_from_box <- parse_players_from_boxscore(
         builders.boxscore_finder(doc, target_team_first)
       ).left.map(single_error_completer)

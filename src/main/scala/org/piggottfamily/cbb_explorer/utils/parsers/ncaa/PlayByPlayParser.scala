@@ -149,6 +149,84 @@ trait PlayByPlayParser {
   }
   protected var builders_from_version = Array(v0_builders, v1_builders)
 
+  /** v1 format removed the list of starters, so we have to infer it */
+  def inject_starting_lineup_into_box(
+      filename: String,
+      in: String,
+      box_lineup: LineupEvent,
+      external_roster: (List[String], List[RosterEntry]),
+      format_version: Int
+  ): Either[List[ParseError], LineupEvent] = {
+    val builders = builders_from_version(format_version)
+    parse_game_events(
+      filename,
+      in,
+      box_lineup.team.team,
+      box_lineup.team.year,
+      builders,
+      enrich = false
+    ).map { game_events =>
+      case class StarterState(
+          starters: Set[String],
+          excluded: Set[String],
+          last_sub_time: Double = 20.0
+      )
+      val valid_players_set =
+        external_roster._2.map(_.player_code_id.id.name).toSet
+
+      val starter_info: StarterState =
+        game_events.foldLeft(StarterState(Set(), Set())) {
+          case (state, _)
+              if state.starters.size >= 5 => // (we have all the starters)
+            state
+
+          case (state, ev: Model.SubEvent)
+              if !valid_players_set.contains(ev.player_name) =>
+            // Ignore mis-spellings in sub-events
+            state
+
+          case (state, Model.GameBreakEvent(min, _)) =>
+            // Reset the last sub time
+            state.copy(last_sub_time = min)
+
+          case (state, Model.SubOutEvent(time, _, player))
+              if !state.excluded.contains(player) =>
+            // Subbed out, so if not excluded (ie we haven't seen them subbed-in) then is a starter
+            state.copy(starters = state.starters + player, last_sub_time = time)
+
+          case (state, Model.SubInEvent(time, _, player))
+              if !state.starters.contains(player) =>
+            // Subbed in, so if not a starter is definitely not a starter
+            state.copy(excluded = state.excluded + player, last_sub_time = time)
+
+          case (state, ev: Model.MiscGameEvent)
+              if ev.is_team_dir && ev.min < state.last_sub_time =>
+            ev.event_string match {
+              case EventUtils.ParseAnyPlay(player)
+                  if valid_players_set
+                    .contains(player) && !state.excluded.contains(
+                    player
+                  ) && !state.starters.contains(
+                    player
+                  ) =>
+                // A player is mentioned, they have not yet been subbed-in, and isn't concurrent with a sub event
+                // so they must be a starter
+                state.copy(starters = state.starters + player)
+              case _ =>
+                state
+            }
+          case (state, _) => state
+        }
+      val (starters, not_starters) =
+        box_lineup.players.partition(p =>
+          starter_info.starters.contains(p.id.name)
+        )
+
+      box_lineup.copy(players = starters ++ not_starters)
+    }
+
+  }
+
   /** Combines the different methods to build a set of lineup events */
   def create_lineup_data(
       filename: String,
@@ -224,7 +302,8 @@ trait PlayByPlayParser {
       in: String,
       target_team: TeamId,
       year: Year,
-      builders: base_builders
+      builders: base_builders,
+      enrich: Boolean = true
   ): Either[List[ParseError], List[Model.PlayByPlayEvent]] = {
     val doc_request_builder =
       ParseUtils.build_request[Document](`ncaa.parse_playbyplay`, filename) _
@@ -257,7 +336,12 @@ trait PlayByPlayParser {
       model_events <- html_events
         .map(parse_game_event(_, target_team_first, builders))
         .sequence
-    } yield enrich_and_reverse_game_events(model_events.flatten)
+    } yield
+      if (enrich) {
+        enrich_and_reverse_game_events(model_events.flatten)
+      } else {
+        model_events.flatten
+      }
   }
 
   /** Some things that need to happen:

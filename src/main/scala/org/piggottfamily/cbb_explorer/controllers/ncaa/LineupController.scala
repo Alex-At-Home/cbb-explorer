@@ -99,7 +99,7 @@ class LineupController(d: Dependencies = Dependencies()) {
 
     // println(s"All_box_roster_players: [$external_roster]")
 
-    val lineups = for {
+    val games = (for {
       // (early in the season games might not exist)
       game <- derived_format_version match {
         case 0 =>
@@ -130,6 +130,15 @@ class LineupController(d: Dependencies = Dependencies()) {
           (game / up).last // (dirname is gameid in version 1)
       }
       if game_id_filter.forall(_.findFirstIn(game_id).isDefined)
+    } yield game_id -> game) match {
+      case it =>
+        // (debug: sort just i can compare v0 and v1 formats)
+        it.toList
+          .sortBy(_._1)
+    }
+
+    val lineups = for {
+      (game_id, game) <- games
 
       _ = d.logger.info(s"Reading [$game]: [$game_id]")
 
@@ -294,7 +303,7 @@ class LineupController(d: Dependencies = Dependencies()) {
     val play_by_play_html = d.file_manager.read_file(playbyplay_path)
     val box_html = d.file_manager.read_file(boxscore_path)
     for {
-      box_lineup <- d.boxscore_parser.get_box_lineup(
+      tmp_box_lineup <- d.boxscore_parser.get_box_lineup(
         boxscore_path.last,
         box_html,
         team,
@@ -302,9 +311,23 @@ class LineupController(d: Dependencies = Dependencies()) {
         external_roster,
         neutral_game_dates
       )
+      box_lineup <- format_version match {
+        case 0 =>
+          Right(tmp_box_lineup) // (starters are correct)
+        case _ =>
+          d.playbyplay_parser.inject_starting_lineup_into_box(
+            playbyplay_path.last,
+            play_by_play_html,
+            tmp_box_lineup,
+            external_roster,
+            format_version
+          )
+      }
+
       _ = d.logger.info(
         s"Parsed box score: opponent=[${box_lineup.opponent}] venue=[${box_lineup.location_type}]"
       )
+
       lineup_events <- d.playbyplay_parser.create_lineup_data(
         playbyplay_path.last,
         play_by_play_html,

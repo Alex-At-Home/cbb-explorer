@@ -99,7 +99,7 @@ class LineupController(d: Dependencies = Dependencies()) {
 
     // println(s"All_box_roster_players: [$external_roster]")
 
-    val games = (for {
+    val games_iterator = for {
       // (early in the season games might not exist)
       game <- derived_format_version match {
         case 0 =>
@@ -130,15 +130,10 @@ class LineupController(d: Dependencies = Dependencies()) {
           (game / up).last // (dirname is gameid in version 1)
       }
       if game_id_filter.forall(_.findFirstIn(game_id).isDefined)
-    } yield game_id -> game) match {
-      case it =>
-        // (debug: sort just i can compare v0 and v1 formats)
-        it.toList
-          .sortBy(_._1)
-    }
+    } yield game_id -> game
 
     val lineups = for {
-      (game_id, game) <- games
+      (game_id, game) <- games_iterator
 
       _ = d.logger.info(s"Reading [$game]: [$game_id]")
 
@@ -162,13 +157,26 @@ class LineupController(d: Dependencies = Dependencies()) {
         bad_lineups: List[LineupEvent],
         player_events: List[PlayerEvent]
     )
-    val end_state = lineups.foldLeft(State(Nil, Nil, Nil)) {
+
+    /** Sort games for debugging purposes - turn off otherwise to save on memory
+      * (lineups is an iterator)
+      */
+    val debug_sort = false
+    val maybe_sorted_lineups = if (debug_sort) lineups.toList.sortBy {
+      case Right((good, _, _)) =>
+        good.headOption.map(_.date.getMillis).getOrElse(0L)
+      case Left(_) => 0L
+    }
+    else lineups
+
+    val end_state = maybe_sorted_lineups.foldLeft(State(Nil, Nil, Nil)) {
       (state, lineup_info) =>
         lineup_info match {
           case Right((good, bad, player)) =>
             d.logger.info(
               s"Successful parse: good=[${good.size}] bad=[${bad.size}]"
             )
+            // (we'll sort )
             state.copy(
               good_lineups = state.good_lineups ++ good,
               bad_lineups = state.bad_lineups ++ bad,

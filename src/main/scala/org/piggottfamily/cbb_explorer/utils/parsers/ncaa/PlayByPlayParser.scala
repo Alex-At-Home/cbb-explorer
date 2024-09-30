@@ -181,7 +181,9 @@ trait PlayByPlayParser {
             state
 
           case (state, ev: Model.SubEvent)
-              if !valid_players_set.contains(ev.player_name) =>
+              if !valid_players_set.contains(
+                ExtractorUtils.name_in_v0_format(ev.player_name)
+              ) =>
             // Ignore mis-spellings in sub-events
             state
 
@@ -219,7 +221,9 @@ trait PlayByPlayParser {
         }
       val (starters, not_starters) =
         box_lineup.players.partition(p =>
-          starter_info.starters.contains(p.id.name)
+          starter_info.starters
+            .map(ExtractorUtils.name_in_v0_format)
+            .contains(p.id.name)
         )
 
       box_lineup.copy(players = starters ++ not_starters)

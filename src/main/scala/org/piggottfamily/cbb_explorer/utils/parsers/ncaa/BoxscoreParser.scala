@@ -177,7 +177,12 @@ trait BoxscoreParser {
       // Note that in v1 this is _not_ ordered by appearance, so can't be used to infer the starting lineup
       ordered_lineup_from_box <- parse_players_from_boxscore(
         builders.boxscore_finder(doc, target_team_first)
-      ).left.map(single_error_completer)
+      ).left.map(single_error_completer).right.map {
+        case players if format_version == 1 =>
+          // v1 format has "firstname lastname", v0 has "lastname, firstname"
+          players.map(ExtractorUtils.name_in_v0_format)
+        case players => players
+      }
 
       val temp_box_score = LineupEvent( // (need this to build a player context)
         date,

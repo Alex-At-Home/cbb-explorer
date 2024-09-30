@@ -70,12 +70,15 @@ trait RosterParser {
     def games_played_finder(el: Element): Option[String] =
       (el >?> element("td:eq(5)")).map(_.text)
 
-    def origin_finder(el: Element): Option[String] = None //(not supported in v0)
+    def origin_finder(el: Element): Option[String] =
+      None // (not supported in v0)
   }
   protected object builders_v1 extends base_builders {
 
     def coach_finder(doc: Document): Option[String] =
-      (doc >?> element("div.card-header:contains(Coach) + div.card-body a[href]")).map(_.text)
+      (doc >?> element(
+        "div.card-header:contains(Coach) + div.card-body a[href]"
+      )).map(_.text)
 
     def player_info_finder(doc: Document): Option[List[Element]] =
       (doc >?> elementList("table.dataTable tbody tr"))
@@ -105,71 +108,117 @@ trait RosterParser {
 
   /** Gets the boxscore lineup from the HTML page */
   def parse_roster(
-    filename: String, in: String, team_id: TeamId, version_format: Int, include_coach: Boolean = false
-  ): Either[List[ParseError], List[RosterEntry]] =
-  {
+      filename: String,
+      in: String,
+      team_id: TeamId,
+      version_format: Int,
+      include_coach: Boolean = false
+  ): Either[List[ParseError], List[RosterEntry]] = {
     val browser = JsoupBrowser()
     val builders = builders_array(version_format)
 
     // Error reporters
-    val doc_request_builder = ParseUtils.build_request[Document](`ncaa.parse_roster`, filename) _
-    val single_error_completer = ParseUtils.enrich_sub_error(`ncaa.parse_roster`, filename) _
+    val doc_request_builder =
+      ParseUtils.build_request[Document](`ncaa.parse_roster`, filename) _
+    val single_error_completer =
+      ParseUtils.enrich_sub_error(`ncaa.parse_roster`, filename) _
 
     for {
       doc <- doc_request_builder(browser.parseString(in))
 
       coach <- Right(
-        builders.coach_finder(doc).filter(_ => include_coach).map { coach_name =>
-          RosterEntry(
-            LineupEvent.PlayerCodeId("__coach__", PlayerId(coach_name)), "", "", "", None, "", -1, None
-          )
-        }
+        builders
+          .coach_finder(doc)
+          .filter(_ => include_coach)
+          .map { coach_name =>
+            RosterEntry(
+              LineupEvent.PlayerCodeId("__coach__", PlayerId(coach_name)),
+              "",
+              "",
+              "",
+              None,
+              "",
+              -1,
+              None
+            )
+          }
       )
 
       players <- Right(
-        builders.player_info_finder(doc).getOrElse(Nil).flatMap { el =>
-          (for {
-            name <- builders.name_finder(el)
+        builders
+          .player_info_finder(doc)
+          .getOrElse(Nil)
+          .flatMap { el =>
+            (for {
+              name <- builders.name_finder(el).map {
+                case v0_formatted_name if version_format == 0 =>
+                  v0_formatted_name
+                case v1_formatted_name =>
+                  ExtractorUtils.name_in_v0_format(v1_formatted_name)
+              }
 
-            // No initials allowed in the roster:
-            _ <- if (name_is_initials(name).nonEmpty) None else Some(())
+              // No initials allowed in the roster:
+              _ <- if (name_is_initials(name).nonEmpty) None else Some(())
 
-            player_code_id = build_player_code(name, Some(team_id)) //(fixes accent and misspellings)
-            number <- builders.number_finder(el)
-            pos <- builders.pos_finder(el)
-            height <- builders.height_finder(el)
-            year_class <- builders.class_finder(el)
-            gp <- builders.games_played_finder(el)
+              player_code_id = build_player_code(
+                name,
+                Some(team_id)
+              ) // (fixes accent and misspellings)
+              number <- builders.number_finder(el)
+              pos <- builders.pos_finder(el)
+              height <- builders.height_finder(el)
+              year_class <- builders.class_finder(el)
+              gp <- builders.games_played_finder(el)
 
-            height_in = height match {
-              case RosterEntry.height_regex(ft, in) => Some(ft.toInt*12 + in.toInt)
-              case _ => None
+              height_in = height match {
+                case RosterEntry.height_regex(ft, in) =>
+                  Some(ft.toInt * 12 + in.toInt)
+                case _ => None
+              }
+              origin = builders.origin_finder(el)
+
+            } yield RosterEntry(
+              player_code_id,
+              number,
+              pos,
+              height,
+              height_in,
+              year_class,
+              Try(gp.toInt).getOrElse(0),
+              origin
+            )).toList
+          }
+          .sortWith { // So below we dedup the smaller number of games played
+            case (lhs, rhs) =>
+              lhs.gp > rhs.gp || ((lhs.gp == rhs.gp) && (lhs.player_code_id.code < rhs.player_code_id.code))
+          }
+          .foldLeft(Map[LineupEvent.PlayerCodeId, RosterEntry]()) { (acc, v) =>
+            acc.get(v.player_code_id) match {
+              // Can get duplicate names so just
+              case Some(_) => acc
+              case None    => acc + (v.player_code_id -> v)
             }
-            origin = builders.origin_finder(el)
-
-          } yield RosterEntry(
-            player_code_id, number, pos, height, height_in, year_class, Try(gp.toInt).getOrElse(0), origin
-          )).toList
-        }.sortWith { // So below we dedup the smaller number of games played
-          case (lhs, rhs) => 
-            lhs.gp > rhs.gp || ((lhs.gp == rhs.gp) && (lhs.player_code_id.code < rhs.player_code_id.code))
-        }.foldLeft(Map[LineupEvent.PlayerCodeId, RosterEntry]()) { (acc, v) => acc.get(v.player_code_id) match {
-          // Can get duplicate names so just
-          case  Some(_) => acc
-          case None => acc + (v.player_code_id -> v)
-        }}.values.toList.sortWith(_.gp > _.gp)
+          }
+          .values
+          .toList
+          .sortWith(_.gp > _.gp)
       )
 
       // Validate duplicates (like in box score parsing logic):
       player_codes = players.map(p => p.player_code_id.code)
-      _ <- if (player_codes.toSet.size != players.size) {
-        Left(List(ParseUtils.build_sub_error(`parent_fills_in`)(
-          s"Duplicate players: [${players.groupBy(_.player_code_id.code).mapValues(_.map(_.player_code_id)).partition(_._2.size > 1)}]"
-        )))
+      _ <-
+        if (player_codes.toSet.size != players.size) {
+          Left(
+            List(
+              ParseUtils.build_sub_error(`parent_fills_in`)(
+                s"Duplicate players: [${players.groupBy(_.player_code_id.code).mapValues(_.map(_.player_code_id)).partition(_._2.size > 1)}]"
+              )
+            )
+          )
 
-      } else {
-        Right(())
-      }
+        } else {
+          Right(())
+        }
 
     } yield players ++ coach.toList
   }

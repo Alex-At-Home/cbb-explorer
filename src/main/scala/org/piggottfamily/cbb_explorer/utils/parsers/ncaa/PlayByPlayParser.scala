@@ -170,7 +170,13 @@ trait PlayByPlayParser {
           starters: Set[String],
           excluded: Set[String],
           last_sub_time: Double = 20.0
-      )
+      ) {
+        // Some state utils to handle the fact that the raw events aren't formatted but the box score/restore are
+        lazy val formatted_starters: Set[String] =
+          starters.map(ExtractorUtils.name_in_v0_format)
+        lazy val formatted_non_starters: Set[String] =
+          excluded.map(ExtractorUtils.name_in_v0_format)
+      }
       val valid_players_set =
         external_roster._2.map(_.player_code_id.id.name).toSet
 
@@ -219,16 +225,29 @@ trait PlayByPlayParser {
             }
           case (state, _) => state
         }
-      val (starters, not_starters) =
+      val (starters, probably_not_starters) =
         box_lineup.players.partition(p =>
-          starter_info.starters
-            .map(ExtractorUtils.name_in_v0_format)
+          starter_info.formatted_starters
             .contains(p.id.name)
         )
 
-      box_lineup.copy(players = starters ++ not_starters)
+      if (starters.size >= 5) {
+        box_lineup.copy(players = starters ++ probably_not_starters)
+      } else {
+        // Pathological case where a starter played all 40 mins without ever getting mentioned (a "40 trillian"!)
+        // Since we didn't pull out minutes from the box score, we'll just pick a rando who didn't appear
+        // in the excluded set and call them the starter. I cannot understate how little I expect this to happen!
+        val (definitely_not_starters, just_possibly_starters) =
+          probably_not_starters
+            .partition(p =>
+              starter_info.formatted_non_starters
+                .contains(p.id.name)
+            )
+        box_lineup.copy(players =
+          starters ++ just_possibly_starters ++ definitely_not_starters
+        )
+      }
     }
-
   }
 
   /** Combines the different methods to build a set of lineup events */

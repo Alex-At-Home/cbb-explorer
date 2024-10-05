@@ -156,150 +156,164 @@ trait ShotEventParser {
 
       // Phase 1, get as much stuff out as we can based on just the events themselves
       // (phase 2 fills in given the context of all the event data)
-      // TODO: move this into a function
       very_raw_events <- html_events.map { event =>
-        val period_opt = builders.event_period_finder(event)
-        val time_opt = builders
-          .event_time_finder(event)
-        val player_opt = builders.event_player_finder(event)
-        val location_opt = builders.shot_location_finder(event)
-        val score_opt = builders.event_score_finder(event)
-        val result = builders.shot_result_finder(event)
-        val shot_taking_team_opt = builders.shot_taking_team_finder(event)
-        val field_tuples = (
-          period_opt,
-          time_opt,
-          player_opt,
-          location_opt,
-          score_opt,
-          shot_taking_team_opt
+        parse_shot_html(
+          event,
+          box_lineup,
+          builders,
+          tidy_ctx,
+          target_team_first
         )
-        field_tuples match {
-          case (
-                Some(period),
-                Some(time),
-                Some(player),
-                Some(location),
-                Some(score),
-                Some(shot_taking_team)
-              ) =>
-            val is_offensive = box_lineup.team.team.name == shot_taking_team
-
-            val maybe_player_code_id = if (is_offensive) {
-              val (tidier_player_name, _) =
-                LineupErrorAnalysisUtils.tidy_player(player, tidy_ctx)
-
-              Some(
-                ExtractorUtils.build_player_code(
-                  tidier_player_name,
-                  Some(box_lineup.team.team)
-                )
-              )
-
-            } else None
-
-            Right(
-              period -> ShotEvent(
-                shooter = maybe_player_code_id,
-                date = box_lineup.date,
-                location_type = box_lineup.location_type,
-                team = box_lineup.team,
-                opponent = box_lineup.opponent,
-                is_off = is_offensive,
-                lineup_id = LineupEvent.LineupId(
-                  "__FILL_IN_LATER__"
-                ), // (fill in final phase)
-                players = Nil, // (fill in later)
-                score = box_lineup.location_type match {
-                  case Game.LocationType.Home => score
-                  case Game.LocationType.Away =>
-                    Game.Score(score.allowed, score.scored)
-                  case Game.LocationType.Neutral =>
-                    if (target_team_first) score
-                    else Game.Score(score.allowed, score.scored)
-                },
-                shot_min = time,
-                x =
-                  location._1, // (enrich these in next phase of this function)
-                y = location._2,
-                dist = 0.0, // (fill in thsese in next phase of this function)
-                pts =
-                  if (result) 1
-                  else 0, // (enrich in final phase)
-                value = 0, // (fill in final phase)
-                assisted_by = None, // (fill these in final phase)
-                is_assisted = None,
-                in_transition = None
-              )
-            )
-          case _ =>
-            val missing_params =
-              field_tuples.productIterator.zipWithIndex.collect {
-                case (None, idx) => idx
-              }
-            Left(
-              List(
-                ParseUtils.build_sub_error(`ncaa.parse_shotevent`)(
-                  s"Missing fields from shot: param_indices=" +
-                    s"[${missing_params.mkString(",")}] in [${event.outerHtml}]"
-                )
-              )
-            )
-        }
       }.sequence
 
       sorted_very_raw_events = very_raw_events.sortBy { case (period, shot) =>
         period * 1000 - shot.shot_min // (switch to correctly sorted ascending times)
       }
 
-      sorted_raw_events = {
-
-        // First question ... is this a women's or men's game?
-
-        val num_periods = sorted_very_raw_events.map(_._1).distinct.size
-        val shot_taken_before_1st_quarter_starts =
-          sorted_very_raw_events.headOption.exists { _._2.shot_min > 10.0 }
-        val is_women_game =
-          (num_periods >= 4) && !shot_taken_before_1st_quarter_starts
-
-        // Next question ... which side of the screen is which team shooting on
-
-        val first_period =
-          sorted_very_raw_events.headOption.map(_._1).getOrElse(1)
-        val first_period_shots =
-          sorted_very_raw_events.takeWhile(_._1 == first_period).map(_._2)
-        val (shots_to_left, shots_to_right) =
-          first_period_shots.filter(_.is_off).partition {
-            _.x < ShotMapDimensions.half_court_x_px
-          }
-        val team_shooting_left_in_first_period =
-          shots_to_left.size > shots_to_right.size
-
-        sorted_very_raw_events.map { case (period, shot) =>
-          val ascending_time =
-            ExtractorUtils.start_time_from_period(period, is_women_game) +
-              (ExtractorUtils.start_time_from_period(
-                period + 1,
-                is_women_game
-              ) - shot.shot_min)
-
-          val (x, y) = transform_shot_location(
-            shot.x,
-            shot.y,
-            period,
-            team_shooting_left_in_first_period,
-            shot.is_off
-          )
-          shot.copy(
-            x = x,
-            y = y,
-            shot_min = ascending_time
-          )
-        }
-      }
+      sorted_raw_events = phase1_shot_event_enrichment(sorted_very_raw_events)
 
     } yield sorted_raw_events
 
+  }
+
+  /** An initial parse of the shot HTML based solely on the HTML itself - some
+    * fields cannot be filled in until we have more events to generate context
+    */
+  protected def parse_shot_html(
+      event: Element,
+      box_lineup: LineupEvent,
+      builders: base_builders,
+      tidy_ctx: LineupErrorAnalysisUtils.TidyPlayerContext,
+      target_team_first: Boolean
+  ): Either[List[ParseError], (Int, ShotEvent)] = {
+    val period_opt = builders.event_period_finder(event)
+    val time_opt = builders
+      .event_time_finder(event)
+    val player_opt = builders.event_player_finder(event)
+    val location_opt = builders.shot_location_finder(event)
+    val score_opt = builders.event_score_finder(event)
+    val result = builders.shot_result_finder(event)
+    val shot_taking_team_opt = builders.shot_taking_team_finder(event)
+    val field_tuples = (
+      period_opt,
+      time_opt,
+      player_opt,
+      location_opt,
+      score_opt,
+      shot_taking_team_opt
+    )
+    field_tuples.mapN((_, _, _, _, _, _)) match {
+      case Some((period, time, player, location, score, shot_taking_team)) =>
+        val is_offensive = box_lineup.team.team.name == shot_taking_team
+
+        val maybe_player_code_id = if (is_offensive) {
+          val (tidier_player_name, _) =
+            LineupErrorAnalysisUtils.tidy_player(player, tidy_ctx)
+
+          Some(
+            ExtractorUtils.build_player_code(
+              tidier_player_name,
+              Some(box_lineup.team.team)
+            )
+          )
+
+        } else None
+
+        Right(
+          period -> ShotEvent(
+            shooter = maybe_player_code_id,
+            date = box_lineup.date,
+            location_type = box_lineup.location_type,
+            team = box_lineup.team,
+            opponent = box_lineup.opponent,
+            is_off = is_offensive,
+            lineup_id = LineupEvent.LineupId(
+              "__FILL_IN_LATER__"
+            ), // (fill in final phase)
+            players = Nil, // (fill in later)
+            score = box_lineup.location_type match {
+              case Game.LocationType.Home => score
+              case Game.LocationType.Away =>
+                Game.Score(score.allowed, score.scored)
+              case Game.LocationType.Neutral =>
+                if (target_team_first) score
+                else Game.Score(score.allowed, score.scored)
+            },
+            shot_min = time,
+            x = location._1, // (enrich these in next phase of this function)
+            y = location._2,
+            dist = 0.0, // (fill in thsese in next phase of this function)
+            pts =
+              if (result) 1
+              else 0, // (enrich in final phase)
+            value = 0, // (fill in final phase)
+            assisted_by = None, // (fill these in final phase)
+            is_assisted = None,
+            in_transition = None
+          )
+        )
+      case _ =>
+        val missing_params =
+          field_tuples.productIterator.zipWithIndex.collect {
+            case (None, idx) => idx
+          }
+        Left(
+          List(
+            ParseUtils.build_sub_error(`ncaa.parse_shotevent`)(
+              s"Missing fields from shot: param_indices=" +
+                s"[${missing_params.mkString(",")}] in [${event.outerHtml}]"
+            )
+          )
+        )
+    }
+  }
+
+  /** Now we have a collection of events, labelled with period, we can fill in
+    * some more fields
+    */
+  protected def phase1_shot_event_enrichment(
+      sorted_very_raw_events: List[(Int, ShotEvent)]
+  ): List[ShotEvent] = {
+    val num_periods = sorted_very_raw_events.map(_._1).distinct.size
+    val shot_taken_before_1st_quarter_starts =
+      sorted_very_raw_events.headOption.exists { _._2.shot_min > 10.0 }
+    val is_women_game =
+      (num_periods >= 4) && !shot_taken_before_1st_quarter_starts
+
+    // Next question ... which side of the screen is which team shooting on
+
+    val first_period =
+      sorted_very_raw_events.headOption.map(_._1).getOrElse(1)
+    val first_period_shots =
+      sorted_very_raw_events.takeWhile(_._1 == first_period).map(_._2)
+    val (shots_to_left, shots_to_right) =
+      first_period_shots.filter(_.is_off).partition {
+        _.x < ShotMapDimensions.half_court_x_px
+      }
+    val team_shooting_left_in_first_period =
+      shots_to_left.size > shots_to_right.size
+
+    sorted_very_raw_events.map { case (period, shot) =>
+      val ascending_time =
+        ExtractorUtils.start_time_from_period(period, is_women_game) +
+          (ExtractorUtils.start_time_from_period(
+            period + 1,
+            is_women_game
+          ) - shot.shot_min)
+
+      val (x, y) = transform_shot_location(
+        shot.x,
+        shot.y,
+        period,
+        team_shooting_left_in_first_period,
+        shot.is_off
+      )
+      shot.copy(
+        x = x,
+        y = y,
+        shot_min = ascending_time
+      )
+    }
   }
 
   /** Shot dimensions taken from svg#court, should consider extracting these */

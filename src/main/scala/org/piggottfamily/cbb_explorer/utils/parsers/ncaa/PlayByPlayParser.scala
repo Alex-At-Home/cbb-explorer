@@ -149,6 +149,73 @@ trait PlayByPlayParser {
   }
   protected var builders_from_version = Array(v0_builders, v1_builders)
 
+  /** Combines the different methods to build a set of lineup events */
+  def create_lineup_data(
+      filename: String,
+      in: String,
+      box_lineup: LineupEvent,
+      format_version: Int
+  ): Either[List[ParseError], (List[LineupEvent], List[LineupEvent])] = {
+    val player_codes = box_lineup.players.map(_.code).toSet
+    val builders = builders_from_version(format_version)
+
+    parse_game_events(
+      filename,
+      in,
+      box_lineup.team.team,
+      box_lineup.team.year,
+      builders
+    ).map { reversed_events =>
+      // There is a weird bug that has happened one time where the scores got swapped
+      // So we'll identify and fix this case
+      fix_possible_score_swap_bug(
+        build_partial_lineup_list(reversed_events.toIterator, box_lineup),
+        box_lineup
+      )
+    }.map { events =>
+      val processed_events = events.map(enrich_lineup _)
+
+      // Calculate possessions per lineup
+      var lineups_with_poss = PossessionUtils.calculate_possessions(
+        processed_events
+      )
+
+      // Get good and bad lineups (together with context)
+      // Use the context to fix the bad lineups if possible
+
+      val tmp_lineups = lineups_with_poss.map(Some(_))
+      val zip_lineups = tmp_lineups zip (tmp_lineups.drop(1) ++ List(None))
+
+      val (good_lineups, bad_lineups) = zip_lineups.partition {
+        case (Some(e), e_next) =>
+          LineupErrorAnalysisUtils
+            .validate_lineup(e, box_lineup, player_codes)
+            .isEmpty
+      }
+      val bad_lineup_clumps = LineupErrorAnalysisUtils.clump_bad_lineups(
+        bad_lineups.flatMap { case (opt_e, maybe_e) =>
+          opt_e.map((_, maybe_e)).toList
+        }
+      )
+      val fixed_or_not = bad_lineup_clumps.map(clump =>
+        LineupErrorAnalysisUtils
+          .analyze_and_fix_clumps(clump, box_lineup, player_codes)
+      )
+      val final_good_lineups = good_lineups.flatMap(_._1.toList) ++
+        fixed_or_not.flatMap(_._1)
+      val final_bad_lineups = fixed_or_not.flatMap(_._2.evs)
+
+      (
+        final_good_lineups,
+        final_bad_lineups.map(ev =>
+          ev.copy( // at the last moment, add the player_count_error
+            player_count_error = Some(ev.players.size)
+          )
+        )
+      )
+    }
+  }
+
   /** v1 format removed the list of starters, so we have to infer it */
   def inject_starting_lineup_into_box(
       filename: String,
@@ -247,73 +314,6 @@ trait PlayByPlayParser {
           starters ++ just_possibly_starters ++ definitely_not_starters
         )
       }
-    }
-  }
-
-  /** Combines the different methods to build a set of lineup events */
-  def create_lineup_data(
-      filename: String,
-      in: String,
-      box_lineup: LineupEvent,
-      format_version: Int
-  ): Either[List[ParseError], (List[LineupEvent], List[LineupEvent])] = {
-    val player_codes = box_lineup.players.map(_.code).toSet
-    val builders = builders_from_version(format_version)
-
-    parse_game_events(
-      filename,
-      in,
-      box_lineup.team.team,
-      box_lineup.team.year,
-      builders
-    ).map { reversed_events =>
-      // There is a weird bug that has happened one time where the scores got swapped
-      // So we'll identify and fix this case
-      fix_possible_score_swap_bug(
-        build_partial_lineup_list(reversed_events.toIterator, box_lineup),
-        box_lineup
-      )
-    }.map { events =>
-      val processed_events = events.map(enrich_lineup _)
-
-      // Calculate possessions per lineup
-      var lineups_with_poss = PossessionUtils.calculate_possessions(
-        processed_events
-      )
-
-      // Get good and bad lineups (together with context)
-      // Use the context to fix the bad lineups if possible
-
-      val tmp_lineups = lineups_with_poss.map(Some(_))
-      val zip_lineups = tmp_lineups zip (tmp_lineups.drop(1) ++ List(None))
-
-      val (good_lineups, bad_lineups) = zip_lineups.partition {
-        case (Some(e), e_next) =>
-          LineupErrorAnalysisUtils
-            .validate_lineup(e, box_lineup, player_codes)
-            .isEmpty
-      }
-      val bad_lineup_clumps = LineupErrorAnalysisUtils.clump_bad_lineups(
-        bad_lineups.flatMap { case (opt_e, maybe_e) =>
-          opt_e.map((_, maybe_e)).toList
-        }
-      )
-      val fixed_or_not = bad_lineup_clumps.map(clump =>
-        LineupErrorAnalysisUtils
-          .analyze_and_fix_clumps(clump, box_lineup, player_codes)
-      )
-      val final_good_lineups = good_lineups.flatMap(_._1.toList) ++
-        fixed_or_not.flatMap(_._1)
-      val final_bad_lineups = fixed_or_not.flatMap(_._2.evs)
-
-      (
-        final_good_lineups,
-        final_bad_lineups.map(ev =>
-          ev.copy( // at the last moment, add the player_count_error
-            player_count_error = Some(ev.players.size)
-          )
-        )
-      )
     }
   }
 

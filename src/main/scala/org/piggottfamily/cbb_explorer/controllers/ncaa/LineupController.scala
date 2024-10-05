@@ -13,6 +13,8 @@ import scala.util.matching.Regex
 import scala.util.{Try, Success, Failure}
 
 import com.softwaremill.quicklens._
+import cats.implicits._
+import cats.data._
 
 /** Top level business logic for parsing the different datasets */
 class LineupController(d: Dependencies = Dependencies()) {
@@ -387,7 +389,7 @@ class LineupController(d: Dependencies = Dependencies()) {
       }
 
       raw_shot_events <-
-        (maybe_shot_event_path zip maybe_shot_event_html).headOption match {
+        (maybe_shot_event_path, maybe_shot_event_html).mapN((_, _)) match {
           case Some((path, html)) =>
             d.shot_parser.create_shot_event_data(
               path.last,

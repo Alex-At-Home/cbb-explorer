@@ -376,6 +376,8 @@ trait PlayByPlayParser {
   protected def enrich_and_reverse_game_events(
       in: List[Model.PlayByPlayEvent]
   ): List[Model.PlayByPlayEvent] = {
+    // (wow this is crazy, if the first event is 10mins into the game, it must be a women's game
+    // which have quarters!)
     val is_women_game = in.headOption.exists(_.min <= 10);
 
     def ascend_minutes(

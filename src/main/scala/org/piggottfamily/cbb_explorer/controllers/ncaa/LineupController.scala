@@ -25,7 +25,12 @@ class LineupController(d: Dependencies = Dependencies()) {
       team: TeamId,
       game_id_filter: Option[Regex] = None,
       min_time_filter: Option[Long] = None
-  ): (List[LineupEvent], List[LineupEvent], List[PlayerEvent]) = {
+  ): (
+      List[LineupEvent],
+      List[LineupEvent],
+      List[PlayerEvent],
+      List[ShotEvent]
+  ) = {
     sealed trait LineupError
     case class FileError(f: Path, ex: Throwable) extends LineupError
     case class ParserError(f: Path, l: List[ParseError]) extends LineupError
@@ -155,7 +160,8 @@ class LineupController(d: Dependencies = Dependencies()) {
     case class State(
         good_lineups: List[LineupEvent],
         bad_lineups: List[LineupEvent],
-        player_events: List[PlayerEvent]
+        player_events: List[PlayerEvent],
+        shot_events: List[ShotEvent]
     )
 
     /** Sort games for debugging purposes - turn off otherwise to save on memory
@@ -163,16 +169,16 @@ class LineupController(d: Dependencies = Dependencies()) {
       */
     val debug_sort = false
     val maybe_sorted_lineups = if (debug_sort) lineups.toList.sortBy {
-      case Right((good, _, _)) =>
+      case Right((good, _, _, _)) =>
         good.headOption.map(_.date.getMillis).getOrElse(0L)
       case Left(_) => 0L
     }
     else lineups
 
-    val end_state = maybe_sorted_lineups.foldLeft(State(Nil, Nil, Nil)) {
+    val end_state = maybe_sorted_lineups.foldLeft(State(Nil, Nil, Nil, Nil)) {
       (state, lineup_info) =>
         lineup_info match {
-          case Right((good, bad, player)) =>
+          case Right((good, bad, player, shot)) =>
             d.logger.info(
               s"Successful parse: good=[${good.size}] bad=[${bad.size}]"
             )
@@ -180,7 +186,8 @@ class LineupController(d: Dependencies = Dependencies()) {
             state.copy(
               good_lineups = state.good_lineups ++ good,
               bad_lineups = state.bad_lineups ++ bad,
-              player_events = state.player_events ++ player
+              player_events = state.player_events ++ player,
+              shot_events = state.shot_events ++ shot
             )
           case Left(FileError(game, ex)) =>
             d.logger.info(s"File error with [$game]: [$ex]")
@@ -190,7 +197,12 @@ class LineupController(d: Dependencies = Dependencies()) {
             state
         }
     }
-    (end_state.good_lineups, end_state.bad_lineups, end_state.player_events)
+    (
+      end_state.good_lineups,
+      end_state.bad_lineups,
+      end_state.player_events,
+      end_state.shot_events
+    )
   }
 
   /** Gets a list of Roster Entry objects, plus any box players missing from
@@ -291,25 +303,30 @@ class LineupController(d: Dependencies = Dependencies()) {
       format_version: Int
   ): Either[List[
     ParseError
-  ], (List[LineupEvent], List[LineupEvent], List[PlayerEvent])] = {
-    val (playbyplay_path, boxscore_path) = format_version match {
-      case 0 =>
-        val playbyplay_filename = s"$game_id.html"
-        val boxscore_filename =
-          s"${game_id}42b2.html" // (encoding of 1st period box score)
-        (
-          root_dir / play_by_play_dir / playbyplay_filename,
-          root_dir / boxscore_dir / boxscore_filename
-        )
-      case _ =>
-        (
-          root_dir / contests_dir / game_id / v1_pbp_filename,
-          root_dir / contests_dir / game_id / v1_boxscore_filename
-        )
-    }
+  ], (List[LineupEvent], List[LineupEvent], List[PlayerEvent], List[ShotEvent])] = {
+    val (playbyplay_path, boxscore_path, maybe_shot_event_path) =
+      format_version match {
+        case 0 =>
+          val playbyplay_filename = s"$game_id.html"
+          val boxscore_filename =
+            s"${game_id}42b2.html" // (encoding of 1st period box score)
+          (
+            root_dir / play_by_play_dir / playbyplay_filename,
+            root_dir / boxscore_dir / boxscore_filename,
+            None
+          )
+        case _ =>
+          (
+            root_dir / contests_dir / game_id / v1_pbp_filename,
+            root_dir / contests_dir / game_id / v1_boxscore_filename,
+            Some(root_dir / contests_dir / game_id / v1_shotlocs_filename)
+          )
+      }
 
     val play_by_play_html = d.file_manager.read_file(playbyplay_path)
     val box_html = d.file_manager.read_file(boxscore_path)
+    val maybe_shot_event_html =
+      maybe_shot_event_path.map(d.file_manager.read_file)
     for {
       tmp_box_lineup <- d.boxscore_parser.get_box_lineup(
         boxscore_path.last,
@@ -368,13 +385,28 @@ class LineupController(d: Dependencies = Dependencies()) {
           )
         }
       }
+
+      raw_shot_events <-
+        (maybe_shot_event_path zip maybe_shot_event_html).headOption match {
+          case Some((path, html)) =>
+            d.shot_parser.create_shot_event_data(
+              path.last,
+              html,
+              box_lineup
+            )
+          case None => Right(Nil)
+        }
+      // TODO: enrich by correlating with lineup events
+      // enriched_shot_events = d.shot_parser.enrich_shot_data()
+
     } yield (
       player_events_good.map(_._1), // good lineups adjusted with player info
       player_events_bad.map(_._1), // bad lineups adjusted with player info
       player_events_good.map(_._2).flatten ++ player_events_bad
         .map(_._2)
-        .flatten
-    ) // player info only
+        .flatten, // player info only
+      raw_shot_events // (TODO use enriched)
+    )
   }
 
 }
@@ -395,6 +427,7 @@ object LineupController {
   case class Dependencies(
       boxscore_parser: BoxscoreParser = BoxscoreParser,
       playbyplay_parser: PlayByPlayParser = PlayByPlayParser,
+      shot_parser: ShotEventParser = ShotEventParser,
       logger: LogUtils = LogUtils,
       file_manager: FileUtils = FileUtils
   )

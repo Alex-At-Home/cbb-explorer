@@ -227,9 +227,7 @@ trait ShotEventParser {
             team = box_lineup.team,
             opponent = box_lineup.opponent,
             is_off = is_offensive,
-            lineup_id = LineupEvent.LineupId(
-              "__FILL_IN_LATER__"
-            ), // (fill in final phase)
+            lineup_id = LineupEvent.LineupId.unknown, // (fill in final phase)
             players = Nil, // (fill in later)
             score = box_lineup.location_type match {
               case Game.LocationType.Home => score

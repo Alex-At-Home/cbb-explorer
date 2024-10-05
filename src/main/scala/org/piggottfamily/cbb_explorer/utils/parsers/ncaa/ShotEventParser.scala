@@ -43,7 +43,7 @@ trait ShotEventParser {
     def event_player_finder(event: Element): Option[String]
     def shot_location_finder(event: Element): Option[(Double, Double)]
     def event_score_finder(event: Element): Option[Game.Score]
-    def shot_result_finder(event: Element): Boolean
+    def shot_result_finder(event: Element): Option[Boolean]
     def shot_taking_team_finder(event: Element): Option[String]
   }
 
@@ -61,12 +61,12 @@ trait ShotEventParser {
         .filter(_.nonEmpty)
         .getOrElse(Nil)
 
+    private val period_regex = "([0-9]+)(?:st|nd|rd|th) [0-9]+:[0-9]+:[0-9]+".r
     def event_period_finder(event: Element): Option[Int] =
-      event
-        .attr("class")
-        .split(" ")
-        .find(_.startsWith("period_"))
-        .flatMap(p => Try(p.stripPrefix("period_").toInt).toOption)
+      title_extractor(event) match {
+        case Some(period_regex(period)) => Try(period.toInt).toOption
+        case _                          => None
+      }
 
     private def title_extractor(event: Element): Option[String] =
       (event >?> elementList("title")).getOrElse(Nil).headOption.map(_.text)
@@ -79,7 +79,7 @@ trait ShotEventParser {
         case _ => None
       }
 
-    private val player_regex = "(?made|missed) by ([^(]+)[(]$".r
+    private val player_regex = "(?:made|missed) by ([^(]+)[(]$".r
     def event_player_finder(event: Element): Option[String] =
       title_extractor(event) match {
         case Some(player_regex(player)) => Some(player)
@@ -88,8 +88,8 @@ trait ShotEventParser {
 
     def shot_location_finder(event: Element): Option[(Double, Double)] =
       for {
-        x_str <- Option(event.attr("cx"))
-        y_str <- Option(event.attr("cy"))
+        x_str <- Try(event.attr("cx")).toOption
+        y_str <- Try(event.attr("cy")).toOption
         x <- Try(x_str.toDouble).toOption
         y <- Try(y_str.toDouble).toOption
       } yield (x, y)
@@ -102,8 +102,13 @@ trait ShotEventParser {
         case _ => None
       }
 
-    def shot_result_finder(event: Element): Boolean =
-      event.attr("class").split(" ").exists(_ == "made")
+    private val made_or_missed_regex = ": (made|missed) by".r
+    def shot_result_finder(event: Element): Option[Boolean] =
+      title_extractor(event) match {
+        case Some(made_or_missed_regex("made"))   => Some(true)
+        case Some(made_or_missed_regex("missed")) => Some(false)
+        case _                                    => None
+      }
 
     private val team_regex = "[(]([^ )]+)[)] [0-9]+[-]".r
     def shot_taking_team_finder(event: Element): Option[String] =
@@ -192,7 +197,7 @@ trait ShotEventParser {
     val player_opt = builders.event_player_finder(event)
     val location_opt = builders.shot_location_finder(event)
     val score_opt = builders.event_score_finder(event)
-    val result = builders.shot_result_finder(event)
+    val result_opt = builders.shot_result_finder(event)
     val shot_taking_team_opt = builders.shot_taking_team_finder(event)
     val field_tuples = (
       period_opt,
@@ -200,10 +205,13 @@ trait ShotEventParser {
       player_opt,
       location_opt,
       score_opt,
+      result_opt,
       shot_taking_team_opt
     )
-    field_tuples.mapN((_, _, _, _, _, _)) match {
-      case Some((period, time, player, location, score, shot_taking_team)) =>
+    field_tuples.mapN((_, _, _, _, _, _, _)) match {
+      case Some(
+            (period, time, player, location, score, result, shot_taking_team)
+          ) =>
         val is_offensive = box_lineup.team.team.name == shot_taking_team
 
         val maybe_player_code_id = if (is_offensive) {

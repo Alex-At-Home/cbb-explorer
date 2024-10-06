@@ -29,37 +29,57 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
   import ExtractorUtils._
   import ExtractorUtilsTests._
 
+  // Utils for building test data
+
+  def event_time_formatter(in: ShotEvent): ShotEvent =
+    in.copy(shot_min = 0.01 * ((in.shot_min * 100.0).toInt))
+
+  val box_players = List("Long, Jahari").map(build_player_code(_, None))
+
+  val box_lineup = LineupEvent(
+    date = new DateTime(),
+    location_type = Game.LocationType.Home,
+    start_min = 0.0,
+    end_min = -100.0,
+    duration_mins = 0.0,
+    score_info = LineupEvent.ScoreInfo.empty,
+    team = TeamSeasonId(TeamId("Maryland"), Year(2023)),
+    opponent = TeamSeasonId(TeamId("Penn St."), Year(2023)),
+    lineup_id = LineupEvent.LineupId.unknown,
+    players = box_players,
+    players_in = Nil,
+    players_out = Nil,
+    raw_game_events = Nil,
+    team_stats = LineupEventStats.empty,
+    opponent_stats = LineupEventStats.empty
+  )
+
+  val tidy_ctx =
+    LineupErrorAnalysisUtils.build_tidy_player_context(box_lineup)
+
+  val base_event_doc = TestUtils.get_doc(
+      """
+        <circle cx="310.2" cy="235" r="5" style="fill: white; stroke: blue; stroke-width: 3px; display: inline;" id="play_2565239320" class="period_1 player_768305773 team_392 shot missed"><title>1st 13:05:00 : missed by Jahari Long(Maryland) 9-6</title></circle>
+        """
+  )
+  val base_event = parse_shot_html(
+    v1_builders.shot_event_finder(base_event_doc).head,
+    box_lineup,
+    v1_builders,
+    tidy_ctx,
+    target_team_first = true
+  ).right.get._2
+
+  ///////////////////////////////////////////////// Tests
+
   val tests = Tests {
     "ShotEventParser" - {
       "parse_shot_html" - {
-        def event_time_formatter(in: ShotEvent): ShotEvent =
-          in.copy(shot_min = 0.01 * ((in.shot_min * 100.0).toInt))
-
-        val box_players = List("Long, Jahari").map(build_player_code(_, None))
-
-        val box_lineup = LineupEvent(
-          date = new DateTime(),
-          location_type = Game.LocationType.Home,
-          start_min = 0.0,
-          end_min = -100.0,
-          duration_mins = 0.0,
-          score_info = LineupEvent.ScoreInfo.empty,
-          team = TeamSeasonId(TeamId("Maryland"), Year(2023)),
-          opponent = TeamSeasonId(TeamId("Penn St."), Year(2023)),
-          lineup_id = LineupEvent.LineupId.unknown,
-          players = box_players,
-          players_in = Nil,
-          players_out = Nil,
-          raw_game_events = Nil,
-          team_stats = LineupEventStats.empty,
-          opponent_stats = LineupEventStats.empty
-        )
-
         val base_event_1 =
           build_base_event(box_lineup).copy(
             x = 310.2, 
             y = 235, 
-            shot_min = 3.08,
+            shot_min = 13.08,
             shooter = Some(box_players.head),
             score = Game.Score(9, 6)
           )
@@ -153,9 +173,6 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
             """ -> "[0,1,2,4,5,6]" // (if title is missing, that's all fields exception location)
         )
 
-        val tidy_ctx =
-          LineupErrorAnalysisUtils.build_tidy_player_context(box_lineup)
-
         valid_test_inputs.zipWithIndex.foreach {
           case (scenario, test_num) =>
             TestUtils.with_doc(scenario.html) { doc =>
@@ -207,6 +224,78 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
               }
             }
         }
+      }
+
+      "is_women_game" - {
+        case class TestScenario(in: List[(Int, ShotEvent)], expected: Boolean)
+
+        val test_scenarios = List(
+          TestScenario(
+            List(1 -> base_event.copy(shot_min = 9.0)), false // (not enough periods)
+          ),
+          TestScenario(
+            List(
+              1 -> base_event.copy(shot_min = 11.0), //shot taken before quarter
+              2 -> base_event.copy(shot_min = 9.0),
+              3 -> base_event.copy(shot_min = 9.0),
+              4 -> base_event.copy(shot_min = 9.0),
+              ), false // (shot taken before quarter)
+          ),
+          TestScenario(
+            List(
+              1 -> base_event.copy(shot_min = 9.0), 
+              2 -> base_event.copy(shot_min = 9.0),
+              3 -> base_event.copy(shot_min = 9.0),
+              3 -> base_event.copy(shot_min = 9.0),
+              ), false // (not enough periods)
+          ),
+          TestScenario(
+            List(
+              1 -> base_event.copy(shot_min = 9.0), 
+              2 -> base_event.copy(shot_min = 9.0),
+              3 -> base_event.copy(shot_min = 9.0),
+              4 -> base_event.copy(shot_min = 9.0),
+              ), true
+          )
+        )
+        test_scenarios.foreach { scenario =>
+          assert(is_women_game(scenario.in) == scenario.expected)
+        }
+      }
+      "get_ascending_time" - {
+        // Women's games
+        List(
+          (get_ascending_time(base_event.copy(shot_min = 4.0), 1, true), 6.0),
+          (get_ascending_time(base_event.copy(shot_min = 6.0), 2, true), 14.0),
+          (get_ascending_time(base_event.copy(shot_min = 1.0), 3, true), 29.0),
+          (get_ascending_time(base_event.copy(shot_min = 8.0), 4, true), 32.0),
+          (get_ascending_time(base_event.copy(shot_min = 2.0), 5, true), 43.0),
+          (get_ascending_time(base_event.copy(shot_min = 0.0), 6, true), 50.0)
+        ).foreach {
+          TestUtils.inside(_) {
+            case (result, expected) =>
+              assert(result == expected)
+          }
+        }
+        // Men's games
+        List(
+          (get_ascending_time(base_event.copy(shot_min = 4.0), 1, false), 16.0),
+          (get_ascending_time(base_event.copy(shot_min = 6.0), 2, false), 34.0),
+          (get_ascending_time(base_event.copy(shot_min = 1.0), 3, false), 44),
+          (get_ascending_time(base_event.copy(shot_min = 4.0), 4, false), 46.0)
+        ).foreach {
+          TestUtils.inside(_) {
+            case (result, expected) =>
+              assert(result == expected)
+          }
+        }
+      }
+      "is_team_shooting_left_to_start" - {
+      }
+      "phase1_shot_event_enrichment" - {
+        val base_event_1 = build_base_event(box_lineup).copy()
+
+        //TODO
       }
     }
   }

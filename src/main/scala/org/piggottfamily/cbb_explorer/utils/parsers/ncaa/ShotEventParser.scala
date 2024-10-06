@@ -69,7 +69,7 @@ trait ShotEventParser {
         case _                          => None
       }
 
-    private val time_regex = ".*([0-9]+):([0-9]+):([0-9]+).*".r
+    private val time_regex = ".*?([0-9]+):([0-9]+):([0-9]+).*".r
     def event_time_finder(event: Element): Option[Double] =
       title_extractor(event) match {
         case Some(time_regex(min, sec, cs)) =>
@@ -77,7 +77,7 @@ trait ShotEventParser {
         case _ => None
       }
 
-    private val player_regex = ".*(?:made|missed) by ([^(]+)[(].*".r
+    private val player_regex = ".*?(?:made|missed) by ([^(]+)[(].*".r
     def event_player_finder(event: Element): Option[String] =
       title_extractor(event) match {
         case Some(player_regex(player)) => Some(player)
@@ -100,7 +100,7 @@ trait ShotEventParser {
         case _ => None
       }
 
-    private val made_or_missed_regex = ".*: (made|missed) by.*".r
+    private val made_or_missed_regex = ".*?: (made|missed) by.*".r
     def shot_result_finder(event: Element): Option[Boolean] =
       title_extractor(event) match {
         case Some(made_or_missed_regex("made"))   => Some(true)
@@ -286,32 +286,13 @@ trait ShotEventParser {
   protected def phase1_shot_event_enrichment(
       sorted_very_raw_events: List[(Int, ShotEvent)]
   ): List[ShotEvent] = {
-    val num_periods = sorted_very_raw_events.map(_._1).distinct.size
-    val shot_taken_before_1st_quarter_starts =
-      sorted_very_raw_events.headOption.exists { _._2.shot_min > 10.0 }
-    val is_women_game =
-      (num_periods >= 4) && !shot_taken_before_1st_quarter_starts
+    val women_game = is_women_game(sorted_very_raw_events)
 
     // Next question ... which side of the screen is which team shooting on
-
-    val first_period =
-      sorted_very_raw_events.headOption.map(_._1).getOrElse(1)
-    val first_period_shots =
-      sorted_very_raw_events.takeWhile(_._1 == first_period).map(_._2)
-    val (shots_to_left, shots_to_right) =
-      first_period_shots.filter(_.is_off).partition {
-        _.x < ShotMapDimensions.half_court_x_px
-      }
-    val team_shooting_left_in_first_period =
-      shots_to_left.size > shots_to_right.size
+    val team_shooting_left_in_first_period = is_team_shooting_left_to_start(sorted_very_raw_events)
 
     sorted_very_raw_events.map { case (period, shot) =>
-      val ascending_time =
-        ExtractorUtils.start_time_from_period(period, is_women_game) +
-          (ExtractorUtils.start_time_from_period(
-            period + 1,
-            is_women_game
-          ) - shot.shot_min)
+      val ascending_time = get_ascending_time(shot, period, women_game)
 
       val (x, y) = transform_shot_location(
         shot.x,
@@ -327,6 +308,40 @@ trait ShotEventParser {
       )
     }
   }
+
+  /** Converts the descending time within a period to an ascending game time */
+  protected def get_ascending_time(event: ShotEvent, period: Int, is_women_game: Boolean): Double = {
+    ExtractorUtils.duration_from_period(period, is_women_game) - event.shot_min
+  }
+
+  /** It seems random which team gets the left court on the shot graphics */
+  protected def is_team_shooting_left_to_start(
+    sorted_very_raw_events: List[(Int, ShotEvent)]
+  ): Boolean = {
+    val first_period =
+      sorted_very_raw_events.headOption.map(_._1).getOrElse(1)
+    val first_period_shots =
+      sorted_very_raw_events.takeWhile(_._1 == first_period).map(_._2)
+    val (shots_to_left, shots_to_right) =
+      first_period_shots.filter(_.is_off).partition {
+        _.x < ShotMapDimensions.half_court_x_px
+      }
+    val team_shooting_left_in_first_period =
+      shots_to_left.size > shots_to_right.size
+
+    team_shooting_left_in_first_period
+  }
+
+  /** Infers if the game is men or women based on timing events */
+  protected def is_women_game(
+      sorted_very_raw_events: List[(Int, ShotEvent)]
+  ): Boolean = {
+    val num_periods = sorted_very_raw_events.map(_._1).distinct.size
+    // Note that time is descending, so > 10 mins means eg 11:00:00 on the clock
+    val shot_taken_before_1st_quarter_starts =
+      sorted_very_raw_events.headOption.exists { _._2.shot_min > 10.0 }
+    (num_periods >= 4) && !shot_taken_before_1st_quarter_starts
+  } 
 
   /** Shot dimensions taken from svg#court, should consider extracting these */
   object ShotMapDimensions {

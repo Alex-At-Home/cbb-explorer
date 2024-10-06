@@ -108,7 +108,7 @@ trait ShotEventParser {
         case _                                    => None
       }
 
-    private val team_regex = ".*[(](.+?)[)] [0-9]+[-].*".r
+    private val team_regex = ".*?[(](.+)[)] [0-9]+[-].*".r
     def shot_taking_team_finder(event: Element): Option[String] =
       title_extractor(event) match {
         case Some(team_regex(team)) => Some(team)
@@ -218,15 +218,9 @@ trait ShotEventParser {
         } else None
 
         Right(
-          period -> ShotEvent(
+          period -> build_base_event(box_lineup).copy(
             shooter = maybe_player_code_id,
-            date = box_lineup.date,
-            location_type = box_lineup.location_type,
-            team = box_lineup.team,
-            opponent = box_lineup.opponent,
             is_off = is_offensive,
-            lineup_id = LineupEvent.LineupId.unknown, // (fill in final phase)
-            players = Nil, // (fill in later)
             score = box_lineup.location_type match {
               case Game.LocationType.Home => score
               case Game.LocationType.Away =>
@@ -238,14 +232,9 @@ trait ShotEventParser {
             shot_min = time,
             x = location._1, // (enrich these in next phase of this function)
             y = location._2,
-            dist = 0.0, // (fill in thsese in next phase of this function)
             pts =
               if (result) 1
-              else 0, // (enrich in final phase)
-            value = 0, // (fill in final phase)
-            assisted_by = None, // (fill these in final phase)
-            is_assisted = None,
-            in_transition = None
+              else 0 // (enrich in final phase)
           )
         )
       case _ =>
@@ -262,6 +251,33 @@ trait ShotEventParser {
           )
         )
     }
+  }
+
+  /** Quick util to fill in some basic fields for the lineup event */
+  protected def build_base_event(
+      box_lineup: LineupEvent
+  ): ShotEvent = {
+    ShotEvent(
+      shooter = None, // (override immediately)
+      date = box_lineup.date,
+      location_type = box_lineup.location_type,
+      team = box_lineup.team,
+      opponent = box_lineup.opponent,
+      is_off = true, // (override immediately)
+      lineup_id = LineupEvent.LineupId.unknown, // (fill in final phase)
+      players = Nil, // (fill in later)
+      score = Game.Score(0, 0), // (override immediately)
+      shot_min = 0.0, // (override immediately)
+      x =
+        0.0, // (override immediately; enrich these in next phase of this function)
+      y = 0.0,
+      dist = 0.0, // (fill in thsese in next phase of this function)
+      pts = 0, // (override immediately)
+      value = 0, // (fill in final phase)
+      assisted_by = None, // (fill these in final phase)
+      is_assisted = None,
+      in_transition = None
+    )
   }
 
   /** Now we have a collection of events, labelled with period, we can fill in

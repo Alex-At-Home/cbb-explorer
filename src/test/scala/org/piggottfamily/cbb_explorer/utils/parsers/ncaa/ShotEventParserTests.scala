@@ -36,6 +36,10 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
           """
             <circle cx="310.2" cy="235" r="5" style="fill: white; stroke: blue; stroke-width: 3px; display: inline;" id="play_2565239320" class="period_1 player_768305773 team_392 shot missed"><title>1st 13:05:00 : missed by Jahari Long(Maryland) 9-6</title></circle>
             """,
+          // TODO: check this one gets the team right
+          """
+            <circle cx="310.2" cy="235" r="5" style="fill: white; stroke: blue; stroke-width: 3px; display: inline;" id="play_2565239320" class="period_1 player_768305773 team_392 shot missed"><title>1st 13:05:00 : missed by Jahari Long(St. Francis (PA))) 9-6</title></circle>
+            """,
           """
             <circle cx="629.8000000000001" cy="185" r="5" style="fill: grey; stroke: grey; stroke-width: 3px; display: inline;" id="play_2565239462" class="period_1 player_768305790 team_539 shot made"><title>1st 04:28:00 : made by Kanye Clary(Penn St.) 25-20</title></circle>
             """,
@@ -71,9 +75,6 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
             <circle cx="310.2" cy="235" r="5" style="fill: white; stroke: blue; stroke-width: 3px; display: inline;" id="play_2565239320" class="period_1 player_768305773 team_392 shot missed"><title>1st 13:05:00 : missed by Jahari Long(Maryland)</title></circle>
             """,
           """
-            <circle cx="310.2" cy="235" r="5" style="fill: white; stroke: blue; stroke-width: 3px; display: inline;" id="play_2565239320" class="period_1 player_768305773 team_392 shot missed"><title>1st 13:05:00 : missed by Jahari Long(Maryland) 9-6</title></circle>
-            """,
-          """
             <circle cx="310.2" cy="235" r="5" style="fill: white; stroke: blue; stroke-width: 3px; display: inline;" id="play_2565239320" class="period_1 player_768305773 team_392 shot missed"><title>1st: missed by Jahari Long(Maryland)</title></circle>
             """,
           """
@@ -106,10 +107,10 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
         val tidy_ctx =
           LineupErrorAnalysisUtils.build_tidy_player_context(box_lineup)
 
-        valid_test_inputs.foreach { input =>
+        valid_test_inputs.zipWithIndex.foreach { case (input, test_num) =>
           TestUtils.with_doc(input) { doc =>
-            TestUtils.inside(v1_builders.shot_event_finder(doc)) {
-              case List(element) =>
+            TestUtils.inside(v1_builders.shot_event_finder(doc) -> test_num) {
+              case (List(element), test_case) =>
                 val result = parse_shot_html(
                   element,
                   box_lineup,
@@ -122,12 +123,12 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
           }
         }
 
-        invalid_test_inputs.foreach { input =>
+        invalid_test_inputs.zipWithIndex.foreach { case (input, test_num) =>
           TestUtils.with_doc(input) { doc =>
-            TestUtils.inside(v1_builders.shot_event_finder(doc)) {
-              case List(element) =>
+            TestUtils.inside(v1_builders.shot_event_finder(doc) -> test_num) {
+              case (List(element), test_case) =>
                 val result = parse_shot_html(
-                  doc,
+                  element,
                   box_lineup,
                   v1_builders,
                   tidy_ctx,

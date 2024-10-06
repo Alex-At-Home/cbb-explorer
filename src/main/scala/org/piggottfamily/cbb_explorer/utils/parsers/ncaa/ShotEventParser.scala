@@ -54,24 +54,22 @@ trait ShotEventParser {
         .map(_.attr("alt"))
 
     def shot_event_finder(doc: Document): List[Element] =
-      (doc >?> elementList(
-        // (find anything with a valid time string in the table)
-        "circle.shot"
-      ))
+      (doc >?> elementList("circle.shot"))
         .filter(_.nonEmpty)
         .getOrElse(Nil)
 
-    private val period_regex = "([0-9]+)(?:st|nd|rd|th) [0-9]+:[0-9]+:[0-9]+".r
+    private def title_extractor(event: Element): Option[String] =
+      (event >?> elementList("title")).getOrElse(Nil).headOption.map(_.text)
+
+    private val period_regex =
+      "([0-9]+)(?:st|nd|rd|th) [0-9]+:[0-9]+:[0-9]+.*".r
     def event_period_finder(event: Element): Option[Int] =
       title_extractor(event) match {
         case Some(period_regex(period)) => Try(period.toInt).toOption
         case _                          => None
       }
 
-    private def title_extractor(event: Element): Option[String] =
-      (event >?> elementList("title")).getOrElse(Nil).headOption.map(_.text)
-
-    private val time_regex = "([0-9]+):([0-9]+):([0-9]+)".r
+    private val time_regex = ".*([0-9]+):([0-9]+):([0-9]+).*".r
     def event_time_finder(event: Element): Option[Double] =
       title_extractor(event) match {
         case Some(time_regex(min, sec, cs)) =>
@@ -79,7 +77,7 @@ trait ShotEventParser {
         case _ => None
       }
 
-    private val player_regex = "(?:made|missed) by ([^(]+)[(]$".r
+    private val player_regex = ".*(?:made|missed) by ([^(]+)[(].*".r
     def event_player_finder(event: Element): Option[String] =
       title_extractor(event) match {
         case Some(player_regex(player)) => Some(player)
@@ -94,7 +92,7 @@ trait ShotEventParser {
         y <- Try(y_str.toDouble).toOption
       } yield (x, y)
 
-    val score_regex = " ([0-9]+)[-]([0-9]+)$".r
+    val score_regex = ".* ([0-9]+)[-]([0-9]+)$".r
     def event_score_finder(event: Element): Option[Game.Score] =
       title_extractor(event) match {
         case Some(score_regex(team, oppo)) =>
@@ -102,7 +100,7 @@ trait ShotEventParser {
         case _ => None
       }
 
-    private val made_or_missed_regex = ": (made|missed) by".r
+    private val made_or_missed_regex = ".*: (made|missed) by.*".r
     def shot_result_finder(event: Element): Option[Boolean] =
       title_extractor(event) match {
         case Some(made_or_missed_regex("made"))   => Some(true)
@@ -110,7 +108,7 @@ trait ShotEventParser {
         case _                                    => None
       }
 
-    private val team_regex = "[(]([^ )]+)[)] [0-9]+[-]".r
+    private val team_regex = ".*[(](.+?)[)] [0-9]+[-].*".r
     def shot_taking_team_finder(event: Element): Option[String] =
       title_extractor(event) match {
         case Some(team_regex(team)) => Some(team)
@@ -191,22 +189,14 @@ trait ShotEventParser {
       tidy_ctx: LineupErrorAnalysisUtils.TidyPlayerContext,
       target_team_first: Boolean
   ): Either[List[ParseError], (Int, ShotEvent)] = {
-    val period_opt = builders.event_period_finder(event)
-    val time_opt = builders
-      .event_time_finder(event)
-    val player_opt = builders.event_player_finder(event)
-    val location_opt = builders.shot_location_finder(event)
-    val score_opt = builders.event_score_finder(event)
-    val result_opt = builders.shot_result_finder(event)
-    val shot_taking_team_opt = builders.shot_taking_team_finder(event)
     val field_tuples = (
-      period_opt,
-      time_opt,
-      player_opt,
-      location_opt,
-      score_opt,
-      result_opt,
-      shot_taking_team_opt
+      builders.event_period_finder(event),
+      builders.event_time_finder(event),
+      builders.event_player_finder(event),
+      builders.shot_location_finder(event),
+      builders.event_score_finder(event),
+      builders.shot_result_finder(event),
+      builders.shot_taking_team_finder(event)
     )
     field_tuples.mapN((_, _, _, _, _, _, _)) match {
       case Some(

@@ -317,7 +317,7 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
           2 -> base_event.copy(x = 1000),
           2 -> base_event.copy(x = 1000)
         )
-        assert(is_team_shooting_left_to_start(test_case_1) == true)
+        assert(is_team_shooting_left_to_start(test_case_1) == (true, 1))
 
         val test_case_2 = test_case_1.map { case (period, event) =>
           if (event.x > 800)
@@ -325,7 +325,7 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
           else
             (period, event.copy(x = 1000)) 
         }
-        assert(is_team_shooting_left_to_start(test_case_2) == false)
+        assert(is_team_shooting_left_to_start(test_case_2) == (false, 1))
       }
       "phase1_shot_event_enrichment/transform_shot_location" - {
 
@@ -346,10 +346,12 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
             is_off = false //(2nd period so will be the same location)
           ) 
         )
+
+        //(reminder pixel x and y are: cx="310.2" cy="235")
         val transformed_base_event = event_formatter(base_event.copy(
-          x = 57.980000000000004, //TODO this is obv wrong
-          y = 37.97,
-          dist = 69.31
+          x = 26.02, //TODO is this right?
+          y = 1.5,
+          dist = 26.060000000000002
         ))
         TestUtils.inside(phase1_shot_event_enrichment(test_case).map(event_formatter)) {
           case List(t_event_1, t_event_2, t_event_3, t_event_4) =>
@@ -358,8 +360,18 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
             assert(t_event_3 == transformed_base_event.copy(shot_min = 26.91))
             assert(t_event_4 == transformed_base_event.copy(shot_min = 26.91, is_off = false))
         }
+        TestUtils.inside(transform_shot_location(
+            x = ShotMapDimensions.court_length_x_px - base_event.x,
+            y = ShotMapDimensions.court_width_y_px - base_event.y,
+            period_delta = 0, //(1st period)
+            team_shooting_left_in_first_period = false, //(just want to check this case)
+            is_offensive = true
+        )) {
+          case (result_x, result_y) =>
+            assert(double_formatter(result_x) == transformed_base_event.x)
+            assert(double_formatter(result_y) == transformed_base_event.y)
+        }
       }
     }
   }
-
 }

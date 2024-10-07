@@ -289,7 +289,8 @@ trait ShotEventParser {
     val women_game = is_women_game(sorted_very_raw_events)
 
     // Next question ... which side of the screen is which team shooting on
-    val team_shooting_left_in_first_period = is_team_shooting_left_to_start(sorted_very_raw_events)
+    val (team_shooting_left_in_first_period, first_period) = 
+      is_team_shooting_left_to_start(sorted_very_raw_events)
 
     sorted_very_raw_events.map { case (period, shot) =>
       val ascending_time = get_ascending_time(shot, period, women_game)
@@ -297,7 +298,7 @@ trait ShotEventParser {
       val (x, y) = transform_shot_location(
         shot.x,
         shot.y,
-        period,
+        period - first_period,
         team_shooting_left_in_first_period,
         shot.is_off
       )
@@ -318,7 +319,7 @@ trait ShotEventParser {
   /** It seems random which team gets the left court on the shot graphics */
   protected def is_team_shooting_left_to_start(
     sorted_very_raw_events: List[(Int, ShotEvent)]
-  ): Boolean = {
+  ): (Boolean, Int) = {
     val first_period =
       sorted_very_raw_events.headOption.map(_._1).getOrElse(1)
     val first_period_shots =
@@ -330,7 +331,7 @@ trait ShotEventParser {
     val team_shooting_left_in_first_period =
       shots_to_left.size > shots_to_right.size
 
-    team_shooting_left_in_first_period
+    (team_shooting_left_in_first_period, first_period)
   }
 
   /** Infers if the game is men or women based on timing events */
@@ -364,16 +365,17 @@ trait ShotEventParser {
   protected def transform_shot_location(
       x: Double,
       y: Double,
-      period_delta: Int,
+      /** delta from 1st period */ period_delta: Int,
       team_shooting_left_in_first_period: Boolean,
-      if_offensive: Boolean
+      is_offensive: Boolean
   ): (Double, Double) = {
 
     // Step 1: transform to always be on the left side of the court
+    // (each 'false' switches the side of the court)
     val goal_is_to_left = Array(
       team_shooting_left_in_first_period,
       (period_delta % 2 == 0),
-      if_offensive
+      is_offensive
     ).map(if (_) 1 else -1).reduce(_ * _) > 0
 
     val (trans_x, trans_y) = if (goal_is_to_left) {
@@ -389,7 +391,7 @@ trait ShotEventParser {
 
     (
       (trans_x - ShotMapDimensions.goal_left_x_px) * ShotMapDimensions.ft_per_px_x,
-      (trans_x - ShotMapDimensions.goal_y_px) * ShotMapDimensions.ft_per_px_y
+      (ShotMapDimensions.goal_y_px - trans_y) * ShotMapDimensions.ft_per_px_y //(+ve is to the right)
     )
   }
 

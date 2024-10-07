@@ -3,7 +3,7 @@ package org.piggottfamily.cbb_explorer.utils.parsers.ncaa
 import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.models.ncaa._
 import org.piggottfamily.cbb_explorer.utils.parsers._
-import net.ruippeixotog.scalascraper.browser.JsoupBrowser
+import net.ruippeixotog.scalascraper.browser.{Browser, JsoupBrowser}
 import net.ruippeixotog.scalascraper.dsl.DSL._
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
 import net.ruippeixotog.scalascraper.dsl.DSL.Parse._
@@ -37,6 +37,7 @@ trait ShotEventParser {
   protected trait base_builders {
     def team_finder(doc: Document): List[String]
     def shot_event_finder(doc: Document): List[Element]
+    def script_extractor(doc: Document): Option[String]
 
     def event_period_finder(event: Element): Option[Int]
     def event_time_finder(event: Element): Option[Double]
@@ -49,7 +50,7 @@ trait ShotEventParser {
 
   protected object v1_builders extends base_builders {
     def team_finder(doc: Document): List[String] =
-      (doc >?> elementList("div.card-header img[alt]"))
+      (doc >?> elementList("table[align=center] img[alt]"))
         .getOrElse(Nil)
         .map(_.attr("alt"))
 
@@ -57,6 +58,18 @@ trait ShotEventParser {
       (doc >?> elementList("circle.shot"))
         .filter(_.nonEmpty)
         .getOrElse(Nil)
+
+    def script_extractor(doc: Document): Option[String] =
+      (doc >?> elementList("script")) match {
+        case Some(scripts) =>
+          Some(
+            scripts
+              .map(_.outerHtml)
+              .filter(_.take(128).contains("addShot("))
+              .mkString("\n")
+          ).filter(_.nonEmpty)
+        case _ => None
+      }
 
     private def title_extractor(event: Element): Option[String] =
       (event >?> elementList("title")).getOrElse(Nil).headOption.map(_.text)
@@ -134,6 +147,9 @@ trait ShotEventParser {
     val tidy_ctx =
       LineupErrorAnalysisUtils.build_tidy_player_context(box_lineup)
 
+    // DEBUG
+    val debug_print = false
+
     for {
       doc <- doc_request_builder(browser.parseString(in))
 
@@ -145,16 +161,29 @@ trait ShotEventParser {
 
       (_, _, target_team_first) = team_info // SI-5589
 
+      _ = if (debug_print) {
+        println(
+          s"---------------------------- SHOTS FOR: [${box_lineup.team}] vs [${box_lineup.opponent}]"
+        )
+      }
+
       html_events <- builders.shot_event_finder(doc) match {
         case events if events.nonEmpty => Right(events)
-        case _ =>
-          Left(
-            List(
-              ParseUtils.build_sub_error(`ncaa.parse_shotevent`)(
-                s"No shot events found [$doc]"
+        case _                         =>
+          // Actually, this isn't unexpected, the page is built on the fly so you need to convert the JS to HTML
+          builders.script_extractor(doc).map { js =>
+            shot_js_to_html(js, builders, browser)
+          } match {
+            case Some(events) if events.nonEmpty => Right(events)
+            case _ =>
+              Left(
+                List(
+                  ParseUtils.build_sub_error(`ncaa.parse_shotevent`)(
+                    s"No shot events found [$doc]"
+                  )
+                )
               )
-            )
-          )
+          }
       }
 
       // Phase 1, get as much stuff out as we can based on just the events themselves
@@ -175,8 +204,40 @@ trait ShotEventParser {
 
       sorted_raw_events = phase1_shot_event_enrichment(sorted_very_raw_events)
 
+      _ =
+        if (debug_print) sorted_raw_events.foreach { shot =>
+          println(
+            s"[${shot.shooter.map(_.id).getOrElse(shot.opponent.team)}][${f"${shot.shot_min}%.2f"}] " +
+              s"dist=[${f"${shot.dist}%.2f"}] hit?=[${shot.pts}]"
+          )
+        }
+
     } yield sorted_raw_events
 
+  }
+
+  /** Turns out the page is built on the fly, I already wrote all the code to
+    * parse the generated HTML, so I'll just convert the JS to HTML and parse
+    * that using the code I already wrote, even though it's slightly wasteful,
+    * (Oops!)
+    */
+  protected def shot_js_to_html(
+      js: String,
+      builders: base_builders,
+      browser: Browser
+  ): List[Element] = {
+    val js_regex =
+      """ *addShot[(]([^,]+), *([^,]+), *([^,]+), *([^,]+), *([^,]+), *'([^']+)',.*""".r
+    val html = js
+      .split("\n")
+      .collect { case js_regex(x, y, _, _, _, title) =>
+        val cx = 0.01 * x.toDouble * ShotMapDimensions.court_length_x_px
+        val cy = 0.01 * y.toDouble * ShotMapDimensions.court_width_y_px
+        s"""<circle class="shot" cx="$cx" cy="$cy" r="5"><title>$title<title/></circle>"""
+      }
+      .mkString("\n")
+
+    v1_builders.shot_event_finder(browser.parseString(html))
   }
 
   /** An initial parse of the shot HTML based solely on the HTML itself - some
@@ -289,7 +350,7 @@ trait ShotEventParser {
     val women_game = is_women_game(sorted_very_raw_events)
 
     // Next question ... which side of the screen is which team shooting on
-    val (team_shooting_left_in_first_period, first_period) = 
+    val (team_shooting_left_in_first_period, first_period) =
       is_team_shooting_left_to_start(sorted_very_raw_events)
 
     sorted_very_raw_events.map { case (period, shot) =>
@@ -302,23 +363,28 @@ trait ShotEventParser {
         team_shooting_left_in_first_period,
         shot.is_off
       )
-      shot.copy(
+      val trans_shot = shot.copy(
         x = x,
         y = y,
-        dist = Math.sqrt(x * x + y * y),  
+        dist = Math.sqrt(x * x + y * y),
         shot_min = ascending_time
       )
+      trans_shot
     }
   }
 
   /** Converts the descending time within a period to an ascending game time */
-  protected def get_ascending_time(event: ShotEvent, period: Int, is_women_game: Boolean): Double = {
+  protected def get_ascending_time(
+      event: ShotEvent,
+      period: Int,
+      is_women_game: Boolean
+  ): Double = {
     ExtractorUtils.duration_from_period(period, is_women_game) - event.shot_min
   }
 
   /** It seems random which team gets the left court on the shot graphics */
   protected def is_team_shooting_left_to_start(
-    sorted_very_raw_events: List[(Int, ShotEvent)]
+      sorted_very_raw_events: List[(Int, ShotEvent)]
   ): (Boolean, Int) = {
     val first_period =
       sorted_very_raw_events.headOption.map(_._1).getOrElse(1)
@@ -343,7 +409,7 @@ trait ShotEventParser {
     val shot_taken_before_1st_quarter_starts =
       sorted_very_raw_events.headOption.exists { _._2.shot_min > 10.0 }
     (num_periods >= 4) && !shot_taken_before_1st_quarter_starts
-  } 
+  }
 
   /** Shot dimensions taken from svg#court, should consider extracting these */
   object ShotMapDimensions {
@@ -365,7 +431,8 @@ trait ShotEventParser {
   protected def transform_shot_location(
       x: Double,
       y: Double,
-      /** delta from 1st period */ period_delta: Int,
+      /** delta from 1st period */
+      period_delta: Int,
       team_shooting_left_in_first_period: Boolean,
       is_offensive: Boolean
   ): (Double, Double) = {
@@ -391,7 +458,7 @@ trait ShotEventParser {
 
     (
       (trans_x - ShotMapDimensions.goal_left_x_px) * ShotMapDimensions.ft_per_px_x,
-      (ShotMapDimensions.goal_y_px - trans_y) * ShotMapDimensions.ft_per_px_y //(+ve is to the right)
+      (ShotMapDimensions.goal_y_px - trans_y) * ShotMapDimensions.ft_per_px_y // (+ve is to the right)
     )
   }
 

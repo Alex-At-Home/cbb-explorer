@@ -31,8 +31,16 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
 
   // Utils for building test data
 
-  def event_time_formatter(in: ShotEvent): ShotEvent =
-    in.copy(shot_min = 0.01 * ((in.shot_min * 100.0).toInt))
+  def double_formatter(in: Double): Double = {
+    0.01 * ((in * 100.0).toInt)
+  }
+  def event_formatter(in: ShotEvent): ShotEvent =
+    in.copy(
+      shot_min = double_formatter(in.shot_min),
+      x = double_formatter(in.x),
+      y = double_formatter(in.y),
+      dist = double_formatter(in.dist),
+    )
 
   val box_players = List("Long, Jahari").map(build_player_code(_, None))
 
@@ -187,9 +195,9 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
                   )
                   TestUtils.inside(result) {
                     case Right((shot_period, shot_event))
-                        if event_time_formatter(
+                        if event_formatter(
                           shot_event
-                        ) == event_time_formatter(
+                        ) == event_formatter(
                           scenario.expected
                         ) && shot_period == scenario.expected_period =>
 
@@ -197,9 +205,9 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
                       println(
                         s"************** MISMATCH SHOT EVENT [$test_case] **************"
                       )
-                      println(s"E [${scenario.expected_period}]: ${event_time_formatter(scenario.expected)}")
+                      println(s"E [${scenario.expected_period}]: ${event_formatter(scenario.expected)}")
                       println(s" vs ")
-                      println(s"A [$shot_period]: ${event_time_formatter(shot_event)}")
+                      println(s"A [$shot_period]: ${event_formatter(shot_event)}")
                       assert(false)
 
                   }
@@ -291,11 +299,65 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
         }
       }
       "is_team_shooting_left_to_start" - {
-      }
-      "phase1_shot_event_enrichment" - {
-        val base_event_1 = build_base_event(box_lineup).copy()
+        val test_case_1 = List(
+          1 -> base_event,
+          1 -> base_event,
+          1 -> base_event,
+          1 -> base_event.copy(x = 1000),
+          1 -> base_event.copy(x = 1000, is_off = false), //(these will all be ignored because they are not offensive)
+          1 -> base_event.copy(x = 1000, is_off = false),
+          1 -> base_event.copy(x = 1000, is_off = false),
+          1 -> base_event.copy(x = 1000, is_off = false),
+          1 -> base_event.copy(x = 1000, is_off = false),
+          1 -> base_event.copy(x = 1000, is_off = false),
+          2 -> base_event.copy(x = 1000), //(these will all be ignored because they are in period 2)
+          2 -> base_event.copy(x = 1000),
+          2 -> base_event.copy(x = 1000),
+          2 -> base_event.copy(x = 1000),
+          2 -> base_event.copy(x = 1000),
+          2 -> base_event.copy(x = 1000)
+        )
+        assert(is_team_shooting_left_to_start(test_case_1) == true)
 
-        //TODO
+        val test_case_2 = test_case_1.map { case (period, event) =>
+          if (event.x > 800)
+            (period, event.copy(x = 300))
+          else
+            (period, event.copy(x = 1000)) 
+        }
+        assert(is_team_shooting_left_to_start(test_case_2) == false)
+      }
+      "phase1_shot_event_enrichment/transform_shot_location" - {
+
+        val test_case = List(
+          1 -> base_event, 
+          1 -> base_event.copy(
+            x = ShotMapDimensions.court_length_x_px - base_event.x,
+            y = ShotMapDimensions.court_width_y_px - base_event.y,
+            is_off = false //(will convert back to the same location)
+          ), 
+          2 -> base_event.copy(
+            x = ShotMapDimensions.court_length_x_px - base_event.x,
+            y = ShotMapDimensions.court_width_y_px - base_event.y,
+          ), //(2nd period so will be the same location)
+          2 -> base_event.copy(
+            x = base_event.x,
+            y = base_event.y,
+            is_off = false //(2nd period so will be the same location)
+          ) 
+        )
+        val transformed_base_event = event_formatter(base_event.copy(
+          x = 57.980000000000004, //TODO this is obv wrong
+          y = 37.97,
+          dist = 69.31
+        ))
+        TestUtils.inside(phase1_shot_event_enrichment(test_case).map(event_formatter)) {
+          case List(t_event_1, t_event_2, t_event_3, t_event_4) =>
+            assert(t_event_1 == transformed_base_event.copy(shot_min = 6.91))
+            assert(t_event_2 == transformed_base_event.copy(shot_min = 6.91, is_off = false))
+            assert(t_event_3 == transformed_base_event.copy(shot_min = 26.91))
+            assert(t_event_4 == transformed_base_event.copy(shot_min = 26.91, is_off = false))
+        }
       }
     }
   }

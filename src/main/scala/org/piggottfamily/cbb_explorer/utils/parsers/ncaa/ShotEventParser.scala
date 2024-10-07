@@ -304,6 +304,7 @@ trait ShotEventParser {
       shot.copy(
         x = x,
         y = y,
+        dist = Math.sqrt(x * x + y * y),  
         shot_min = ascending_time
       )
     }

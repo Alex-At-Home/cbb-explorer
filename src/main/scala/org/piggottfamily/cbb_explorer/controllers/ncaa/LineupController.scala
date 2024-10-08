@@ -338,18 +338,28 @@ class LineupController(d: Dependencies = Dependencies()) {
         external_roster,
         neutral_game_dates
       )
-      box_lineup <- format_version match {
-        case 0 =>
-          Right(tmp_box_lineup) // (starters are correct)
-        case _ =>
+      sorted_pbp_events <-
+        if (format_version > 0) { // (used below in a couple of places)
+          d.playbyplay_parser
+            .get_sorted_pbp_events(
+              playbyplay_path.last,
+              play_by_play_html,
+              tmp_box_lineup,
+              format_version
+            )
+        } else Right(Nil)
+
+      box_lineup =
+        if (format_version > 0) {
           d.playbyplay_parser.inject_starting_lineup_into_box(
-            playbyplay_path.last,
-            play_by_play_html,
+            sorted_pbp_events,
             tmp_box_lineup,
             external_roster,
             format_version
           )
-      }
+        } else {
+          tmp_box_lineup
+        }
 
       _ = d.logger.info(
         s"Parsed box score: opponent=[${box_lineup.opponent}] venue=[${box_lineup.location_type}]"

@@ -216,14 +216,14 @@ trait PlayByPlayParser {
     }
   }
 
-  /** v1 format removed the list of starters, so we have to infer it */
-  def inject_starting_lineup_into_box(
+  /** Handy util to return the PbP events, which is used in a few other places
+    */
+  def get_sorted_pbp_events(
       filename: String,
       in: String,
       box_lineup: LineupEvent,
-      external_roster: (List[String], List[RosterEntry]),
       format_version: Int
-  ): Either[List[ParseError], LineupEvent] = {
+  ): Either[List[ParseError], List[Model.PlayByPlayEvent]] = {
     val builders = builders_from_version(format_version)
     parse_game_events(
       filename,
@@ -232,88 +232,97 @@ trait PlayByPlayParser {
       box_lineup.team.year,
       builders,
       enrich = false
-    ).map { game_events =>
-      case class StarterState(
-          starters: Set[String],
-          excluded: Set[String],
-          last_sub_time: Double = 20.0
-      ) {
-        // Some state utils to handle the fact that the raw events aren't formatted but the box score/restore are
-        lazy val formatted_starters: Set[String] =
-          starters.map(ExtractorUtils.name_in_v0_format)
-        lazy val formatted_non_starters: Set[String] =
-          excluded.map(ExtractorUtils.name_in_v0_format)
+    )
+  }
+
+  /** v1 format removed the list of starters, so we have to infer it */
+  def inject_starting_lineup_into_box(
+      sorted_pbp_events: List[Model.PlayByPlayEvent],
+      box_lineup: LineupEvent,
+      external_roster: (List[String], List[RosterEntry]),
+      format_version: Int
+  ): LineupEvent = {
+    val builders = builders_from_version(format_version)
+    case class StarterState(
+        starters: Set[String],
+        excluded: Set[String],
+        last_sub_time: Double = 20.0
+    ) {
+      // Some state utils to handle the fact that the raw events aren't formatted but the box score/restore are
+      lazy val formatted_starters: Set[String] =
+        starters.map(ExtractorUtils.name_in_v0_format)
+      lazy val formatted_non_starters: Set[String] =
+        excluded.map(ExtractorUtils.name_in_v0_format)
+    }
+    val valid_players_set =
+      external_roster._2.map(_.player_code_id.id.name).toSet
+
+    val starter_info: StarterState =
+      sorted_pbp_events.foldLeft(StarterState(Set(), Set())) {
+        case (state, _)
+            if state.starters.size >= 5 => // (we have all the starters)
+          state
+
+        case (state, ev: Model.SubEvent)
+            if !valid_players_set.contains(
+              ExtractorUtils.name_in_v0_format(ev.player_name)
+            ) =>
+          // Ignore mis-spellings in sub-events
+          state
+
+        case (state, Model.GameBreakEvent(min, _)) =>
+          // Reset the last sub time
+          state.copy(last_sub_time = min)
+
+        case (state, Model.SubOutEvent(time, _, player))
+            if !state.excluded.contains(player) =>
+          // Subbed out, so if not excluded (ie we haven't seen them subbed-in) then is a starter
+          state.copy(starters = state.starters + player, last_sub_time = time)
+
+        case (state, Model.SubInEvent(time, _, player))
+            if !state.starters.contains(player) =>
+          // Subbed in, so if not a starter is definitely not a starter
+          state.copy(excluded = state.excluded + player, last_sub_time = time)
+
+        case (state, ev: Model.MiscGameEvent)
+            if ev.is_team_dir && ev.min < state.last_sub_time =>
+          ev.event_string match {
+            case EventUtils.ParseAnyPlay(player)
+                if valid_players_set
+                  .contains(player) && !state.excluded.contains(
+                  player
+                ) && !state.starters.contains(
+                  player
+                ) =>
+              // A player is mentioned, they have not yet been subbed-in, and isn't concurrent with a sub event
+              // so they must be a starter
+              state.copy(starters = state.starters + player)
+            case _ =>
+              state
+          }
+        case (state, _) => state
       }
-      val valid_players_set =
-        external_roster._2.map(_.player_code_id.id.name).toSet
+    val (starters, probably_not_starters) =
+      box_lineup.players.partition(p =>
+        starter_info.formatted_starters
+          .contains(p.id.name)
+      )
 
-      val starter_info: StarterState =
-        game_events.foldLeft(StarterState(Set(), Set())) {
-          case (state, _)
-              if state.starters.size >= 5 => // (we have all the starters)
-            state
-
-          case (state, ev: Model.SubEvent)
-              if !valid_players_set.contains(
-                ExtractorUtils.name_in_v0_format(ev.player_name)
-              ) =>
-            // Ignore mis-spellings in sub-events
-            state
-
-          case (state, Model.GameBreakEvent(min, _)) =>
-            // Reset the last sub time
-            state.copy(last_sub_time = min)
-
-          case (state, Model.SubOutEvent(time, _, player))
-              if !state.excluded.contains(player) =>
-            // Subbed out, so if not excluded (ie we haven't seen them subbed-in) then is a starter
-            state.copy(starters = state.starters + player, last_sub_time = time)
-
-          case (state, Model.SubInEvent(time, _, player))
-              if !state.starters.contains(player) =>
-            // Subbed in, so if not a starter is definitely not a starter
-            state.copy(excluded = state.excluded + player, last_sub_time = time)
-
-          case (state, ev: Model.MiscGameEvent)
-              if ev.is_team_dir && ev.min < state.last_sub_time =>
-            ev.event_string match {
-              case EventUtils.ParseAnyPlay(player)
-                  if valid_players_set
-                    .contains(player) && !state.excluded.contains(
-                    player
-                  ) && !state.starters.contains(
-                    player
-                  ) =>
-                // A player is mentioned, they have not yet been subbed-in, and isn't concurrent with a sub event
-                // so they must be a starter
-                state.copy(starters = state.starters + player)
-              case _ =>
-                state
-            }
-          case (state, _) => state
-        }
-      val (starters, probably_not_starters) =
-        box_lineup.players.partition(p =>
-          starter_info.formatted_starters
-            .contains(p.id.name)
-        )
-
-      if (starters.size >= 5) {
-        box_lineup.copy(players = starters ++ probably_not_starters)
-      } else {
-        // Pathological case where a starter played all 40 mins without ever getting mentioned (a "40 trillian"!)
-        // Since we didn't pull out minutes from the box score, we'll just pick a rando who didn't appear
-        // in the excluded set and call them the starter. I cannot understate how little I expect this to happen!
-        val (definitely_not_starters, just_possibly_starters) =
-          probably_not_starters
-            .partition(p =>
-              starter_info.formatted_non_starters
-                .contains(p.id.name)
-            )
-        box_lineup.copy(players =
-          starters ++ just_possibly_starters ++ definitely_not_starters
-        )
-      }
+    if (starters.size >= 5) {
+      box_lineup.copy(players = starters ++ probably_not_starters)
+    } else {
+      // Pathological case where a starter played all 40 mins without ever getting mentioned (a "40 trillian"!)
+      // Since we didn't pull out minutes from the box score, we'll just pick a rando who didn't appear
+      // in the excluded set and call them the starter. I cannot understate how little I expect this to happen!
+      val (definitely_not_starters, just_possibly_starters) =
+        probably_not_starters
+          .partition(p =>
+            starter_info.formatted_non_starters
+              .contains(p.id.name)
+          )
+      box_lineup.copy(players =
+        starters ++ just_possibly_starters ++ definitely_not_starters
+      )
     }
   }
 

@@ -216,6 +216,15 @@ trait ShotEventParser {
 
   }
 
+  def enrich_shot_events_with_pbp(
+      sorted_shot_events: List[ShotEvent],
+      sorted_pbp_events: List[Model.PlayByPlayEvent],
+      lineup_events: List[LineupEvent]
+  ): List[ShotEvent] = {
+    // TODO
+    Nil
+  }
+
   /** Turns out the page is built on the fly, I already wrote all the code to
     * parse the generated HTML, so I'll just convert the JS to HTML and parse
     * that using the code I already wrote, even though it's slightly wasteful,

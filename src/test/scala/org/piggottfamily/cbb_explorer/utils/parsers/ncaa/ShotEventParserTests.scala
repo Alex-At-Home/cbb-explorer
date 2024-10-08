@@ -107,10 +107,10 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
               }
             assert(
               results == List(
-                (Some((27.0, 77.0)), Some("Donta Scott")),
-                (Some((92.0, 55.0)), Some("Tyler Wahl")),
-                (Some((90.0, 64.0)), Some("Steven Crowl")),
-                (Some((94.0, 53.0)), Some("De'Shayne Montgomery"))
+                (Some((253.8, 385.0)), Some("Donta Scott")),
+                (Some((864.8000000000001, 275.0)), Some("Tyler Wahl")),
+                (Some((846.0, 320.0)), Some("Steven Crowl")),
+                (Some((883.6, 265.0)), Some("De'Shayne Montgomery"))
               )
             )
         }

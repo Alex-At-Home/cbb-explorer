@@ -93,8 +93,9 @@ trait ShotEventParser {
     private val player_regex = ".*?(?:made|missed) by ([^(]+)[(].*".r
     def event_player_finder(event: Element): Option[String] =
       title_extractor(event) match {
-        case Some(player_regex(player)) => Some(player)
-        case _                          => None
+        case Some(player_regex(player)) =>
+          Some(player).map(ExtractorUtils.name_in_v0_format)
+        case _ => None
       }
 
     def shot_location_finder(event: Element): Option[(Double, Double)] =
@@ -285,7 +286,13 @@ trait ShotEventParser {
             )
           )
 
-        } else None
+        } else {
+          // We still extract the player name for the opponent, to help correlate with the PbP data
+          // (but we care less about the accuracy of this since it's a fallback anyway)
+          Some(
+            ExtractorUtils.build_player_code(player, team = None)
+          )
+        }
 
         Right(
           period -> build_base_event(box_lineup).copy(

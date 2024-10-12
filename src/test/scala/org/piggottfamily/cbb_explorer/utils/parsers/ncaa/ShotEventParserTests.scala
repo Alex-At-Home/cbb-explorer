@@ -107,10 +107,10 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
               }
             assert(
               results == List(
-                (Some((253.8, 385.0)), Some("Donta Scott")),
-                (Some((864.8000000000001, 275.0)), Some("Tyler Wahl")),
-                (Some((846.0, 320.0)), Some("Steven Crowl")),
-                (Some((883.6, 265.0)), Some("De'Shayne Montgomery"))
+                (Some((253.8, 385.0)), Some("Scott, Donta")),
+                (Some((864.8000000000001, 275.0)), Some("Wahl, Tyler")),
+                (Some((846.0, 320.0)), Some("Crowl, Steven")),
+                (Some((883.6, 265.0)), Some("Montgomery, De'Shayne"))
               )
             )
         }
@@ -128,6 +128,8 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
           x = 629.8000000000001,
           y = 185,
           shot_min = 4.46,
+          shooter =
+            Some(LineupEvent.PlayerCodeId("KaClary", PlayerId("Clary, Kanye"))),
           score = Game.Score(25, 20),
           is_off = false,
           pts = 1

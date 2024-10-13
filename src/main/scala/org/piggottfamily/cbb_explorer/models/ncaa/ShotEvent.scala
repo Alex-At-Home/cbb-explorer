@@ -18,7 +18,7 @@ final case class ShotEvent(
     score: Game.Score,
     shot_min: Double,
     x: Double,
-    y: Double, //>0 is right of the basket, <0 is left
+    y: Double, // >0 is right of the basket, <0 is left
     dist: Double,
     pts: Int,
     value: Int,

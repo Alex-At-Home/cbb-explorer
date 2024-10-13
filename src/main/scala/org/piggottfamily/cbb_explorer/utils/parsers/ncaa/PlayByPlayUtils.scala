@@ -33,9 +33,6 @@ trait PlayByPlayUtils {
   ): List[ShotEvent] = {
     import ShotEnrichmentUtils._
 
-    // TODO: have different field name for shooter if oppo
-    // TODO: ignore final `:00` in time to ensure is consistent with pbp
-
     val tidy_ctx =
       LineupErrorAnalysisUtils.build_tidy_player_context(box_lineup)
 
@@ -113,6 +110,9 @@ trait PlayByPlayUtils {
                   (
                     Some(
                       shot.copy(
+                        shooter = shot.shooter.filter(_ =>
+                          shot.is_off
+                        ), // (discard oppo shooters)
                         lineup_id = lineup.lineup_id,
                         players = lineup.players,
                         pts = shot.pts * shot_val,

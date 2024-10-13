@@ -85,8 +85,9 @@ trait ShotEventParser {
     private val time_regex = ".*?([0-9]+):([0-9]+):([0-9]+).*".r
     def event_time_finder(event: Element): Option[Double] =
       title_extractor(event) match {
-        case Some(time_regex(min, sec, cs)) =>
-          Try(min.toInt + sec.toInt / 60.0 + cs.toInt / 6000.0).toOption
+        case Some(time_regex(min, sec, _)) =>
+          // (ignore centi-seconds for consistency with PbP plays)
+          Try(min.toInt + sec.toInt / 60.0).toOption
         case _ => None
       }
 

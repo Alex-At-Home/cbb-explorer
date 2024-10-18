@@ -351,7 +351,7 @@ class LineupController(d: Dependencies = Dependencies()) {
 
       box_lineup =
         if (format_version > 0) {
-          d.playbyplay_parser.inject_starting_lineup_into_box(
+          PlayByPlayUtils.inject_starting_lineup_into_box(
             sorted_pbp_events,
             tmp_box_lineup,
             external_roster,
@@ -408,16 +408,20 @@ class LineupController(d: Dependencies = Dependencies()) {
             )
           case None => Right(Nil)
         }
-      // TODO: enrich by correlating with lineup events
-      // enriched_shot_events = d.shot_parser.enrich_shot_data()
 
+      enriched_shot_events = PlayByPlayUtils.enrich_shot_events_with_pbp(
+        raw_shot_events,
+        sorted_pbp_events,
+        lineup_events._1,
+        box_lineup
+      )
     } yield (
       player_events_good.map(_._1), // good lineups adjusted with player info
       player_events_bad.map(_._1), // bad lineups adjusted with player info
       player_events_good.map(_._2).flatten ++ player_events_bad
         .map(_._2)
         .flatten, // player info only
-      raw_shot_events // (TODO use enriched)
+      enriched_shot_events
     )
   }
 

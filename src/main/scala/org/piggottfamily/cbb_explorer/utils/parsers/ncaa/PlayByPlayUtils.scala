@@ -42,12 +42,6 @@ trait PlayByPlayUtils {
     )
     val finishingState = sorted_shot_events.foldLeft(startingState) {
       case (state, shot) =>
-        val (curr_lineup, stashed_lineups) = find_lineup(
-          shot,
-          curr_pbp = None, // TODO
-          state.curr_lineups,
-          state.lineup_it
-        )
         val (pbp_clump, maybe_next_pbp_event) =
           find_pbp_clump(
             shot.shot_min,
@@ -56,16 +50,15 @@ trait PlayByPlayUtils {
             state.maybe_next_pbp_event
           )
 
-        val (maybe_enriched_shot, remaining_pbp_events) =
+        val (maybe_enriched_shot, remaining_pbp_events, saved_lineups) =
           (
-            curr_lineup,
             pbp_clump
               .collect { // (ignore game events from the other team than took the shot)
                 case ev: Model.OtherTeamEvent if shot.is_off      => ev
                 case ev: Model.OtherOpponentEvent if !shot.is_off => ev
               }
           ) match {
-            case (Some(lineup), pbp_clump) if pbp_clump.nonEmpty =>
+            case pbp_clump if pbp_clump.nonEmpty =>
               val (pbp_shots, pbp_assists) =
                 pbp_clump.partition(ev => shot_value(ev.event_string) > 0)
 
@@ -99,55 +92,74 @@ trait PlayByPlayUtils {
 
               maybe_selected_pbp match {
                 case Some(selected_pbp) =>
-                  // Look for assists:
-                  val maybe_assist_pbp =
-                    pbp_assists
-                      .filter(_ => shot.pts > 0) // (can't assist a missed shot)
-                      .find(ev =>
-                        !matching_player(shot, ev, tidy_ctx)
-                      ) // (can't self-assist!)
-
-                  val shot_val = shot_value(selected_pbp.event_string)
-                  (
-                    Some(
-                      shot.copy(
-                        shooter = shot.shooter.filter(_ =>
-                          shot.is_off
-                        ), // (discard oppo shooters)
-                        lineup_id = lineup.lineup_id,
-                        players = lineup.players,
-                        pts = shot.pts * shot_val,
-                        value = shot_val,
-                        is_assisted =
-                          Some(maybe_assist_pbp.isDefined).filter(_ == true),
-                        assisted_by = maybe_assist_pbp.flatMap(ev =>
-                          extract_player_from_ev(shot, ev, tidy_ctx)
-                        ),
-                        in_transition = Some(
-                          selected_pbp.event_string.contains("fastbreak")
-                        ).filter(_ == true)
-                      )
-                    ),
-                    pbp_clump.filterNot(ev => // (clump minus matching events)
-                      ev == selected_pbp || maybe_assist_pbp.contains(ev)
-                    )
+                  // We have a matching PbP event, now match it to a lineup:
+                  val (curr_lineup, stashed_lineups) = find_lineup(
+                    shot,
+                    maybe_selected_pbp,
+                    state.curr_lineups,
+                    state.lineup_it
                   )
+                  curr_lineup match {
+                    case Some(lineup) =>
+                      // Look for assists:
+                      val maybe_assist_pbp =
+                        pbp_assists
+                          .filter(_ =>
+                            shot.pts > 0
+                          ) // (can't assist a missed shot)
+                          .find(ev =>
+                            !matching_player(shot, ev, tidy_ctx)
+                          ) // (can't self-assist!)
+
+                      val shot_val = shot_value(selected_pbp.event_string)
+                      (
+                        Some(
+                          shot.copy(
+                            shooter = shot.shooter.filter(_ =>
+                              shot.is_off
+                            ), // (discard oppo shooters)
+                            lineup_id = lineup.lineup_id,
+                            players = lineup.players,
+                            pts = shot.pts * shot_val,
+                            value = shot_val,
+                            is_assisted = Some(maybe_assist_pbp.isDefined)
+                              .filter(_ == true),
+                            assisted_by = maybe_assist_pbp.flatMap(ev =>
+                              extract_player_from_ev(shot, ev, tidy_ctx)
+                            ),
+                            in_transition = Some(
+                              selected_pbp.event_string.contains("fastbreak")
+                            ).filter(_ == true)
+                          )
+                        ),
+                        pbp_clump.filterNot(
+                          ev => // (clump minus matching events)
+                            ev == selected_pbp || maybe_assist_pbp.contains(ev)
+                        ),
+                        stashed_lineups
+                      )
+                    case None => // No matching lineup
+                      println(
+                        s"[enrich_shot_events_with_pbp] WARN: discarding unmatched shot [$shot]([$selected_pbp]), NO_LINEUP"
+                      )
+                      (None, pbp_clump, stashed_lineups)
+                  }
                 case None =>
                   // (already added a warning for this case above)
-                  (None, pbp_clump)
+                  (None, pbp_clump, state.curr_lineups)
               }
-            case _ => // No lineup, this is basically an internal logic error
+            case _ => // No matching PbP events
               println(
-                s"[enrich_shot_events_with_pbp] WARN: discarding unmatched shot [$shot], NO_LINEUP"
+                s"[enrich_shot_events_with_pbp] WARN: discarding unmatched shot [$shot], NO_PBP"
               )
-              (None, pbp_clump)
+              (None, pbp_clump, state.curr_lineups)
           }
         state.copy(
           enriched_shot_events =
             state.enriched_shot_events ++ maybe_enriched_shot.toList,
           curr_pbp_clump = remaining_pbp_events,
           maybe_next_pbp_event = maybe_next_pbp_event,
-          curr_lineups = stashed_lineups
+          curr_lineups = saved_lineups
         )
     }
     finishingState.enriched_shot_events

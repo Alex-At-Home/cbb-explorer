@@ -42,10 +42,11 @@ trait PlayByPlayUtils {
     )
     val finishingState = sorted_shot_events.foldLeft(startingState) {
       case (state, shot) =>
-        val curr_lineup = find_lineup(
-          ev => ev.end_min >= shot.shot_min && shot.shot_min >= ev.start_min,
-          state.lineup_it,
-          state.curr_lineup
+        val (curr_lineup, stashed_lineups) = find_lineup(
+          shot,
+          curr_pbp = None, // TODO
+          state.curr_lineups,
+          state.lineup_it
         )
         val (pbp_clump, maybe_next_pbp_event) =
           find_pbp_clump(
@@ -146,7 +147,7 @@ trait PlayByPlayUtils {
             state.enriched_shot_events ++ maybe_enriched_shot.toList,
           curr_pbp_clump = remaining_pbp_events,
           maybe_next_pbp_event = maybe_next_pbp_event,
-          curr_lineup = curr_lineup
+          curr_lineups = stashed_lineups
         )
     }
     finishingState.enriched_shot_events
@@ -164,19 +165,168 @@ trait PlayByPlayUtils {
         curr_pbp_clump: List[Model.MiscGameEvent] = Nil,
         maybe_next_pbp_event: Option[Model.MiscGameEvent] = None,
         lineup_it: Iterator[LineupEvent],
-        curr_lineup: Option[LineupEvent] = None
+        curr_lineups: List[LineupEvent] = Nil
     )
 
-    /** Finds the lineup event that encompasses the shot */
+    /** Finds the lineup event that encompasses the shot (true/false if it
+      * matches), plus lineups that have been pulled from the iterator but are
+      * available to be matches for future events
+      */
     def find_lineup(
-        matcher: LineupEvent => Boolean,
-        lineup_it: Iterator[LineupEvent],
-        curr_lineup: Option[LineupEvent]
-    ): Option[LineupEvent] = curr_lineup match {
-      case Some(ev) if matcher(ev) =>
-        curr_lineup
-      case _ =>
-        lineup_it.find(matcher) // (advances iterator to next element)
+        shot: ShotEvent,
+        curr_pbp: Option[Model.MiscGameEvent],
+        /** Any lineups that might match for this event which have been pulled
+          * from the iterator
+          */
+        curr_lineups: List[LineupEvent],
+        lineup_it: Iterator[LineupEvent]
+    ): (Option[LineupEvent], List[LineupEvent]) = {
+      def lineup_matcher(shot_min: Double): LineupEvent => Boolean = { ev =>
+        ev.end_min >= shot_min && shot_min >= ev.start_min
+      }
+
+      case class RecursionState(
+          curr_lineup: Option[LineupEvent],
+          fallback_lineups: List[LineupEvent],
+          stashed_lineups: List[LineupEvent]
+      )
+
+      @tailrec
+      def find_lineup_recurse(
+          tmp_lineup_it: Iterator[LineupEvent],
+          recursion_state: RecursionState
+      ): RecursionState = recursion_state match {
+        case RecursionState(
+              curr_lineup,
+              fallback_lineups,
+              stashed_lineups
+            ) =>
+          // Step 1: get a lineup that matches the time
+          val stashed_it = stashed_lineups.iterator
+          val maybe_matching_lineup = curr_lineup match {
+            case Some(lineup)
+                if lineup_matcher(
+                  shot.shot_min
+                )(lineup) =>
+              curr_lineup
+            case _ =>
+              // Check stash then back to main list looking for candidate lineups
+              stashed_it
+                .find(shot.shot_min <= _.end_min)
+                .orElse(
+                  tmp_lineup_it.find(shot.shot_min <= _.end_min)
+                )
+          }
+          val updated_stash =
+            stashed_it.toList // (keep any lineups we haven't stepped into yet
+
+          // Step 2:
+          // If we have a matching element, we need to handle the special case where
+          // the shot time is exactly the end of the lineup - does it go in this lineup or
+          // the next one (2.4), plus misc other cases (2.1 - 2.3)
+          (maybe_matching_lineup, fallback_lineups) match {
+            case (None, _) =>
+              // 2.1] (no more data in main it, just return fallback)
+              RecursionState(
+                curr_lineup = None,
+                fallback_lineups,
+                updated_stash // (in practice must be empty by construction)
+              )
+
+            case (Some(non_matching_lineup), _)
+                if !lineup_matcher(shot.shot_min)(non_matching_lineup) =>
+              // 2.2] This lineup starts after the shot, so no match but keep it in the stash
+              RecursionState(
+                curr_lineup = None,
+                fallback_lineups,
+                maybe_matching_lineup.toList ++ updated_stash
+              )
+
+            case (Some(matching_lineup), Nil)
+                if shot.shot_min < matching_lineup.end_min =>
+              // 2.3] Strictly inside the lineup and the previous lineup(s) didn't match (so no need for
+              // more complex logic)
+              RecursionState(
+                maybe_matching_lineup,
+                fallback_lineups,
+                updated_stash
+              )
+
+            case (Some(matching_lineup), _) =>
+              // 2.4] Either we're in "pick from multiple lineps" logic (fallback.nonEmpty)
+              // or we need to enter it (shot_min == end_min)
+
+              /** Extracts the event strings from the shot direction */
+              def pbp_event_str(
+                  in: List[LineupEvent.RawGameEvent]
+              ) =
+                in.flatMap(ev =>
+                  (if (shot.is_off) ev.team else ev.opponent).toList
+                )
+
+              // look through the raw game events looking for a PbP string match
+              if (
+                curr_pbp.forall {
+                  pbp => // (f no curr_pbp then just take this lineup)
+                    pbp_event_str(matching_lineup.raw_game_events)
+                      .contains(pbp.event_string)
+                }
+              ) {
+                RecursionState(
+                  maybe_matching_lineup,
+                  fallback_lineups ++
+                    maybe_matching_lineup.toList,
+                  // (we return all processed lineups, in case shots with the same are out of order)
+                  updated_stash
+                )
+              } else { // this lineup matches but didn't match the PbP event so keep looking
+                find_lineup_recurse(
+                  tmp_lineup_it,
+                  RecursionState(
+                    curr_lineup =
+                      None, // (set this to None to force it to take a new lineup)
+                    fallback_lineups = fallback_lineups ++
+                      maybe_matching_lineup.toList,
+                    stashed_lineups =
+                      updated_stash // (move from the stash to the fallbacks)
+                  )
+                )
+                // (we save the *first* matching lineup in case we can't find a matching PbP event)
+              }
+          }
+      }
+      // Top-level logic
+      val post_recursion_state =
+        find_lineup_recurse(
+          lineup_it,
+          RecursionState(
+            curr_lineups.headOption,
+            fallback_lineups = Nil,
+            stashed_lineups = curr_lineups.drop(1)
+          )
+        )
+
+      (
+        post_recursion_state.curr_lineup,
+        post_recursion_state.fallback_lineups
+      ) match {
+        case (maybe_matching_lineup, Nil) =>
+          // (no fallbacks, just return the lineup)
+          (
+            maybe_matching_lineup,
+            // (list of lineups to try next time, includes the current one):
+            maybe_matching_lineup.toList ++ post_recursion_state.stashed_lineups
+          )
+        case (maybe_matching_lineup, fallback_lineups) =>
+          // there are fallbacks, which means the "matching_lineup" must be one of them
+          // so no need to add explicitly to the stash
+          (
+            maybe_matching_lineup.orElse(fallback_lineups.headOption),
+            // not using the fallback, keep them all to try next time
+            // (also includes the current one):
+            fallback_lineups ++ post_recursion_state.stashed_lineups
+          )
+      }
     }
 
     /* Pull out only the PbP events we need - shots and assists on either side */
@@ -188,6 +338,7 @@ trait PlayByPlayUtils {
               case EventUtils.ParseAssist(_)     => Some(game_event)
               case EventUtils.ParseShotMade(_)   => Some(game_event)
               case EventUtils.ParseShotMissed(_) => Some(game_event)
+              case _                             => None
             }
           case _ => None
         }
@@ -198,8 +349,21 @@ trait PlayByPlayUtils {
       case EventUtils.ParseAssist(_)             => 0
       case EventUtils.ParseThreePointerMade(_)   => 3
       case EventUtils.ParseThreePointerMissed(_) => 3
-      case _                                     => 2
+      case EventUtils.ParseTwoPointerMade(_)     => 2
+      case EventUtils.ParseTwoPointerMissed(_)   => 2
+      case _                                     => -1
     }
+
+    /** Returns game events matching the description */
+    private def pbp_clump_matcher(matcher: Model.MiscGameEvent => Boolean)(
+        pbp_it: Iterator[Model.PlayByPlayEvent]
+    ): Option[Model.MiscGameEvent] = pbp_it
+      .find {
+        case game_event: Model.MiscGameEvent =>
+          ShotOrAssistFinder.unapply(game_event).exists(matcher)
+        case _ => false
+      }
+      .map(_.asInstanceOf[Model.MiscGameEvent])
 
     /** Get all PBP entries with the same time */
     @tailrec
@@ -216,14 +380,8 @@ trait PlayByPlayUtils {
             shot_time,
             pbp_it,
             curr_pbp_clump,
-            pbp_it
-              .collect { case game_event: Model.MiscGameEvent =>
-                game_event
-              }
-              .find {
-                case ShotOrAssistFinder(ev) => ev.min == shot_time
-                case _                      => false
-              } // (keeps going until it finds the 1st event with a matching time, moves the it)
+            pbp_clump_matcher(_.min >= shot_time)(pbp_it)
+            // (grab another event, recurse to figure out what to do with it)
           )
         case None =>
           // end of the PbP events
@@ -234,14 +392,8 @@ trait PlayByPlayUtils {
             shot_time,
             pbp_it,
             curr_pbp_clump,
-            pbp_it
-              .collect { case game_event: Model.MiscGameEvent =>
-                game_event
-              }
-              .find {
-                case ShotOrAssistFinder(ev) => ev.min == shot_time
-                case _                      => false
-              } // (keeps going until it finds the 1st event with a matching time, moves the it)
+            pbp_clump_matcher(_.min >= shot_time)(pbp_it)
+            // (grab another event, recurse to figure out what to do with it)
           )
         case Some(next_pbp_event) if next_pbp_event.min == shot_time =>
           // next pbp is part of clump
@@ -249,14 +401,8 @@ trait PlayByPlayUtils {
             shot_time,
             pbp_it,
             curr_pbp_clump ++ List(next_pbp_event),
-            pbp_it
-              .collect { case game_event: Model.MiscGameEvent =>
-                game_event
-              }
-              .find {
-                case ShotOrAssistFinder(ev) => ev.min > shot_time
-                case _                      => false
-              }
+            pbp_clump_matcher(_.min >= shot_time)(pbp_it)
+            // (grab another event, recurse to figure out what to do with it)
           )
         case _ => // next pbp is not part of clump (_.min > shot_time) so we're done for now
           (curr_pbp_clump, maybe_next_pbp_event)
@@ -282,7 +428,7 @@ trait PlayByPlayUtils {
             )
           } else {
             ExtractorUtils.build_player_code(
-              player_name,
+              name_in_v0_format(player_name),
               None
             )
           }

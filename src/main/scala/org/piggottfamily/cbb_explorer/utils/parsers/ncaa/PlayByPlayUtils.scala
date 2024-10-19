@@ -70,7 +70,6 @@ trait PlayByPlayUtils {
                       candidate_matches.filter(ev =>
                         matching_player(shot, ev, tidy_ctx)
                       )
-
                     player_filtered_candidate_matches match {
                       case Nil if candidate_matches.size == 1 =>
                         // only one candidate match, so just use it
@@ -205,7 +204,6 @@ trait PlayByPlayUtils {
 
       @tailrec
       def find_lineup_recurse(
-          tmp_lineup_it: Iterator[LineupEvent],
           recursion_state: RecursionState
       ): RecursionState = recursion_state match {
         case RecursionState(
@@ -226,7 +224,7 @@ trait PlayByPlayUtils {
               stashed_it
                 .find(shot.shot_min <= _.end_min)
                 .orElse(
-                  tmp_lineup_it.find(shot.shot_min <= _.end_min)
+                  lineup_it.find(shot.shot_min <= _.end_min)
                 )
           }
           val updated_stash =
@@ -293,7 +291,6 @@ trait PlayByPlayUtils {
                 )
               } else { // this lineup matches but didn't match the PbP event so keep looking
                 find_lineup_recurse(
-                  tmp_lineup_it,
                   RecursionState(
                     curr_lineup =
                       None, // (set this to None to force it to take a new lineup)
@@ -310,7 +307,6 @@ trait PlayByPlayUtils {
       // Top-level logic
       val post_recursion_state =
         find_lineup_recurse(
-          lineup_it,
           RecursionState(
             curr_lineups.headOption,
             fallback_lineups = Nil,
@@ -378,47 +374,59 @@ trait PlayByPlayUtils {
       .map(_.asInstanceOf[Model.MiscGameEvent])
 
     /** Get all PBP entries with the same time */
-    @tailrec
     def find_pbp_clump(
         shot_time: Double,
         pbp_it: Iterator[Model.PlayByPlayEvent],
         curr_pbp_clump: List[Model.MiscGameEvent],
         maybe_next_pbp_event: Option[Model.MiscGameEvent]
-    ): (List[Model.MiscGameEvent], Option[Model.MiscGameEvent]) =
-      maybe_next_pbp_event match {
-        case None if pbp_it.hasNext =>
-          // get next pbp event
-          find_pbp_clump(
-            shot_time,
-            pbp_it,
-            curr_pbp_clump,
-            pbp_clump_matcher(_.min >= shot_time)(pbp_it)
-            // (grab another event, recurse to figure out what to do with it)
-          )
-        case None =>
-          // end of the PbP events
-          (curr_pbp_clump, None)
-        case Some(next_pbp_event) if next_pbp_event.min < shot_time =>
-          // next pbp is before the clump, discard it and check the next one
-          find_pbp_clump(
-            shot_time,
-            pbp_it,
-            curr_pbp_clump,
-            pbp_clump_matcher(_.min >= shot_time)(pbp_it)
-            // (grab another event, recurse to figure out what to do with it)
-          )
-        case Some(next_pbp_event) if next_pbp_event.min == shot_time =>
-          // next pbp is part of clump
-          find_pbp_clump(
-            shot_time,
-            pbp_it,
-            curr_pbp_clump ++ List(next_pbp_event),
-            pbp_clump_matcher(_.min >= shot_time)(pbp_it)
-            // (grab another event, recurse to figure out what to do with it)
-          )
-        case _ => // next pbp is not part of clump (_.min > shot_time) so we're done for now
-          (curr_pbp_clump, maybe_next_pbp_event)
+    ): (List[Model.MiscGameEvent], Option[Model.MiscGameEvent]) = {
+
+      @tailrec
+      def find_pbp_clump_recurse(
+          tmp_curr_pbp_clump: List[Model.MiscGameEvent],
+          tmp_maybe_next_pbp_event: Option[Model.MiscGameEvent]
+      ): (List[Model.MiscGameEvent], Option[Model.MiscGameEvent]) = {
+        tmp_maybe_next_pbp_event match {
+          case None if pbp_it.hasNext =>
+            // get next pbp event
+            find_pbp_clump_recurse(
+              tmp_curr_pbp_clump,
+              pbp_clump_matcher(_.min >= shot_time)(pbp_it)
+              // (grab another event, recurse to figure out what to do with it)
+            )
+          case None =>
+            // end of the PbP events
+            (tmp_curr_pbp_clump, None)
+          case Some(next_pbp_event) if next_pbp_event.min < shot_time =>
+            // next pbp is before the clump, discard it and check the next one
+            find_pbp_clump_recurse(
+              tmp_curr_pbp_clump,
+              pbp_clump_matcher(_.min >= shot_time)(pbp_it)
+              // (grab another event, recurse to figure out what to do with it)
+            )
+          case Some(next_pbp_event) if next_pbp_event.min == shot_time =>
+            // next pbp is part of clump
+            find_pbp_clump_recurse(
+              tmp_curr_pbp_clump ++ List(next_pbp_event),
+              pbp_clump_matcher(_.min >= shot_time)(pbp_it)
+              // (grab another event, recurse to figure out what to do with it)
+            )
+          case _ => // next pbp is not part of clump (_.min > shot_time) so we're done for now
+            (tmp_curr_pbp_clump, tmp_maybe_next_pbp_event)
+        }
       }
+
+      val clump_time_matches = curr_pbp_clump.filter(_.min == shot_time)
+      if (clump_time_matches.nonEmpty) { // Still some events from prev call left over
+        (clump_time_matches, maybe_next_pbp_event)
+      } else { // get the next clump, having flushed
+        find_pbp_clump_recurse(
+          tmp_curr_pbp_clump = Nil,
+          maybe_next_pbp_event
+        )
+      }
+
+    }
 
     /** Gets a player code/id, using enrichment if it's a shot from _team_ (not
       * opponent)
@@ -430,7 +438,8 @@ trait PlayByPlayUtils {
     ): Option[LineupEvent.PlayerCodeId] =
       EventUtils.ParseAnyPlay
         .unapply(pbp_event.event_string)
-        .map { player_name =>
+        .map { v1_player_name =>
+          val player_name = name_in_v0_format(v1_player_name)
           if (shot.is_off) {
             val (tidier_player_name, _) =
               LineupErrorAnalysisUtils.tidy_player(player_name, tidy_ctx)
@@ -440,7 +449,7 @@ trait PlayByPlayUtils {
             )
           } else {
             ExtractorUtils.build_player_code(
-              name_in_v0_format(player_name),
+              player_name,
               None
             )
           }

@@ -66,8 +66,8 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
     x = 0.0,
     y = 0.0,
     dist = 0.0,
-    pts = 2,
-    value = 2,
+    pts = 1,
+    value = 1,
     assisted_by = None,
     is_assisted = None,
     in_transition = None
@@ -79,6 +79,17 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
       event_string =
         "18:28:00,0-0,Kyle Guy, assist" // (just needs to extra to game event)
     )
+
+  val base_team_2p_pbp = base_team_pbp.copy(
+    event_string =
+      "18:28:00,0-0,Eric Ayala, 2pt jumpshot 2ndchance made" // (just needs to extra to game event)
+  )
+
+  val base_team_3p_pbp = base_team_pbp.copy(
+    event_string =
+      "18:28:00,0-0,Eric Ayala, 3pt jumpshot 2ndchance fastbreak made" // (just needs to extra to game event)
+  )
+
   val base_oppo_pbp =
     Model.OtherOpponentEvent(
       min = 5.0,
@@ -91,6 +102,118 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
 
   val tests = Tests {
     "PlayByPlayUtils" - {
+      "enrich_shot_events_with_pbp" - {
+        val raw_shots = List(
+          base_shot_event.copy(
+            shot_min = 5.0,
+            is_off = true
+          ), // (on lineup boundary)
+          base_shot_event.copy(
+            shot_min = 6.0,
+            is_off = true
+          ),
+          base_shot_event.copy(
+            shot_min = 7.0,
+            dist = 25.0,
+            is_off = true
+          ), // (3P shot in transition)
+          base_shot_event.copy(
+            shot_min = 8.0,
+            is_off = false
+          ), // (no PbP match)
+          base_shot_event.copy(
+            shot_min = 11.0,
+            is_off = true
+          ), // (will be discarded because matches 2 PbPs)
+          base_shot_event.copy(shot_min = 13.0, is_off = true),
+          base_shot_event.copy(
+            shot_min = 16.0,
+            is_off = true
+          ) // (no lineup match)
+        )
+        val lineups = List(
+          box_lineup.copy(
+            start_min = 0.0,
+            end_min = 5.0,
+            lineup_id = LineupEvent.LineupId("test1")
+          ),
+          box_lineup.copy(
+            start_min = 5.0,
+            end_min = 10.0,
+            lineup_id = LineupEvent.LineupId("test2")
+          ),
+          box_lineup.copy(
+            start_min = 10.0,
+            end_min = 15.0,
+            lineup_id = LineupEvent.LineupId("test3")
+          )
+        )
+        val pbp_events = List(
+          base_team_2p_pbp.copy(min = 5.0),
+          // At 6 minutes: assisted shot
+          base_team_2p_pbp.copy(min = 6.0),
+          base_team_pbp.copy(min = 6.0),
+          // At 7 mins: multiple shots wth wrong player, but only one has the right distance
+          base_team_2p_pbp.copy(min = 7.0),
+          base_team_3p_pbp.copy(min = 7.0),
+          base_team_pbp.copy(min =
+            9.0
+          ), // rogue assist we'll ignore because time doesn't match up)
+          // At 11 mins: multiple shots with wrong player, both have the right distance so discard
+          base_team_2p_pbp.copy(min = 11.0),
+          base_team_2p_pbp.copy(min = 11.0),
+          // At 13 mins: multiple shots, one has right player, one has wrong
+          base_team_2p_pbp.copy(min = 13.0),
+          base_team_2p_pbp
+            .copy(
+              min = 13.0,
+              event_string =
+                "18:28:00,0-0,Jahari Long, 3pt jumpshot 2ndchance fastbreak made"
+            ),
+          // This matches PbP (but not lineup)
+          base_team_2p_pbp.copy(min = 16.0)
+        )
+        TestUtils.inside(
+          enrich_shot_events_with_pbp(
+            raw_shots,
+            pbp_events,
+            lineups,
+            box_lineup
+          )
+        ) { case enriched_shots @ List(shot1, shot2, shot3, shot4) =>
+          // Lineup correlation
+          assert(shot1.lineup_id == LineupEvent.LineupId("test1"))
+          assert(shot2.lineup_id == LineupEvent.LineupId("test2"))
+          assert(shot3.lineup_id == LineupEvent.LineupId("test2"))
+          assert(shot4.lineup_id == LineupEvent.LineupId("test3"))
+          // Assist calcs
+          assert(shot1.is_assisted == None)
+          assert(shot2.is_assisted == Some(true))
+          assert(
+            shot2.assisted_by == Some(
+              LineupEvent.PlayerCodeId("KyGuy", PlayerId("Guy, Kyle"))
+            )
+          )
+          assert(shot3.is_assisted == None)
+          assert(shot4.is_assisted == None)
+          enriched_shots.foreach { shot =>
+            if (!shot.is_assisted.contains(true)) {
+              assert(shot.assisted_by == None)
+            }
+          }
+          // Shot value
+          assert(shot1.value == 2)
+          assert(shot2.value == 2)
+          assert(shot3.value == 3)
+          assert(shot4.value == 2)
+          // Transition calcs
+          assert(shot1.in_transition == None)
+          assert(shot2.in_transition == None)
+          assert(shot3.in_transition == Some(true))
+          assert(shot4.in_transition == None)
+
+        }
+      }
       "ShotEnrichmentUtils" - {
         import ShotEnrichmentUtils._
 
@@ -397,7 +520,22 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
                   base_team_pbp.copy(min = 5.0),
                   base_team_pbp.copy(min = 5.0)
                 ),
-                Some(base_team_pbp.copy(min = 10.0))
+                None
+              )
+            ),
+            Scenario(
+              base_shot_event.copy(shot_min = 10.0),
+              pbp_curr = Nil,
+              pbp_remaining = List(
+                base_team_pbp.copy(min = 10.0),
+                base_team_pbp.copy(min = 13.0)
+              ),
+              next = None,
+              expected = (
+                List(
+                  base_team_pbp.copy(min = 10.0)
+                ),
+                Some(base_team_pbp.copy(min = 13.0))
               )
             ),
             Scenario(
@@ -414,6 +552,21 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
                   base_team_pbp.copy(min = 5.0)
                 ),
                 None
+              )
+            ),
+            // Test removing old events from curr:
+            Scenario(
+              base_shot_event.copy(shot_min = 8.0),
+              pbp_curr = List(
+                base_team_pbp.copy(min = 7.0)
+              ),
+              pbp_remaining = List(
+                base_team_pbp.copy(min = 13.0)
+              ),
+              next = Some(base_team_pbp.copy(min = 9.0)),
+              expected = (
+                Nil,
+                Some(base_team_pbp.copy(min = 9.0))
               )
             )
           )

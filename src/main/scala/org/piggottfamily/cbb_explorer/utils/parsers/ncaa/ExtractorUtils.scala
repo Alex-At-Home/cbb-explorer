@@ -31,10 +31,21 @@ object ExtractorUtils {
       .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
   }
 
+  private val complex_v0_case_regex = "([(].*[)])(.*)".r
+
   /** Switches from "name1 name2 ... last_name" to "name2 ... last_name, name1"
     */
   def name_in_v0_format(v1_name: String) = {
     v1_name.split(" ", 2) match {
+      case Array(first, last) if last.startsWith("(") =>
+        // More complicated case where someone has a nickname, eg "Russell (Deuce) Dean"
+        // which should translate to first="Russell Deuce", last="Dean"
+        last match {
+          case complex_v0_case_regex(nickname, last_name) =>
+            s"$last_name, $first $nickname"
+          case _ => // unmatched bracket just live with it
+            s"$last, $first"
+        }
       case Array(first, last) => s"$last, $first"
       case _                  => v1_name
     }

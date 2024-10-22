@@ -153,6 +153,23 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
             base_event_1,
             1
           ),
+          // Weird name scanario:
+          TestScenario(
+            """
+            <circle cx="310.2" cy="235" r="5" style="fill: white; stroke: blue; stroke-width: 3px; display: inline;" id="play_2565239320" class="period_1 player_768305773 team_392 shot missed"><title>1st 13:05:00 : missed by Russell (Deuce) Dean(Ga. Southern) 9-6</title></circle>
+            """,
+            base_event_1.copy(
+              is_off = false,
+              shooter = Some(
+                LineupEvent
+                  .PlayerCodeId(
+                    "Ru(deuce)Dean",
+                    PlayerId("Dean, Russell (Deuce)")
+                  )
+              )
+            ),
+            1
+          ),
           // Location swap:
           TestScenario(
             """
@@ -193,13 +210,15 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
             """
             <circle cx="310.2" cy="235" r="5" style="fill: white; stroke: blue; stroke-width: 3px; display: inline;" id="play_2565239320" class="period_1 player_768305773 team_392 shot missed"><title>1st 13:05:00 : missed by Jahari Long(St. Francis (PA)) 9-6</title></circle>
             """,
-            base_event_1.copy(team =
-              TeamSeasonId(TeamId("St. Francis (PA)"), Year(2023))
+            base_event_1.copy(
+              is_off = false,
+              opponent = TeamSeasonId(TeamId("St. Francis (PA)"), Year(2023))
             ),
             1,
             box = box_lineup.copy(
-              team = TeamSeasonId(TeamId("St. Francis (PA)"), Year(2023))
-            )
+              opponent = TeamSeasonId(TeamId("St. Francis (PA)"), Year(2023))
+            ),
+            target = false
           ),
           // Base opponent scenario:
           TestScenario(
@@ -258,7 +277,7 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
             """ -> "[3]", // (location)
           """
             <circle cx="310.2" cy="235" r="5" style="fill: white; stroke: blue; stroke-width: 3px; display: inline;" id="play_2565239320" class="period_1 player_768305773 team_392 shot missed"><title>1st 13:05:00 : missed by Jahari Long(Maryland)</title></circle>
-            """ -> "[4,6]", // (score; use the score to find the team so if one is missing so is the other)
+            """ -> "[2,4,6]", // (score; use the score to find the team and player so if one is missing so is the other)
           """
             <circle cx="310.2" cy="235" r="5" style="fill: white; stroke: blue; stroke-width: 3px; display: inline;" id="play_2565239320" class="period_1 player_768305773 team_392 shot"><title>1st 13:05:00 : taken by Jahari Long(Maryland) 9-6</title></circle>
             """ -> "[2,5]", // (shot result; use the shot result to find the player so if one is missing so is the other)

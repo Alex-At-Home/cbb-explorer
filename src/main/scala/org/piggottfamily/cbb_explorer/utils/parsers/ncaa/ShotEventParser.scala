@@ -95,13 +95,42 @@ trait ShotEventParser {
         case _ => None
       }
 
-    private val player_regex = ".*?(?:made|missed) by ([^(]+)[(].*".r
+    private def resolve_team_name(name_and_team: String): Option[String] = {
+      val (result, _) = name_and_team.reverse.foldLeft(("", 0)) {
+        case ((acc, count), char) =>
+          char match {
+            // Found team, keep going until end
+            case _ if count == -1 => (acc, count)
+            // Bracket processing
+            case ')' if count == 0 => (acc, count + 1)
+            case ')'               => (char +: acc, count + 1)
+            case '(' if count == 1 => (acc, -1)
+            case '('               => (char +: acc, count - 1)
+            // Char processing (if count == 0 we didn't open with a bracket so no team)
+            case _ if count == 0 => (acc, -1)
+            case _               => (char +: acc, count)
+          }
+      }
+      if (result.isEmpty) None
+      else Some(name_and_team.dropRight(result.length + 2))
+    }
+
+    // eg 1st 17:25:00 : made by $PLAYER_STRING($TEAM) 4-5
+    private val player_regex =
+      ".*?(?:made|missed) by (.*?) [0-9]+-[0-9]+.*".r
     def event_player_finder(event: Element): Option[String] =
       title_extractor(event) match {
-        case Some(player_regex(player)) =>
-          Some(player).map(ExtractorUtils.name_in_v0_format).map(_.trim)
+        case Some(player_regex(name_and_team)) =>
+          resolve_team_name(name_and_team)
+            .map(ExtractorUtils.name_in_v0_format)
+            .map(_.trim)
+            .filter(_.nonEmpty)
         case _ => None
       }
+
+//TODO: issues...
+// 1: missing shot because lineups don't match up .. maybe make lineup_id optional (eg Mich St but lots of others)
+// 3: Ohio St. vs Merrimack NO_LINEUP
 
     def shot_location_finder(event: Element): Option[(Double, Double)] =
       for {

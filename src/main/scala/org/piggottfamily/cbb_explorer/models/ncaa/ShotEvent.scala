@@ -24,5 +24,6 @@ final case class ShotEvent(
     value: Int,
     assisted_by: Option[LineupEvent.PlayerCodeId],
     is_assisted: Option[Boolean],
-    in_transition: Option[Boolean]
+    in_transition: Option[Boolean],
+    raw_event: Option[String] // (discard before writing to disk)
 )

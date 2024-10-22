@@ -53,7 +53,7 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
     LineupErrorAnalysisUtils.build_tidy_player_context(box_lineup)
 
   val base_shot_event = ShotEvent(
-    shooter = None,
+    shooter = box_players.headOption,
     date = new DateTime(),
     location_type = Game.LocationType.Home,
     team = TeamSeasonId(TeamId("Maryland"), Year(2023)),
@@ -63,6 +63,7 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
     players = box_players,
     score = Game.Score(0, 0),
     shot_min = 0.0,
+    raw_event = None,
     x = 0.0,
     y = 0.0,
     dist = 0.0,
@@ -126,6 +127,9 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
             is_off = true
           ), // (will be discarded because matches 2 PbPs)
           base_shot_event.copy(shot_min = 13.0, is_off = true),
+          // Two valid shots at the same time, check they both get picked up:
+          base_shot_event.copy(shot_min = 14.5, is_off = true),
+          base_shot_event.copy(shot_min = 14.5, is_off = true),
           base_shot_event.copy(
             shot_min = 16.0,
             is_off = true
@@ -170,6 +174,17 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
               event_string =
                 "18:28:00,0-0,Jahari Long, 3pt jumpshot 2ndchance fastbreak made"
             ),
+          // 2 events, both are valid - both should get picked up:
+          base_team_2p_pbp.copy(
+            min = 14.5,
+            event_string =
+              "18:28:00,0-0,Jahari Long, 2pt jumpshot 2ndchance made"
+          ),
+          base_team_2p_pbp.copy(
+            min = 14.5,
+            event_string =
+              "18:28:00,0-0,Jahari Long, 2pt jumpshot 2ndchance made"
+          ),
           // This matches PbP (but not lineup)
           base_team_2p_pbp.copy(min = 16.0)
         )
@@ -180,7 +195,9 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
             lineups,
             box_lineup
           )
-        ) { case enriched_shots @ List(shot1, shot2, shot3, shot4) =>
+        ) { case enriched_shots @ List(shot1, shot2, shot3, shot4, _, _) =>
+          // (ignore the last 2 shots except to check they exist)
+
           // Lineup correlation
           assert(shot1.lineup_id == LineupEvent.LineupId("test1"))
           assert(shot2.lineup_id == LineupEvent.LineupId("test2"))
@@ -620,6 +637,7 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
           case class Scenario(
               ev_str: String,
               is_off: Boolean,
+              code_match: Boolean = false,
               expected: Boolean
           )
           val test_scenarios = List(
@@ -632,6 +650,13 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
               "18:28:00,0-0,Jahar Long, 3pt jumpshot made",
               is_off = false, // (means error above will not be corrected)
               expected = false
+            ),
+            Scenario(
+              "18:28:00,0-0,Jahar Long, 3pt jumpshot made",
+              is_off =
+                false, // (means error above will not be corrected ... but code match will work)
+              code_match = true,
+              expected = true
             )
           )
           test_scenarios.foreach { scenario =>
@@ -643,7 +668,8 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
                     shooter = box_players.headOption
                   ),
                 base_team_pbp.copy(event_string = scenario.ev_str),
-                tidy_ctx
+                tidy_ctx,
+                code_match = scenario.code_match
               ) == scenario.expected
             )
           }

@@ -50,6 +50,11 @@ trait PlayByPlayUtils {
             state.maybe_next_pbp_event
           )
 
+        // (Useful debug print in conjunction with an if clause)
+        // println(
+        //   s"PBP ANALYSIS [$pbp_clump][$maybe_next_pbp_event] <- [${state.curr_pbp_clump}]"
+        // )
+
         val (maybe_enriched_shot, remaining_pbp_events, saved_lineups) =
           (
             pbp_clump
@@ -58,28 +63,41 @@ trait PlayByPlayUtils {
                 case ev: Model.OtherOpponentEvent if !shot.is_off => ev
               }
           ) match {
-            case pbp_clump if pbp_clump.nonEmpty =>
+            case pbp_clump_for_shot if pbp_clump_for_shot.nonEmpty =>
               val (pbp_shots, pbp_assists) =
-                pbp_clump.partition(ev => shot_value(ev.event_string) > 0)
+                pbp_clump_for_shot.partition(ev =>
+                  shot_value(ev.event_string) > 0
+                )
 
               val maybe_selected_pbp =
                 pbp_shots.filter(ev => right_kind_of_shot(shot, ev)) match {
                   case Nil => None
                   case candidate_matches =>
                     val player_filtered_candidate_matches =
-                      candidate_matches.filter(ev =>
-                        matching_player(shot, ev, tidy_ctx)
-                      )
+                      candidate_matches.filter(ev => {
+                        matching_player(shot, ev, tidy_ctx, code_match = false)
+                      }) match {
+                        case Nil => // retry but with less strict matching
+                          candidate_matches.filter(ev => {
+                            matching_player(
+                              shot,
+                              ev,
+                              tidy_ctx,
+                              code_match = true
+                            )
+                          })
+                        case matches => matches
+                      }
                     player_filtered_candidate_matches match {
                       case Nil if candidate_matches.size == 1 =>
                         // only one candidate match, so just use it
                         // Warning since this PbP event must match this shot, but the player codes don't match up
                         println(
-                          s"[enrich_shot_events_with_pbp] WARN: player mismatch for shot [$shot] vs [$candidate_matches]"
+                          s"[enrich_shot_events_with_pbp] WARN: IGNORED player mismatch for shot [$shot] vs [$candidate_matches]"
                         )
                         candidate_matches.headOption
                       case Nil =>
-                        // Too many "wrong" candidate matches, bailing
+                        // Too many "wrong" candidate matches (or none, eg all the options were wrong distance/direction), bailing
                         println(
                           s"[enrich_shot_events_with_pbp] WARN: discarding unmatched shot [$shot], candidates=[$candidate_matches]"
                         )
@@ -107,39 +125,52 @@ trait PlayByPlayUtils {
                             shot.pts > 0
                           ) // (can't assist a missed shot)
                           .find(ev =>
-                            !matching_player(shot, ev, tidy_ctx)
+                            !matching_player(
+                              shot,
+                              ev,
+                              tidy_ctx,
+                              code_match = true
+                            )
                           ) // (can't self-assist!)
 
                       val shot_val = shot_value(selected_pbp.event_string)
-                      (
-                        Some(
-                          shot.copy(
-                            shooter = shot.shooter.filter(_ =>
-                              shot.is_off
-                            ), // (discard oppo shooters)
-                            lineup_id = lineup.lineup_id,
-                            players = lineup.players,
-                            pts = shot.pts * shot_val,
-                            value = shot_val,
-                            is_assisted = Some(maybe_assist_pbp.isDefined)
-                              .filter(_ == true),
-                            assisted_by = maybe_assist_pbp.flatMap(ev =>
-                              extract_player_from_ev(shot, ev, tidy_ctx)
-                            ),
-                            in_transition = Some(
-                              selected_pbp.event_string.contains("fastbreak")
-                            ).filter(_ == true)
+                      val enriched_shot = shot.copy(
+                        shooter = shot.shooter.filter(_ =>
+                          shot.is_off
+                        ), // (discard oppo shooters)
+                        lineup_id = lineup.lineup_id,
+                        raw_event = None,
+                        players = lineup.players,
+                        pts = shot.pts * shot_val,
+                        value = shot_val,
+                        is_assisted = Some(maybe_assist_pbp.isDefined)
+                          .filter(_ == true),
+                        assisted_by = maybe_assist_pbp
+                          .filter(_ => shot.is_off) // (discard oppo passers)
+                          .flatMap(ev =>
+                            extract_player_from_ev(shot, ev, tidy_ctx)
+                          ),
+                        in_transition = Some(
+                          selected_pbp.event_string.contains("fastbreak")
+                        ).filter(_ == true)
+                      )
+
+                      val pbp_clump_minus_matching_events =
+                        pbp_clump.filterNot(ev =>
+                          (ev eq selected_pbp) || maybe_assist_pbp.exists(
+                            _ eq ev
                           )
-                        ),
-                        pbp_clump.filterNot(
-                          ev => // (clump minus matching events)
-                            ev == selected_pbp || maybe_assist_pbp.contains(ev)
-                        ),
+                        )
+
+                      maybe_debug_event(enriched_shot)
+                      (
+                        Some(enriched_shot),
+                        pbp_clump_minus_matching_events,
                         stashed_lineups
                       )
                     case None => // No matching lineup
                       println(
-                        s"[enrich_shot_events_with_pbp] WARN: discarding unmatched shot [$shot]([$selected_pbp]), NO_LINEUP"
+                        s"[enrich_shot_events_with_pbp] WARN: discarding unmatched shot [$shot]([$selected_pbp]), NO_LINEUP ([$stashed_lineups])"
                       )
                       (None, pbp_clump, stashed_lineups)
                   }
@@ -149,8 +180,23 @@ trait PlayByPlayUtils {
               }
             case _ => // No matching PbP events
               println(
-                s"[enrich_shot_events_with_pbp] WARN: discarding unmatched shot [$shot], NO_PBP"
+                s"[enrich_shot_events_with_pbp] WARN: discarding unmatched shot [$shot], NO_PBP ([$maybe_next_pbp_event])"
               )
+              // For debugging: list all the PbP times
+              val no_pbp_debug = false
+              if (no_pbp_debug) {
+                val pbp_times = sorted_pbp_events
+                  .map {
+                    case ev: Model.MiscGameEvent =>
+                      if (Math.abs(ev.min - shot.shot_min) < 0.1) {
+                        s"${ev.min}:[${ev.event_string}]"
+                      } else f"${ev.min}%.2f"
+                    case ev => f"(${ev.min}%.2f)"
+                  }
+                  .mkString(",")
+                println(s"NO_PBP: $pbp_times")
+              }
+
               (None, pbp_clump, state.curr_lineups)
           }
         state.copy(
@@ -168,6 +214,52 @@ trait PlayByPlayUtils {
 
   /** Separated out fiddly details for testing purposes */
   protected object ShotEnrichmentUtils {
+
+    /** We always print out warnings but if true we also print out a summary of
+      * the info
+      */
+    val debug_print_enriched = false
+
+    def maybe_debug_event = (shot: ShotEvent) => {
+      if (debug_print_enriched) {
+        val team = shot.team.team.name match {
+          case target_team if shot.is_off =>
+            target_team.toUpperCase
+          case oppo_team => oppo_team
+        }
+        val oppo = shot.opponent.team.name match {
+          case target_team if !shot.is_off =>
+            target_team.toUpperCase
+          case oppo_team => oppo_team
+        }
+        val time = f"[${shot.shot_min}%.1f]"
+        val shooter = shot.shooter.map(_.code) match {
+          case Some(shooter) => shooter
+          case _ if shot.is_off =>
+            "ERROR"
+          case _ => // opponents are removed
+            "(oppo)"
+        }
+        val maybe_assisted_by =
+          if (shot.is_off)
+            shot.assisted_by.map(_.code).map(a => s"(A)[$a]").getOrElse("")
+          else if (shot.is_assisted.contains(true)) "(A)"
+          else ""
+
+        val loc_info = f"[${shot.x}%.1f],[${shot.y}%.1f]=>[${shot.dist}%.1f]ft"
+        val score_info = s"([${shot.score.scored}]-[${shot.score.allowed}])"
+        val maybe_trans =
+          if (shot.in_transition.contains(true)) "(TRANS)" else ""
+        val lineup_info = shot.players.map(_.code).mkString("_")
+        val shot_value =
+          s"[${shot.value}]pts ${if (shot.pts > 0) "[MADE]" else "[MISSED]"}"
+
+        println(
+          s"[enrich_shot_events_with_pbp] $time$score_info $shot_value [$shooter]$maybe_assisted_by$maybe_trans $loc_info" +
+            s" | [$team][$oppo] [$lineup_info]"
+        )
+      }
+    }
 
     /** State object for matching up PbP events with shots */
     case class EnrichmentState(
@@ -459,10 +551,18 @@ trait PlayByPlayUtils {
     def matching_player(
         shot: ShotEvent,
         pbp_event: Model.MiscGameEvent,
-        tidy_ctx: LineupErrorAnalysisUtils.TidyPlayerContext
-    ): Boolean = extract_player_from_ev(shot, pbp_event, tidy_ctx).exists(
-      shot.shooter.contains
-    )
+        tidy_ctx: LineupErrorAnalysisUtils.TidyPlayerContext,
+        code_match: Boolean
+    ): Boolean =
+      extract_player_from_ev(shot, pbp_event, tidy_ctx).exists(player => {
+        if (code_match) {
+          shot.shooter.exists(
+            _.code == player.code
+          )
+        } else {
+          shot.shooter.contains(player)
+        }
+      })
 
     /** We probably can't exactly tell the shot type from the distance because
       * of the approx's in the data But we can rule out obvious 2s and 3s when
@@ -541,7 +641,7 @@ trait PlayByPlayUtils {
           state.copy(excluded = state.excluded + player, last_sub_time = time)
 
         case (state, ev: Model.MiscGameEvent)
-            if ev.is_team_dir && ev.min < state.last_sub_time =>
+            if ev.is_team_dir && ev.min > state.last_sub_time =>
           ev.event_string match {
             case EventUtils.ParseAnyPlay(player)
                 if valid_players_set

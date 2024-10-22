@@ -38,6 +38,7 @@ trait ShotEventParser {
     def team_finder(doc: Document): List[String]
     def shot_event_finder(doc: Document): List[Element]
     def script_extractor(doc: Document): Option[String]
+    def title_extractor(event: Element): Option[String]
 
     def event_period_finder(event: Element): Option[Int]
     def event_time_finder(event: Element): Option[Double]
@@ -71,7 +72,7 @@ trait ShotEventParser {
         case _ => None
       }
 
-    private def title_extractor(event: Element): Option[String] =
+    def title_extractor(event: Element): Option[String] =
       (event >?> elementList("title")).getOrElse(Nil).headOption.map(_.text)
 
     private val period_regex =
@@ -82,12 +83,15 @@ trait ShotEventParser {
         case _                          => None
       }
 
-    private val time_regex = ".*?([0-9]+):([0-9]+):([0-9]+).*".r
+    private val time_regex = ".*?([0-9]+):([0-9]+)(?:[:]([0-9]+))? .*".r
     def event_time_finder(event: Element): Option[Double] =
       title_extractor(event) match {
-        case Some(time_regex(min, sec, _)) =>
-          // (ignore centi-seconds for consistency with PbP plays)
-          Try(min.toInt + sec.toInt / 60.0).toOption
+        case Some(time_regex(min, sec, maybe_csec)) =>
+          Try(
+            min.toInt + sec.toInt / 60.0 + Option(maybe_csec)
+              .map(_.toInt)
+              .getOrElse(0) / 6000.0
+          ).toOption
         case _ => None
       }
 
@@ -95,7 +99,7 @@ trait ShotEventParser {
     def event_player_finder(event: Element): Option[String] =
       title_extractor(event) match {
         case Some(player_regex(player)) =>
-          Some(player).map(ExtractorUtils.name_in_v0_format)
+          Some(player).map(ExtractorUtils.name_in_v0_format).map(_.trim)
         case _ => None
       }
 
@@ -299,6 +303,7 @@ trait ShotEventParser {
                 else Game.Score(score.allowed, score.scored)
             },
             shot_min = time,
+            raw_event = builders.title_extractor(event),
             x = location._1, // (enrich these in next phase of this function)
             y = location._2,
             pts =
@@ -337,6 +342,7 @@ trait ShotEventParser {
       players = Nil, // (fill in later)
       score = Game.Score(0, 0), // (override immediately)
       shot_min = 0.0, // (override immediately)
+      raw_event = None, // (fill in later)
       x =
         0.0, // (override immediately; enrich these in next phase of this function)
       y = 0.0,

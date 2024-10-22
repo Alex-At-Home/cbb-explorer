@@ -37,6 +37,7 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
   def event_formatter(in: ShotEvent): ShotEvent =
     in.copy(
       shot_min = double_formatter(in.shot_min),
+      raw_event = None, // (we only use this for debug)
       x = double_formatter(in.x),
       y = double_formatter(in.y),
       dist = double_formatter(in.dist)

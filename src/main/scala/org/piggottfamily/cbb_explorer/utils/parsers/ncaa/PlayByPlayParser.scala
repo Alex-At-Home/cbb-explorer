@@ -231,8 +231,11 @@ trait PlayByPlayParser {
       box_lineup.team.team,
       box_lineup.team.year,
       builders,
-      enrich = false
-    )
+      enrich =
+        true // (annoyingly we need to enrich here to get the right timestamp...)
+    ).map(
+      _.reverse
+    ) // (...which also reverses the game events, so we have to swap them back again)
   }
 
   /** Creates a list of raw play-by-play events from the HTML fixes the dates,

@@ -128,10 +128,6 @@ trait ShotEventParser {
         case _ => None
       }
 
-//TODO: issues...
-// 1: missing shot because lineups don't match up .. maybe make lineup_id optional (eg Mich St but lots of others)
-// 3: Ohio St. vs Merrimack NO_LINEUP
-
     def shot_location_finder(event: Element): Option[(Double, Double)] =
       for {
         x_str <- Try(event.attr("cx")).toOption

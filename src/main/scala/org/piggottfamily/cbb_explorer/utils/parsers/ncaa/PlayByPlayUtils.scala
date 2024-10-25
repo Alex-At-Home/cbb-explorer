@@ -189,6 +189,16 @@ trait PlayByPlayUtils {
                       println(
                         s"[enrich_shot_events_with_pbp] WARN: discarding unmatched shot [$shot]([$selected_pbp]), NO_LINEUP ([$stashed_lineups])"
                       )
+                      // For debugging: list all the lineup times
+                      val no_lineup_debug = false
+                      if (no_lineup_debug) {
+                        val lineup_times = lineup_events
+                          .map { lineup =>
+                            f"[${lineup.start_min}%.2f->${lineup.end_min}%.2f]"
+                          }
+                        println(s"NO_LINEUP: $lineup_times")
+                      }
+
                       (None, pbp_clump, stashed_lineups)
                   }
                 case None =>

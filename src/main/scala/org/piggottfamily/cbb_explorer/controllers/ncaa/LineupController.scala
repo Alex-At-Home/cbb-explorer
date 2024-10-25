@@ -412,8 +412,9 @@ class LineupController(d: Dependencies = Dependencies()) {
       enriched_shot_events = PlayByPlayUtils.enrich_shot_events_with_pbp(
         raw_shot_events,
         sorted_pbp_events,
-        lineup_events._1,
-        lineup_events._2,
+        // (the error analysis/fix messes up the sorting of the lineups, so redo explicitly)
+        lineup_events._1.sortBy(_.start_min),
+        lineup_events._2.sortBy(_.start_min),
         box_lineup
       )
     } yield (

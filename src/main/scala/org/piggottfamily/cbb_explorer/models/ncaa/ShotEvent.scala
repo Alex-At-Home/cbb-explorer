@@ -13,7 +13,7 @@ final case class ShotEvent(
     team: TeamSeasonId,
     opponent: TeamSeasonId,
     is_off: Boolean,
-    lineup_id: LineupEvent.LineupId,
+    lineup_id: Option[LineupEvent.LineupId], // (discard if bad lineup)
     players: List[LineupEvent.PlayerCodeId],
     score: Game.Score,
     shot_min: Double,

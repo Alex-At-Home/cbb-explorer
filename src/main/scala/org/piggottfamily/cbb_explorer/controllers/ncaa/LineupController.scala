@@ -413,6 +413,7 @@ class LineupController(d: Dependencies = Dependencies()) {
         raw_shot_events,
         sorted_pbp_events,
         lineup_events._1,
+        lineup_events._2,
         box_lineup
       )
     } yield (

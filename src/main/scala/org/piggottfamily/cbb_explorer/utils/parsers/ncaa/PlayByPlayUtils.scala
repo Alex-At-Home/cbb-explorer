@@ -29,6 +29,7 @@ trait PlayByPlayUtils {
       sorted_shot_events: List[ShotEvent],
       sorted_pbp_events: List[Model.PlayByPlayEvent],
       lineup_events: List[LineupEvent],
+      bad_lineup_events: List[LineupEvent],
       box_lineup: LineupEvent
   ): List[ShotEvent] = {
     import ShotEnrichmentUtils._
@@ -110,12 +111,26 @@ trait PlayByPlayUtils {
               maybe_selected_pbp match {
                 case Some(selected_pbp) =>
                   // We have a matching PbP event, now match it to a lineup:
-                  val (curr_lineup, stashed_lineups) = find_lineup(
-                    shot,
-                    maybe_selected_pbp,
-                    state.curr_lineups,
-                    state.lineup_it
-                  )
+                  val ((curr_lineup, stashed_lineups), used_bad_lineup) =
+                    find_lineup(
+                      shot,
+                      maybe_selected_pbp,
+                      state.curr_lineups,
+                      state.lineup_it
+                    ) match {
+                      case (None, saved_stashed_lineups) =>
+                        // Try with bad lineups:
+                        // (Don't care that this is inefficient, it's a rare case)
+                        val (curr_bad_lineup, _) = find_lineup(
+                          shot,
+                          maybe_selected_pbp,
+                          Nil,
+                          bad_lineup_events.iterator
+                        )
+                        ((curr_bad_lineup, saved_stashed_lineups), true)
+
+                      case other => (other, false)
+                    }
                   curr_lineup match {
                     case Some(lineup) =>
                       // Look for assists:
@@ -138,7 +153,9 @@ trait PlayByPlayUtils {
                         shooter = shot.shooter.filter(_ =>
                           shot.is_off
                         ), // (discard oppo shooters)
-                        lineup_id = lineup.lineup_id,
+                        lineup_id = Some(lineup.lineup_id).filterNot(_ =>
+                          used_bad_lineup
+                        ),
                         raw_event = None,
                         players = lineup.players,
                         pts = shot.pts * shot_val,

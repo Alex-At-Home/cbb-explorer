@@ -367,7 +367,7 @@ trait ShotEventParser {
       team = box_lineup.team,
       opponent = box_lineup.opponent,
       is_off = true, // (override immediately)
-      lineup_id = LineupEvent.LineupId.unknown, // (fill in final phase)
+      lineup_id = None, // (fill in final phase)
       players = Nil, // (fill in later)
       score = Game.Score(0, 0), // (override immediately)
       shot_min = 0.0, // (override immediately)

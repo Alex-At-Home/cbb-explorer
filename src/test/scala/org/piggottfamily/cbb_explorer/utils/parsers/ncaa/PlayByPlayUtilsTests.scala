@@ -59,7 +59,7 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
     team = TeamSeasonId(TeamId("Maryland"), Year(2023)),
     opponent = TeamSeasonId(TeamId("Penn St."), Year(2023)),
     is_off = false,
-    lineup_id = LineupEvent.LineupId.unknown,
+    lineup_id = None,
     players = box_players,
     score = Game.Score(0, 0),
     shot_min = 0.0,
@@ -188,47 +188,58 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
           // This matches PbP (but not lineup)
           base_team_2p_pbp.copy(min = 16.0)
         )
-        TestUtils.inside(
-          enrich_shot_events_with_pbp(
-            raw_shots,
-            pbp_events,
-            lineups,
-            box_lineup
-          )
-        ) { case enriched_shots @ List(shot1, shot2, shot3, shot4, _, _) =>
-          // (ignore the last 2 shots except to check they exist)
-
-          // Lineup correlation
-          assert(shot1.lineup_id == LineupEvent.LineupId("test1"))
-          assert(shot2.lineup_id == LineupEvent.LineupId("test2"))
-          assert(shot3.lineup_id == LineupEvent.LineupId("test2"))
-          assert(shot4.lineup_id == LineupEvent.LineupId("test3"))
-          // Assist calcs
-          assert(shot1.is_assisted == None)
-          assert(shot2.is_assisted == Some(true))
-          assert(
-            shot2.assisted_by == Some(
-              LineupEvent.PlayerCodeId("KyGuy", PlayerId("Guy, Kyle"))
+        List(false, true).foreach { using_bad_lineups =>
+          TestUtils.inside(
+            using_bad_lineups -> enrich_shot_events_with_pbp(
+              raw_shots,
+              pbp_events,
+              if (using_bad_lineups) Nil else lineups,
+              if (using_bad_lineups) lineups else Nil,
+              box_lineup
             )
-          )
-          assert(shot3.is_assisted == None)
-          assert(shot4.is_assisted == None)
-          enriched_shots.foreach { shot =>
-            if (!shot.is_assisted.contains(true)) {
-              assert(shot.assisted_by == None)
-            }
-          }
-          // Shot value
-          assert(shot1.value == 2)
-          assert(shot2.value == 2)
-          assert(shot3.value == 3)
-          assert(shot4.value == 2)
-          // Transition calcs
-          assert(shot1.in_transition == None)
-          assert(shot2.in_transition == None)
-          assert(shot3.in_transition == Some(true))
-          assert(shot4.in_transition == None)
+          ) {
+            case (_, enriched_shots @ List(shot1, shot2, shot3, shot4, _, _)) =>
+              // (ignore the last 2 shots except to check they exist)
 
+              // Lineup correlation
+              if (using_bad_lineups) {
+                assert(shot1.lineup_id == None)
+                assert(shot2.lineup_id == None)
+                assert(shot3.lineup_id == None)
+                assert(shot4.lineup_id == None)
+              } else {
+                assert(shot1.lineup_id == Some(LineupEvent.LineupId("test1")))
+                assert(shot2.lineup_id == Some(LineupEvent.LineupId("test2")))
+                assert(shot3.lineup_id == Some(LineupEvent.LineupId("test2")))
+                assert(shot4.lineup_id == Some(LineupEvent.LineupId("test3")))
+              }
+              // Assist calcs
+              assert(shot1.is_assisted == None)
+              assert(shot2.is_assisted == Some(true))
+              assert(
+                shot2.assisted_by == Some(
+                  LineupEvent.PlayerCodeId("KyGuy", PlayerId("Guy, Kyle"))
+                )
+              )
+              assert(shot3.is_assisted == None)
+              assert(shot4.is_assisted == None)
+              enriched_shots.foreach { shot =>
+                if (!shot.is_assisted.contains(true)) {
+                  assert(shot.assisted_by == None)
+                }
+              }
+              // Shot value
+              assert(shot1.value == 2)
+              assert(shot2.value == 2)
+              assert(shot3.value == 3)
+              assert(shot4.value == 2)
+              // Transition calcs
+              assert(shot1.in_transition == None)
+              assert(shot2.in_transition == None)
+              assert(shot3.in_transition == Some(true))
+              assert(shot4.in_transition == None)
+
+          }
         }
       }
       "ShotEnrichmentUtils" - {

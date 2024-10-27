@@ -127,6 +127,13 @@ trait PlayByPlayUtils {
                           Nil,
                           bad_lineup_events.iterator
                         )
+
+                        val debug_used_lineups = false
+                        if (debug_used_lineups) {
+                          println(s"NO LINEUPS IN [${state.curr_lineups
+                              .map(l => f"[${l.start_min}%.2f->${l.end_min}%.2f]")}]: STASHED [${saved_stashed_lineups
+                              .map(l => f"[${l.start_min}%.2f->${l.end_min}%.2f]")}]")
+                        }
                         ((curr_bad_lineup, saved_stashed_lineups), true)
 
                       case other => (other, false)
@@ -425,14 +432,27 @@ trait PlayByPlayUtils {
       }
       // Top-level logic
       val post_recursion_state =
-        find_lineup_recurse(
-          RecursionState(
-            curr_lineups.headOption,
-            fallback_lineups = Nil,
-            stashed_lineups = curr_lineups.drop(1)
+        if (
+          curr_lineups.headOption.exists(
+            _.start_min > shot.shot_min
           )
-        )
-
+        ) {
+          // Special case: we've gone past the lineup, just do nothing and wait for the shot
+          // to catch up:
+          RecursionState(
+            curr_lineup = None,
+            fallback_lineups = Nil,
+            stashed_lineups = curr_lineups
+          )
+        } else {
+          find_lineup_recurse(
+            RecursionState(
+              curr_lineups.headOption,
+              fallback_lineups = Nil,
+              stashed_lineups = curr_lineups.drop(1)
+            )
+          )
+        }
       (
         post_recursion_state.curr_lineup,
         post_recursion_state.fallback_lineups

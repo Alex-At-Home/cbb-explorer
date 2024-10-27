@@ -108,7 +108,7 @@ trait PlayByPlayParser {
     def event_finder(doc: Document): List[Element] =
       (doc >?> elementList(
         // (find anything with a valid time string in the table)
-        "div.card-body > table.table > tbody tr:matches([0-9]+:[0-9]+:[0-9]+)"
+        "div.card-body > table.table > tbody tr:matches([0-9]+:[0-9]+(:[0-9]+)?)"
       ))
         .filter(_.nonEmpty)
         .getOrElse(Nil)

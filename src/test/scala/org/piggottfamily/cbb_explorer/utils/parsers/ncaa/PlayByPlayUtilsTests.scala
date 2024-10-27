@@ -249,6 +249,18 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
           val lineup1 = box_lineup.copy(start_min = 0.0, end_min = 5.0)
           val lineup2 = box_lineup.copy(start_min = 5.0, end_min = 10.0)
           val lineup3 = box_lineup.copy(start_min = 10.0, end_min = 15.0)
+
+          // First: quick check for shot being before lineup:
+          val before_stashed_lineups = List(lineup2, lineup3)
+          val before_lineup_res = find_lineup(
+            base_shot_event.copy(shot_min = 2.5),
+            curr_pbp = None,
+            before_stashed_lineups,
+            Iterator()
+          )
+          assert(before_lineup_res == (None, before_stashed_lineups))
+
+          // Now coverage testing:
           val lineup_post_gap =
             box_lineup.copy(start_min = 30.0, end_min = 35.0)
           case class Scenario(

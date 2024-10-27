@@ -398,15 +398,25 @@ class LineupController(d: Dependencies = Dependencies()) {
         }
       }
 
-      raw_shot_events <-
+      raw_shot_events =
         (maybe_shot_event_path, maybe_shot_event_html).mapN((_, _)) match {
           case Some((path, html)) =>
-            d.shot_parser.create_shot_event_data(
-              path.last,
-              html,
-              box_lineup
-            )
-          case None => Right(Nil)
+            d.shot_parser
+              .create_shot_event_data(
+                path.last,
+                html,
+                box_lineup
+              )
+              .leftMap { errors =>
+                // (some games don't have shot data, that's fine, we'll log the info and carry on)
+                d.logger.error(
+                  s"[c_s_e_d] WARNING failed to parse shot events for [$game_id][$path]: [${errors
+                      .map(err => s"${err.id}: ${err.messages.map(_.substring(0, 32))}")}]"
+                )
+                errors
+              }
+              .getOrElse(Nil)
+          case None => Nil
         }
 
       enriched_shot_events = PlayByPlayUtils.enrich_shot_events_with_pbp(

@@ -154,7 +154,7 @@ trait RosterParser {
                 case v0_formatted_name if version_format == 0 =>
                   v0_formatted_name
                 case v1_formatted_name =>
-                  ExtractorUtils.name_in_v0_format(v1_formatted_name)
+                  ExtractorUtils.name_in_v0_box_format(v1_formatted_name)
               }
 
               // No initials allowed in the roster:

@@ -578,7 +578,7 @@ trait PlayByPlayUtils {
       EventUtils.ParseAnyPlay
         .unapply(pbp_event.event_string)
         .map { v1_player_name =>
-          val player_name = name_in_v0_format(v1_player_name)
+          val player_name = name_in_v0_box_format(v1_player_name)
           if (shot.is_off) {
             val (tidier_player_name, _) =
               LineupErrorAnalysisUtils.tidy_player(player_name, tidy_ctx)
@@ -646,19 +646,37 @@ trait PlayByPlayUtils {
       external_roster: (List[String], List[RosterEntry]),
       format_version: Int
   ): LineupEvent = {
+    val tidy_ctx =
+      LineupErrorAnalysisUtils.build_tidy_player_context(box_lineup)
+
+    def pbp_name_to_code(player_name: String) = {
+      val (tidier_player_name, _) =
+        LineupErrorAnalysisUtils.tidy_player(player_name, tidy_ctx)
+      ExtractorUtils
+        .build_player_code(
+          tidier_player_name,
+          Some(tidy_ctx.box_lineup.team.team)
+        )
+        .code
+    }
+
     case class StarterState(
         starters: Set[String],
         excluded: Set[String],
         last_sub_time: Double = 20.0
-    ) {
-      // Some state utils to handle the fact that the raw events aren't formatted but the box score/restore are
-      lazy val formatted_starters: Set[String] =
-        starters.map(ExtractorUtils.name_in_v0_format)
-      lazy val formatted_non_starters: Set[String] =
-        excluded.map(ExtractorUtils.name_in_v0_format)
+    )
+    val valid_player_codes_set =
+      box_lineup.players.map(_.code).toSet
+
+    // (debug)
+    // println(
+    //   s"***** STARTER INFO: ${valid_player_codes_set} / ${box_lineup.players.map(_.code)}"
+    // )
+
+    /** Transforms player retrieved from PbP into the player code */
+    object PlayerToCode {
+      def unapply(name: String): Option[String] = Some(pbp_name_to_code(name))
     }
-    val valid_players_set =
-      external_roster._2.map(_.player_code_id.id.name).toSet
 
     val starter_info: StarterState =
       sorted_pbp_events.foldLeft(StarterState(Set(), Set())) {
@@ -667,8 +685,8 @@ trait PlayByPlayUtils {
           state
 
         case (state, ev: Model.SubEvent)
-            if !valid_players_set.contains(
-              ExtractorUtils.name_in_v0_format(ev.player_name)
+            if !valid_player_codes_set.contains(
+              pbp_name_to_code(ev.player_name)
             ) =>
           // Ignore mis-spellings in sub-events
           state
@@ -677,29 +695,35 @@ trait PlayByPlayUtils {
           // Reset the last sub time
           state.copy(last_sub_time = min)
 
-        case (state, Model.SubOutEvent(time, _, player))
-            if !state.excluded.contains(player) =>
+        case (state, Model.SubOutEvent(time, _, PlayerToCode(player_code)))
+            if !state.excluded.contains(player_code) =>
           // Subbed out, so if not excluded (ie we haven't seen them subbed-in) then is a starter
-          state.copy(starters = state.starters + player, last_sub_time = time)
+          state.copy(
+            starters = state.starters + player_code,
+            last_sub_time = time
+          )
 
-        case (state, Model.SubInEvent(time, _, player))
-            if !state.starters.contains(player) =>
+        case (state, Model.SubInEvent(time, _, PlayerToCode(player_code)))
+            if !state.starters.contains(player_code) =>
           // Subbed in, so if not a starter is definitely not a starter
-          state.copy(excluded = state.excluded + player, last_sub_time = time)
+          state.copy(
+            excluded = state.excluded + player_code,
+            last_sub_time = time
+          )
 
         case (state, ev: Model.MiscGameEvent)
             if ev.is_team_dir && ev.min > state.last_sub_time =>
           ev.event_string match {
-            case EventUtils.ParseAnyPlay(player)
-                if valid_players_set
-                  .contains(player) && !state.excluded.contains(
-                  player
+            case EventUtils.ParseAnyPlay(PlayerToCode(player_code))
+                if valid_player_codes_set
+                  .contains(player_code) && !state.excluded.contains(
+                  player_code
                 ) && !state.starters.contains(
-                  player
+                  player_code
                 ) =>
               // A player is mentioned, they have not yet been subbed-in, and isn't concurrent with a sub event
               // so they must be a starter
-              state.copy(starters = state.starters + player)
+              state.copy(starters = state.starters + player_code)
             case _ =>
               state
           }
@@ -707,21 +731,31 @@ trait PlayByPlayUtils {
       }
     val (starters, probably_not_starters) =
       box_lineup.players.partition(p =>
-        starter_info.formatted_starters
-          .contains(p.id.name)
+        starter_info.starters
+          .contains(p.code)
       )
+
+    if (starters.size != 5) {
+      // Log a warning so we know something weird happened:
+      val game_desc = s"[${box_lineup.team}] vs [${box_lineup.opponent}]"
+      println(
+        s"[inject_starting_lineup_into_box] WARN: Couldn't find 5 starters for [${game_desc}]: [${starters
+            .map(_.id)} / ${starters.map(_.code)}]"
+      )
+    }
 
     if (starters.size >= 5) {
       box_lineup.copy(players = starters ++ probably_not_starters)
     } else {
+
       // Pathological case where a starter played all 40 mins without ever getting mentioned (a "40 trillian"!)
       // Since we didn't pull out minutes from the box score, we'll just pick a rando who didn't appear
       // in the excluded set and call them the starter. I cannot understate how little I expect this to happen!
       val (definitely_not_starters, just_possibly_starters) =
         probably_not_starters
           .partition(p =>
-            starter_info.formatted_non_starters
-              .contains(p.id.name)
+            starter_info.excluded
+              .contains(p.code)
           )
       box_lineup.copy(players =
         starters ++ just_possibly_starters ++ definitely_not_starters

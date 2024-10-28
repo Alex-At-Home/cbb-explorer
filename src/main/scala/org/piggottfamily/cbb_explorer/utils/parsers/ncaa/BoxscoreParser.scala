@@ -180,7 +180,7 @@ trait BoxscoreParser {
       ).left.map(single_error_completer).right.map {
         case players if format_version == 1 =>
           // v1 format has "firstname lastname", v0 has "lastname, firstname"
-          players.map(ExtractorUtils.name_in_v0_format)
+          players.map(ExtractorUtils.name_in_v0_box_format)
         case players => players
       }
 

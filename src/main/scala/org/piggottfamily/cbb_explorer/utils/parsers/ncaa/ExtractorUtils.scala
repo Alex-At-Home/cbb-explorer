@@ -34,9 +34,26 @@ object ExtractorUtils {
   private val complex_v0_case_regex = "([(].*[)])(.*)".r
 
   /** Switches from "name1 name2 ... last_name" to "name2 ... last_name, name1"
+    * Note that PbP is the other way round: v0 is
+    *
+    * Box scores:
+    *   - v0 format: "names, first_name"
+    *   - v1 format: "first_name names"
+    *
+    * PbP:
+    *   - "older v0" format: "SURNAME,NAME" (can still appear in v1 files for
+    *     older data)
+    *   - "newer v0" and v1 format: "first_name names"
     */
-  def name_in_v0_format(v1_name: String) = {
-    v1_name.split(" ", 2) match {
+  def name_in_v0_box_format(v1_name: String) = {
+    val guaranteed_v1_format = // (handles v0 PBP case)
+      if (v1_name.toUpperCase == v1_name) { // all upper case like SURNAME,FIRSTNAME
+        v1_name.split(",", 2) match {
+          case Array(last, first) => s"$first $last"
+          case _                  => v1_name
+        }
+      } else v1_name
+    guaranteed_v1_format.split(" ", 2) match {
       case Array(first, last) if last.startsWith("(") =>
         // More complicated case where someone has a nickname, eg "Russell (Deuce) Dean"
         // which should translate to first="Russell Deuce", last="Dean"
@@ -47,7 +64,7 @@ object ExtractorUtils {
             s"$last, $first"
         }
       case Array(first, last) => s"$last, $first"
-      case _                  => v1_name
+      case _                  => guaranteed_v1_format
     }
   }
 

@@ -122,7 +122,7 @@ trait ShotEventParser {
       title_extractor(event) match {
         case Some(player_regex(name_and_team)) =>
           resolve_team_name(name_and_team)
-            .map(ExtractorUtils.name_in_v0_format)
+            .map(ExtractorUtils.name_in_v0_box_format)
             .map(_.trim)
             .filter(_.nonEmpty)
         case _ => None

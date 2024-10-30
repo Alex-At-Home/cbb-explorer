@@ -53,6 +53,7 @@ object ExtractorUtils {
           case _                  => v1_name
         }
       } else v1_name
+
     guaranteed_v1_format.split(" ", 2) match {
       case Array(first, last) if last.startsWith("(") =>
         // More complicated case where someone has a nickname, eg "Russell (Deuce) Dean"
@@ -271,93 +272,101 @@ object ExtractorUtils {
       in_name: String,
       team: Option[TeamId]
   ): LineupEvent.PlayerCodeId = {
-    // Check full name vs map of misspellings
-    val name = remove_diacritics(
-      DataQualityIssues.misspellings(team).get(in_name).getOrElse(in_name)
-    )
-    def first_last(fragment: String): String = {
-      if (fragment.isEmpty) {
-        ""
-      } else {
-        s"${fragment(0).toUpper}${fragment(fragment.length - 1).toLower}"
-      }
-    }
-    def transform(fragment: String, max_len: Int): String = {
-      if (fragment.isEmpty) {
-        ""
-      } else {
-        s"${fragment(0).toUpper}${fragment.take(max_len).tail.toLowerCase}"
-      }
-    }
-    def transform_first_name(fragment: String): String = {
-      if (DataQualityIssues.players_with_duplicate_names(name.toLowerCase)) {
-        first_last(fragment)
-      } else {
-        transform(fragment, 2)
-      }
-    }
-    val code = ((name.split("\\s*,\\s*", 3).toList match {
-      case all_name_set :: Nil =>
-        all_name_set.split("\\s+").toList
-      case last_name_set :: first_name_set :: Nil =>
-        first_name_set
-          .split("\\s+")
-          .toList ++ last_name_set.split("\\s+").toList
-      case last_name_set :: suffix :: first_name_set :: Nil =>
-        first_name_set
-          .split("\\s+")
-          .toList ++ last_name_set.split("\\s+").toList ++ List(suffix)
-      case _ => Nil // (impossible by construction of split)
-    }).map { name_part =>
-      val lower_case_name_part = name_part.toLowerCase.replace(".", "")
-      // Misspelled fragments:
-      DataQualityIssues
-        .misspellings(team)
-        .get(lower_case_name_part)
-        .getOrElse(lower_case_name_part)
-        .take(player_code_max_fragment_length)
-    } match {
-      case head :: tail => // don't ever filter the head
-        def name_filter(candidate: String): Boolean =
-          candidate(0).isDigit ||
-            candidate == "the" ||
-            candidate == "first" || candidate == "second" || candidate == "third" ||
-            candidate == "jr" ||
-            candidate == "sr" ||
-            candidate == "iv" || candidate == "vi" || // (that's enough surely??!)
-            (candidate.startsWith("ii") && candidate.endsWith("ii"))
-
-        List(head).filterNot(name_filter) ++ tail.filterNot {
-          candidate => // get rid or jr/sr/ii/etc
-            candidate.size < 2 || name_filter(candidate)
-        }
-      case Nil => Nil
-    }) match {
-      case Nil         => ""
-      case head :: Nil => transform(head, player_code_max_length)
-      case head :: tail => // (tail is non Nil, hence tail.last is well-formed)
-        val last_size = tail.last.size
-        val leftover = player_code_max_length - last_size - 2
-        // handle weird double-barreled names
-        val middle = if (leftover >= 2) {
-          val leftover_to_use = if (last_size < 6) { // short last name
-            leftover // us as much as possible
-          } else {
-            2 // (treat like head)
-          }
-          transform(
-            tail.reverse.drop(1).headOption.getOrElse(""),
-            leftover_to_use
-          )
-        } else {
+    try {
+      // Check full name vs map of misspellings
+      val name = remove_diacritics(
+        DataQualityIssues.misspellings(team).get(in_name).getOrElse(in_name)
+      )
+      def first_last(fragment: String): String = {
+        if (fragment.isEmpty) {
           ""
+        } else {
+          s"${fragment(0).toUpper}${fragment(fragment.length - 1).toLower}"
         }
-        transform_first_name(head) + middle + transform(
-          tail.last,
-          player_code_max_length
-        )
+      }
+      def transform(fragment: String, max_len: Int): String = {
+        if (fragment.isEmpty) {
+          ""
+        } else {
+          s"${fragment(0).toUpper}${fragment.take(max_len).tail.toLowerCase}"
+        }
+      }
+      def transform_first_name(fragment: String): String = {
+        if (DataQualityIssues.players_with_duplicate_names(name.toLowerCase)) {
+          first_last(fragment)
+        } else {
+          transform(fragment, 2)
+        }
+      }
+      val code = ((name.split("\\s*,\\s*", 3).toList match {
+        case all_name_set :: Nil =>
+          all_name_set.split("\\s+").toList
+        case last_name_set :: first_name_set :: Nil =>
+          first_name_set
+            .split("\\s+")
+            .toList ++ last_name_set.split("\\s+").toList
+        case last_name_set :: suffix :: first_name_set :: Nil =>
+          first_name_set
+            .split("\\s+")
+            .toList ++ last_name_set.split("\\s+").toList ++ List(suffix)
+        case _ => Nil // (impossible by construction of split)
+      }).map { name_part =>
+        val lower_case_name_part = name_part.toLowerCase.replace(".", "")
+        // Misspelled fragments:
+        DataQualityIssues
+          .misspellings(team)
+          .get(lower_case_name_part)
+          .getOrElse(lower_case_name_part)
+          .take(player_code_max_fragment_length)
+      } match {
+        case head :: tail => // don't ever filter the head
+          def name_filter(candidate: String): Boolean =
+            candidate(0).isDigit ||
+              candidate == "the" ||
+              candidate == "first" || candidate == "second" || candidate == "third" ||
+              candidate == "jr" ||
+              candidate == "sr" ||
+              candidate == "iv" || candidate == "vi" || // (that's enough surely??!)
+              (candidate.startsWith("ii") && candidate.endsWith("ii"))
+
+          List(head).filterNot(name_filter) ++ tail.filterNot {
+            candidate => // get rid or jr/sr/ii/etc
+              candidate.size < 2 || name_filter(candidate)
+          }
+        case Nil => Nil
+      }) match {
+        case Nil         => ""
+        case head :: Nil => transform(head, player_code_max_length)
+        case head :: tail => // (tail is non Nil, hence tail.last is well-formed)
+          val last_size = tail.last.size
+          val leftover = player_code_max_length - last_size - 2
+          // handle weird double-barreled names
+          val middle = if (leftover >= 2) {
+            val leftover_to_use = if (last_size < 6) { // short last name
+              leftover // us as much as possible
+            } else {
+              2 // (treat like head)
+            }
+            transform(
+              tail.reverse.drop(1).headOption.getOrElse(""),
+              leftover_to_use
+            )
+          } else {
+            ""
+          }
+          transform_first_name(head) + middle + transform(
+            tail.last,
+            player_code_max_length
+          )
+      }
+      LineupEvent.PlayerCodeId(code, PlayerId(name))
+    } catch {
+      case err: Exception =>
+        // (Shouldn't ever happen so we'll make a big deal about it)
+        println(s"[build_player_code] ERROR: [$in_name] / [$team]")
+        err.printStackTrace()
+        throw err
     }
-    LineupEvent.PlayerCodeId(code, PlayerId(name))
   }
 
   // Internal Utils

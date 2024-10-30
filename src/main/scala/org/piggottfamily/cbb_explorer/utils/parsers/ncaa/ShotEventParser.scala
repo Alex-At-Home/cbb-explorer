@@ -117,13 +117,13 @@ trait ShotEventParser {
 
     // eg 1st 17:25:00 : made by $PLAYER_STRING($TEAM) 4-5
     private val player_regex =
-      ".*?(?:made|missed) by (.*?) [0-9]+-[0-9]+.*".r
+      ".*?(?:made|missed) by *?(.*?) [0-9]+-[0-9]+.*".r
     def event_player_finder(event: Element): Option[String] =
       title_extractor(event) match {
         case Some(player_regex(name_and_team)) =>
           resolve_team_name(name_and_team)
-            .map(ExtractorUtils.name_in_v0_box_format)
             .map(_.trim)
+            .map(ExtractorUtils.name_in_v0_box_format)
             .filter(_.nonEmpty)
         case _ => None
       }

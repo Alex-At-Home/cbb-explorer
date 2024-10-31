@@ -49,16 +49,17 @@ class LineupController(d: Dependencies = Dependencies()) {
         format_version
       ) match {
         case Left(error) =>
-          d.logger.info(
-            s"[format_version=$format_version] Failed to parse neutral games: [$error]"
-          )
+          if (format_version > 0) // (will retry with version 1)
+            d.logger.info(
+              s"[format_version=$format_version] Failed to parse neutral games: [$error]"
+            )
           None // (carry on)
         case Right((checked_team, neutral_set)) if checked_team == team =>
           d.logger.info(
             s"[format_version=$format_version]  Neutral game dates: [$neutral_set]"
           )
           Some(neutral_set)
-        case _ => // (not the right team, ignore)
+        case wtf @ _ => // (not the right team, ignore)
           None
       }
 
@@ -78,9 +79,9 @@ class LineupController(d: Dependencies = Dependencies()) {
         case results =>
           results
       }
-      team_fileid = team_filename.last.split("[.]")(0) // (remove extension)
+      tmp_team_fileid = team_filename.last.split("[.]")(0) // (remove extension)
 
-    } yield format_results -> Some(team_fileid))
+    } yield format_results -> Some(tmp_team_fileid))
       .take(1)
       .toList
       .headOption

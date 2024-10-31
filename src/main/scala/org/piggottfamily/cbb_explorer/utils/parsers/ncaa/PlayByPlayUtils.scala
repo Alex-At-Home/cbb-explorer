@@ -709,10 +709,14 @@ trait PlayByPlayUtils {
     val valid_player_codes_set =
       box_lineup.players.map(_.code).toSet
 
-    // (debug)
-    // println(
-    //   s"***** STARTER INFO: ${valid_player_codes_set} / ${box_lineup.players.map(_.code)}"
-    // )
+    val debug_print = false
+
+    if (debug_print) {
+      println(
+        s"[inject_starting_lineup_into_box] INFO: Init ${valid_player_codes_set} / ${box_lineup.players
+            .map(_.code)}"
+      )
+    }
 
     /** Transforms player retrieved from PbP into the player code */
     object PlayerToCode {
@@ -730,6 +734,11 @@ trait PlayByPlayUtils {
               pbp_name_to_code(ev.player_name)
             ) =>
           // Ignore mis-spellings in sub-events
+          if (debug_print) {
+            println(
+              f"[inject_starting_lineup_into_box] Ignoring sub event with unknown player [${ev.player_name}] [$state] (${ev.min}%.2f)"
+            )
+          }
           state
 
         case (state, Model.GameBreakEvent(min, _)) =>
@@ -739,6 +748,11 @@ trait PlayByPlayUtils {
         case (state, Model.SubOutEvent(time, _, PlayerToCode(player_code)))
             if !state.excluded.contains(player_code) =>
           // Subbed out, so if not excluded (ie we haven't seen them subbed-in) then is a starter
+          if (debug_print) {
+            println(
+              f"[inject_starting_lineup_into_box] Add starter [${player_code}] to [$state] ($time%.2f)"
+            )
+          }
           state.copy(
             starters = state.starters + player_code,
             last_sub_time = time
@@ -747,13 +761,18 @@ trait PlayByPlayUtils {
         case (state, Model.SubInEvent(time, _, PlayerToCode(player_code)))
             if !state.starters.contains(player_code) =>
           // Subbed in, so if not a starter is definitely not a starter
+          if (debug_print) {
+            println(
+              f"[inject_starting_lineup_into_box] Exclude [${player_code}] in [$state] ($time%.2f)"
+            )
+          }
           state.copy(
             excluded = state.excluded + player_code,
             last_sub_time = time
           )
 
         case (state, ev: Model.MiscGameEvent)
-            if ev.is_team_dir && ev.min > state.last_sub_time =>
+            if ev.is_team_dir && ev.min < state.last_sub_time => // (times descending)
           ev.event_string match {
             case EventUtils.ParseAnyPlay(PlayerToCode(player_code))
                 if valid_player_codes_set
@@ -764,8 +783,27 @@ trait PlayByPlayUtils {
                 ) =>
               // A player is mentioned, they have not yet been subbed-in, and isn't concurrent with a sub event
               // so they must be a starter
+              if (debug_print) {
+                println(
+                  f"[inject_starting_lineup_into_box] Non-excluded player mentioned so make starter [${player_code}] in [$state] (${ev.min}%.2f)"
+                )
+              }
               state.copy(starters = state.starters + player_code)
             case _ =>
+              if (debug_print) {
+                ev.event_string match {
+                  case EventUtils.ParseAnyPlay(PlayerToCode(player_code))
+                      if (!state.excluded.contains(
+                        player_code
+                      ) && !state.starters.contains(
+                        player_code
+                      )) =>
+                    println(
+                      f"[inject_starting_lineup_into_box] Ignore [${player_code}] in [$state] (invalid? [$valid_player_codes_set]) (${ev.min}%.2f)"
+                    )
+                  case _ =>
+                }
+              }
               state
           }
         case (state, _) => state

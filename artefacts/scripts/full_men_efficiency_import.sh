@@ -3,7 +3,7 @@
 # Run from ELASTIC_FILEBEAT_CONFIG_ROOT (eg "cbb-data/cbb")
 # Ensure ".scripts.env" has been run
 
-echo "This is no longer supported, you have to use the spreadsheet approach, see 'KenPom 2024'"
+echo "This is no longer supported, you have to use the spreadsheet approach, see 'KenPom 2024'+"
 exit 1
 
 export CURR_TIME=${CURR_TIME:=$(date +"%s")}

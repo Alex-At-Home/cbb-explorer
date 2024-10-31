@@ -16,6 +16,7 @@ array=(
    '202.0/16700::Eastern+Ky.'
    '43.0/16700::Austin+Peay'
    '11504.0/16700::Queens+%28NC%29'
+   '766.0/16700::West+Ga.'
 )
 
 import_data_v1 "$YEAR" "$CONF" "${array[@]}"

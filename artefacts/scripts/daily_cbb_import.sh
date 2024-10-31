@@ -109,7 +109,7 @@ if [[ "$BUILD_EFFICIENCY" == "yes" ]] || [[ "$BUILD_EFFICIENCY" == "cron" && $(d
       sh $PBP_SRC_ROOT/artefacts/scripts/full_men_efficiency_import.sh
    else 
       echo "daily_cbb_import: [$(date)] Triggering men's efficiency tracking spreadsheet..."
-      curl "$EFF_TRIGGER_UPLOAD"
+      sh $PBP_SRC_ROOT/artefacts/scripts/men_efficiency_import.sh
       #(Ensure ES is updated)
       sleep 10
    fi

@@ -12,6 +12,7 @@ array=(
    '600.0/16700::Saint+Francis'
    '349.0/16700::Le+Moyne'
    '136.0/16700::Chicago+St.'
+   '408.0/16700::Mercyhurst'
 )
 
 import_data_v1 "$YEAR" "$CONF" "${array[@]}"

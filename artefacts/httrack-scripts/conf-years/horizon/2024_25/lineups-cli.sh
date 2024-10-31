@@ -15,7 +15,7 @@ array=(
    '794.0/16700::Green+Bay'
    '505.0/16700::Northern+Ky.'
    '148.0/16700::Cleveland+St.'
-   '2699.0/16700::IUPUI'
+   '2699.0/16700::IU+Indy'
 )
 
 import_data_v1 "$YEAR" "$CONF" "${array[@]}"

@@ -704,7 +704,7 @@ trait PlayByPlayUtils {
     case class StarterState(
         starters: Set[String],
         excluded: Set[String],
-        last_sub_time: Double = 20.0
+        last_sub_time: Double = 0.0 // (times ascend from 0)
     )
     val valid_player_codes_set =
       box_lineup.players.map(_.code).toSet
@@ -772,7 +772,7 @@ trait PlayByPlayUtils {
           )
 
         case (state, ev: Model.MiscGameEvent)
-            if ev.is_team_dir && ev.min < state.last_sub_time => // (times descending)
+            if ev.is_team_dir && ev.min > state.last_sub_time => // (times ascending)
           ev.event_string match {
             case EventUtils.ParseAnyPlay(PlayerToCode(player_code))
                 if valid_player_codes_set
@@ -806,6 +806,7 @@ trait PlayByPlayUtils {
               }
               state
           }
+
         case (state, _) => state
       }
     val (starters, probably_not_starters) =

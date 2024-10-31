@@ -44,7 +44,7 @@ trait TeamScheduleParser {
     def neutral_game_finder(doc: Document): List[String] =
       (doc >?> elementList(
         "legend:contains(Schedule/Results) + table " +
-        "tr:has(td:matches(.*[@][a-zA-Z]+.*)) > td:matches([0-9]+/[0-9]+/[0-9]+)"
+          "tr:has(td:matches(.*[@][a-zA-Z]+.*)) > td:matches([0-9]+/[0-9]+/[0-9]+)"
       )).getOrElse(Nil).map(_.text)
   }
   protected object v1_builders extends base_builders {
@@ -54,35 +54,43 @@ trait TeamScheduleParser {
     def neutral_game_finder(doc: Document): List[String] =
       (doc >?> elementList(
         "div.card-header:contains(Schedule/Results) + div.card-body " +
-        "tr:has(td:matches(.*[@][a-zA-Z]+.*)) > td:matches([0-9]+/[0-9]+/[0-9]+)"
+          "tr:has(td:matches(.*[@][a-zA-Z]+.*)) > td:matches([0-9]+/[0-9]+/[0-9]+)"
       )).getOrElse(Nil).map(_.text)
   }
   protected val builders_from_version = Array(v0_builders, v1_builders)
 
   /** Gets a list of neutral game dates from the team schedule */
-  def get_neutral_games(filename: String, in: String, format_version: Int): Either[List[ParseError], (TeamId, Set[String])] = {
+  def get_neutral_games(
+      filename: String,
+      in: String,
+      format_version: Int
+  ): Either[List[ParseError], (TeamId, Set[String])] = {
 
     val browser = JsoupBrowser()
 
     // Error reporters
-    val doc_request_builder = ParseUtils.build_request[Document](`ncaa.get_neutral_games`, filename) _
-    val single_error_completer = ParseUtils.enrich_sub_error(`ncaa.get_neutral_games`, filename) _
+    val doc_request_builder =
+      ParseUtils.build_request[Document](`ncaa.get_neutral_games`, filename) _
+    val single_error_completer =
+      ParseUtils.enrich_sub_error(`ncaa.get_neutral_games`, filename) _
 
     val builders = builders_from_version(format_version)
     for {
       doc <- doc_request_builder(browser.parseString(in))
 
       team <- builders.team_name_finder(doc) match {
-        case Some(team) => Right(TeamId(team))
+        case Some(team) => Right(TeamId(team.trim))
         case None =>
-          Left(ParseUtils.build_sub_error(`parent_fills_in`)(
-            s"Failed to find team name in image alt"
-          )).left.map(single_error_completer)
+          Left(
+            ParseUtils.build_sub_error(`parent_fills_in`)(
+              s"Failed to find team name in image alt"
+            )
+          ).left.map(single_error_completer)
       }
 
       candidate_neutral_games = builders.neutral_game_finder(doc)
 
-    } yield team -> candidate_neutral_games.toSet //TODO collect on regex
+    } yield team -> candidate_neutral_games.toSet
   }
 }
 object TeamScheduleParser extends TeamScheduleParser

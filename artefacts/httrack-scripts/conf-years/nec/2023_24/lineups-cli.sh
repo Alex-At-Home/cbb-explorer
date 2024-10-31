@@ -10,7 +10,7 @@ array=(
    '127.0/16501::Central+Conn.+St.'
    '590.0/16501::Sacred+Heart'
    '748.0/16501::Wagner'
-   '600.0/16501::Saint+Francis+%28PA%29'
+   '600.0/16501::Saint+Francis'
    '410.0/16501::Merrimack'
    '349.0/16501::Le+Moyne'
 )

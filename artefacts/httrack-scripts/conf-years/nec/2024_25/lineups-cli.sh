@@ -9,7 +9,7 @@ array=(
    '222.0/16700::FDU'
    '127.0/16700::Central+Conn.+St.'
    '748.0/16700::Wagner'
-   '600.0/16700::Saint+Francis+%28PA%29'
+   '600.0/16700::Saint+Francis'
    '349.0/16700::Le+Moyne'
    '136.0/16700::Chicago+St.'
 )

@@ -87,6 +87,17 @@ object DataQualityIssues {
         // Colorado St. 2023/24, Kyle and Kyan Evans. Kyan's a Fr, sorry kid
         combos("Kyan", "Evans") ++
 
+        // Men 24/25
+
+        // Troy 2023/24 Cooper and Cobi Campbell
+        combos("Cooper", "Campbell") ++
+
+        // CSU Bakersfield 2023/24, "Marvin McGhee III" (Sr) and "Marvin McGhee IV" (So)
+        combos("Marvin", "McGhee IV") ++
+
+        // Coppin St 2023/24 Cam'Ron and Car'Ron Brown, both Jrs who had similar stats
+        combos("Car'Ron", "Brown") ++
+
         // Women 18/19
 
         // Women 2018 Wash St. Molina - Chanelle v Cherilyn (leave Chanelle else will conflict with 3rd sister Celena!)
@@ -115,6 +126,11 @@ object DataQualityIssues {
 
         // Miami 22/23: Haley and Hannah Cavinder, both from Fresno St so change both since neither in DB currently
         combos("Haley", "Cavinder") ++ combos("Hannah", "Cavinder") ++
+
+        // Women 23/24
+
+        // ECU 23/24: as well as gettting the Wyche sisters from Florida we now have Khia and Khloe Miller
+        combos("Khloe", "Miller") ++
 
         Nil
     ): _*
@@ -212,7 +228,15 @@ object DataQualityIssues {
         (
           // The Watsons have caused quite a mess!
           // Truncate Kaseem's name (sorry Kaseem!)
-          alias_combos(("Kaseem", "Watson") -> "Watson, Kas")
+          alias_combos(("Kaseem", "Watson") -> "Watson, Kas"),
+        ): _*
+      ),
+      // Transferred to Delaware St. 2023/24
+      Option(TeamId("Delaware St.")) -> Map(
+        (
+          // The Watsons have caused quite a mess!
+          // Truncate Kaseem's name (sorry Kaseem!)
+          alias_combos(("Kaseem", "Watson") -> "Watson, Kas"),
         ): _*
       ),
       Option(TeamId("Southern U.")) -> Map(

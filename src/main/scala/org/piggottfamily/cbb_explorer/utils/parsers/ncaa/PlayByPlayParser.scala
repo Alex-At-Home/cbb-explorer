@@ -150,10 +150,15 @@ trait PlayByPlayParser {
   protected var builders_from_version = Array(v0_builders, v1_builders)
 
 // Current issues:
+
+// 0: loads of issues with one player at Ga Southern
+///Users/alex/websites/NCAA_by_conf/sunbelt/2023/Ga.+Southern_253.0
+
 // 1:
 //[INFO] Failed to find the schedule in [/Users/alex/websites/NCAA_by_conf/nec/2023/Saint+Francis+%28PA%29_600.0/stats.ncaa.org/teams]
 
-// 2: women_sec
+// 2: Lineup calcs
+//women_sec
 // [inject_starting_lineup_into_box] WARN: Couldn't find 5 starters for [[TeamSeasonId(TeamId(Alabama),Year(2023))] vs [TeamSeasonId(TeamId(Tennessee),Year(2023))]]: [List(PlayerId(Ashlee Barker, Sarah), PlayerId(Cody, Essence), PlayerId(McQueen, Loyal), PlayerId(Nye, Aaliyah)) / List(SaAsBarker, EsCody, LoMcqueen, AaNye)]
 
 // [INFO] Reading [/Users/alex/websites/NCAA_by_conf/acc/2023/Clemson_147.0/stats.ncaa.org/contests/5254098/play_by_play.html]: [5254098]
@@ -162,6 +167,12 @@ trait PlayByPlayParser {
 // [INFO] Reading [/Users/alex/websites/NCAA_by_conf/bigeast/2023/Providence_556.0/stats.ncaa.org/contests/3965272/play_by_play.html]: [3965272]
 // [inject_starting_lineup_into_box] WARN: Couldn't find 5 starters for [[TeamSeasonId(TeamId(Providence),Year(2023))] vs [TeamSeasonId(TeamId(Georgetown),Year(2023))]]: [List(PlayerId(Carter, Devin), PlayerId(Floy
 // d, Jr., Corey), PlayerId(Gaines, Davonte), PlayerId(Oduro, Josh)) / List(DeCarter, CoFloyd, DaGaines, JoOduro)]
+
+// [INFO] Reading [/Users/alex/websites/NCAA_by_conf/bigtwelve/2023/BYU_77.0/stats.ncaa.org/contests/3969286/play_by_play.html]: [3969286]
+// [inject_starting_lineup_into_box] WARN: Couldn't find 5 starters for [[TeamSeasonId(TeamId(BYU),Year(2023))] vs [TeamSeasonId(TeamId(Kansas),Year(2023))]]: [List(PlayerId(Johnson, Spencer), PlayerId(Khalifa, Aly), PlayerId(Knell, Trevin), PlayerId(Waterman, Noah)) / List(SpJohnson, AlKhalifa, TrKnell, NoWaterman)]
+
+// [INFO] Reading [/Users/alex/websites/NCAA_by_conf/bigtwelve/2023/Texas+Tech_700.0/stats.ncaa.org/contests/3963424/play_by_play.html]: [3963424]
+// [inject_starting_lineup_into_box] WARN: Couldn't find 5 starters for [[TeamSeasonId(TeamId(Texas Tech),Year(2023))] vs [TeamSeasonId(TeamId(Kansas St.),Year(2023))]]: [List(PlayerId(Isaacs, Pop), PlayerId(Walton, Kerwin), PlayerId(Washington, Warren), PlayerId(Williams, Darrion)) / List(PoIsaacs, KeWalton, WaWashington, DaWilliams)]
 
   /** Combines the different methods to build a set of lineup events */
   def create_lineup_data(

@@ -412,9 +412,12 @@ trait ShotEventParser {
         val (x, y, alt_x, alt_y) = transform_shot_location(
           shot.x,
           shot.y,
-          second_half_switch && !second_half_override.exists(
+          second_half_override.exists(
             _.contains(period)
-          ),
+          ) match {
+            case true => !second_half_switch
+            case _    => second_half_switch
+          },
           team_shooting_left_in_first_period,
           shot.is_off
         )

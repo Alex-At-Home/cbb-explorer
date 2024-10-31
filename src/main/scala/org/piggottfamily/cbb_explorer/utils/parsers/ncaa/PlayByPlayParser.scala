@@ -149,11 +149,6 @@ trait PlayByPlayParser {
   }
   protected var builders_from_version = Array(v0_builders, v1_builders)
 
-// Current issues:
-
-// 0: loads of issues with one player at Ga Southern
-///Users/alex/websites/NCAA_by_conf/sunbelt/2023/Ga.+Southern_253.0
-
   /** Combines the different methods to build a set of lineup events */
   def create_lineup_data(
       filename: String,

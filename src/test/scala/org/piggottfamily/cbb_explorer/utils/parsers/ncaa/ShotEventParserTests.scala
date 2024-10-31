@@ -156,10 +156,10 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
           // Weird name scanario:
           TestScenario(
             """
-            <circle cx="310.2" cy="235" r="5" style="fill: white; stroke: blue; stroke-width: 3px; display: inline;" id="play_2565239320" class="period_1 player_768305773 team_392 shot missed"><title>1st 13:05:00 : missed by Russell (Deuce) Dean(Ga. Southern) 9-6</title></circle>
+            <circle cx="310.2" cy="235" r="5" style="fill: white; stroke: blue; stroke-width: 3px; display: inline;" id="play_2565239320" class="period_1 player_768305773 team_392 shot missed"><title>1st 13:05:00 : missed by Russell (Deuce) Dean(Maryland) 9-6</title></circle>
             """,
             base_event_1.copy(
-              is_off = false,
+              is_off = true, // (also checks that team is correctly extracted)
               shooter = Some(
                 LineupEvent
                   .PlayerCodeId(
@@ -280,7 +280,7 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
             """ -> "[2,4,6]", // (score; use the score to find the team and player so if one is missing so is the other)
           """
             <circle cx="310.2" cy="235" r="5" style="fill: white; stroke: blue; stroke-width: 3px; display: inline;" id="play_2565239320" class="period_1 player_768305773 team_392 shot"><title>1st 13:05:00 : taken by Jahari Long(Maryland) 9-6</title></circle>
-            """ -> "[2,5]", // (shot result; use the shot result to find the player so if one is missing so is the other)
+            """ -> "[2,5,6]", // (shot result; use the shot result to find the team and player so if one is missing so is the other)
           """
             <circle cx="310.2" cy="235" r="5" style="fill: white; stroke: blue; stroke-width: 3px; display: inline;" id="play_2565239320" class="period_1 player_768305773 team_392 shot missed"><title>1st 13:05:00 : missed by Jahari Long 9-6</title></circle>
             """ -> "[2,6]", // (team; use the team to find the player so if one is missing so is the other)

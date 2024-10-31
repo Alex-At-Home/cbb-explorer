@@ -53,7 +53,7 @@ trait PlayByPlayUtils {
 
         // (Useful debug print in conjunction with an if clause)
         // println(
-        //   s"PBP ANALYSIS [$pbp_clump][$maybe_next_pbp_event] <- [${state.curr_pbp_clump}]"
+        //   s"PBP ANALYSIS [${shot.shot_min}]: [$pbp_clump][$maybe_next_pbp_event] <- [${state.curr_pbp_clump}]"
         // )
 
         val (maybe_enriched_shot, remaining_pbp_events, saved_lineups) =
@@ -250,8 +250,8 @@ trait PlayByPlayUtils {
                 s"[enrich_shot_events_with_pbp] WARN: discarding unmatched shot [$shot], NO_PBP_CLUMP ([$maybe_next_pbp_event])"
               )
               // For debugging: list all the PbP times
-              val no_pbp_debug = false
-              if (no_pbp_debug) {
+              val debug_no_pbp = false
+              if (debug_no_pbp) {
                 val pbp_times = sorted_pbp_events
                   .map {
                     case ev: Model.MiscGameEvent =>

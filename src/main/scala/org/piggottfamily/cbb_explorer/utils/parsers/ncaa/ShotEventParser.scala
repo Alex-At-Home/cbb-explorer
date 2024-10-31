@@ -95,7 +95,9 @@ trait ShotEventParser {
         case _ => None
       }
 
-    private def resolve_team_name(name_and_team: String): Option[String] = {
+    private def resolve_team_name(
+        name_and_team: String
+    ): Option[(String, String)] = {
       val (result, _) = name_and_team.reverse.foldLeft(("", 0)) {
         case ((acc, count), char) =>
           char match {
@@ -112,16 +114,21 @@ trait ShotEventParser {
           }
       }
       if (result.isEmpty) None
-      else Some(name_and_team.dropRight(result.length + 2))
+      else
+        Some(
+          name_and_team.dropRight(result.length + 2),
+          result
+        )
     }
 
     // eg 1st 17:25:00 : made by $PLAYER_STRING($TEAM) 4-5
-    private val player_regex =
+    private val player_and_team_regex =
       ".*?(?:made|missed) by *?(.*?) [0-9]+-[0-9]+.*".r
     def event_player_finder(event: Element): Option[String] =
       title_extractor(event) match {
-        case Some(player_regex(name_and_team)) =>
+        case Some(player_and_team_regex(name_and_team)) =>
           resolve_team_name(name_and_team)
+            .map(_._1)
             .map(_.trim)
             .map(ExtractorUtils.name_in_v0_box_format)
             .map(_.trim)
@@ -153,11 +160,14 @@ trait ShotEventParser {
         case _                                    => None
       }
 
-    private val team_regex = ".*?[(](.+)[)] [0-9]+[-].*".r
     def shot_taking_team_finder(event: Element): Option[String] =
       title_extractor(event) match {
-        case Some(team_regex(team)) => Some(team)
-        case _                      => None
+        case Some(player_and_team_regex(player_and_team)) =>
+          resolve_team_name(player_and_team)
+            .map(_._2)
+            .map(_.trim)
+            .filter(_.nonEmpty)
+        case _ => None
       }
   }
 

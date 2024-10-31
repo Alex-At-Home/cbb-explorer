@@ -105,17 +105,17 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
     "PlayByPlayUtils" - {
       "enrich_shot_events_with_pbp" - {
         val raw_shots = List(
-          base_shot_event.copy(
+          base_shot_event.copy( // (shot1)
             shot_min = 5.0,
             is_off = true
           ), // (on lineup boundary)
-          base_shot_event.copy(
+          base_shot_event.copy( // (shot2)
             shot_min = 6.0,
             is_off = true
           ),
-          base_shot_event.copy(
+          base_shot_event.copy( // (shot3)
             shot_min = 7.0,
-            dist = 25.0,
+            dist = 27.0,
             is_off = true
           ), // (3P shot in transition)
           base_shot_event.copy(
@@ -126,10 +126,10 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
             shot_min = 11.0,
             is_off = true
           ), // (will be discarded because matches 2 PbPs)
-          base_shot_event.copy(shot_min = 13.0, is_off = true),
+          base_shot_event.copy(shot_min = 13.0, is_off = true), // (shot4)
           // Two valid shots at the same time, check they both get picked up:
-          base_shot_event.copy(shot_min = 14.5, is_off = true),
-          base_shot_event.copy(shot_min = 14.5, is_off = true),
+          base_shot_event.copy(shot_min = 14.5, is_off = true), // (shot5/_)
+          base_shot_event.copy(shot_min = 14.5, is_off = true), // (shot6/_)
           base_shot_event.copy(
             shot_min = 16.0,
             is_off = true
@@ -153,11 +153,11 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
           )
         )
         val pbp_events = List(
-          base_team_2p_pbp.copy(min = 5.0),
-          // At 6 minutes: assisted shot
+          base_team_2p_pbp.copy(min = 5.0), // (shot1)
+          // At 6 minutes: assisted shot (shot2)
           base_team_2p_pbp.copy(min = 6.0),
           base_team_pbp.copy(min = 6.0),
-          // At 7 mins: multiple shots wth wrong player, but only one has the right distance
+          // At 7 mins: multiple shots wth wrong player, but only one has the right distance (shot3)
           base_team_2p_pbp.copy(min = 7.0),
           base_team_3p_pbp.copy(min = 7.0),
           base_team_pbp.copy(min =
@@ -166,15 +166,15 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
           // At 11 mins: multiple shots with wrong player, both have the right distance so discard
           base_team_2p_pbp.copy(min = 11.0),
           base_team_2p_pbp.copy(min = 11.0),
-          // At 13 mins: multiple shots, one has right player, one has wrong
+          // At 13 mins: multiple shots, one has right player, one has wrong (shot4)
           base_team_2p_pbp.copy(min = 13.0),
           base_team_2p_pbp
             .copy(
               min = 13.0,
               event_string =
-                "18:28:00,0-0,Jahari Long, 3pt jumpshot 2ndchance fastbreak made"
+                "18:28:00,0-0,Jahari Long, 3pt jumpshot 2ndchance made"
             ),
-          // 2 events, both are valid - both should get picked up:
+          // 2 events, both are valid - both should get picked up (shot5 and shot6, _ _):
           base_team_2p_pbp.copy(
             min = 14.5,
             event_string =
@@ -199,8 +199,6 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
             )
           ) {
             case (_, enriched_shots @ List(shot1, shot2, shot3, shot4, _, _)) =>
-              // (ignore the last 2 shots except to check they exist)
-
               // Lineup correlation
               if (using_bad_lineups) {
                 assert(shot1.lineup_id == None)
@@ -232,7 +230,7 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
               assert(shot1.value == 2)
               assert(shot2.value == 2)
               assert(shot3.value == 3)
-              assert(shot4.value == 2)
+              assert(shot4.value == 3)
               // Transition calcs
               assert(shot1.in_transition == None)
               assert(shot2.in_transition == None)
@@ -701,51 +699,60 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
           case class Scenario(
               ev_str: String,
               shot: ShotEvent,
-              expected: Boolean
+              expected: (Boolean, Boolean) // (strict, lax)
           )
           val test_scenarios = List(
             Scenario(
               "18:28:00,0-0,Jahari Long, 3pt jumpshot made",
-              shot = base_shot_event.copy(pts = 1, dist = 25.0),
-              expected = true
+              shot = base_shot_event.copy(pts = 1, dist = 27.0),
+              expected = (true, true)
             ),
             Scenario(
               "18:28:00,0-0,Jahari Long, 3pt jumpshot made",
-              shot = base_shot_event.copy(pts = 0, dist = 25.0),
-              expected = false
+              shot = base_shot_event.copy(pts = 0, dist = 12.0),
+              expected = (false, false)
             ),
             Scenario(
               "18:28:00,0-0,Jahari Long, 3pt jumpshot missed",
-              shot = base_shot_event.copy(pts = 1, dist = 25.0),
-              expected = false
+              shot = base_shot_event.copy(pts = 1, dist = 27.0),
+              expected = (false, false)
             ),
             Scenario(
               "18:28:00,0-0,Jahari Long, 3pt jumpshot missed",
-              shot = base_shot_event.copy(pts = 0, dist = 25.0),
-              expected = true
-            ),
-            Scenario(
-              "Jahari Long, 2pt jumpshot missed",
-              shot = base_shot_event.copy(pts = 0, dist = 25.0),
-              expected = false
-            ),
-            Scenario(
-              "Jahari Long, 3pt jumpshot made",
-              shot = base_shot_event.copy(pts = 1, dist = 15.0),
-              expected = false
+              shot = base_shot_event.copy(pts = 0, dist = 27.0),
+              expected = (true, true)
             ),
             Scenario(
               "18:28:00,0-0,Jahari Long, 2pt jumpshot made",
-              shot = base_shot_event.copy(pts = 1, dist = 15.0),
-              expected = true
+              shot = base_shot_event.copy(pts = 1, dist = 12.0),
+              expected = (true, true)
+            ),
+            // For these 2 the PbP will fail, which means it will treat both as missed
+            Scenario(
+              "Jahari Long, 2pt jumpshot missed",
+              shot = base_shot_event.copy(pts = 0, dist = 27.0),
+              expected = (false, true)
+            ),
+            Scenario(
+              "Jahari Long, 3pt jumpshot made",
+              shot = base_shot_event.copy(pts = 1, dist = 12.0),
+              expected = (false, false)
             )
           )
           test_scenarios.foreach { scenario =>
             assert(
               right_kind_of_shot(
-                shot = scenario.shot,
-                base_team_pbp.copy(event_string = scenario.ev_str)
-              ) == scenario.expected
+                shot = scenario.shot.copy(raw_event = Some(scenario.ev_str)),
+                base_team_pbp.copy(event_string = scenario.ev_str),
+                strict = true
+              ) == scenario.expected._1
+            )
+            assert(
+              right_kind_of_shot(
+                shot = scenario.shot.copy(raw_event = Some(scenario.ev_str)),
+                base_team_pbp.copy(event_string = scenario.ev_str),
+                strict = false
+              ) == scenario.expected._2
             )
           }
         }

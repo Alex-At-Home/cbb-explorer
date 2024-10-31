@@ -71,8 +71,15 @@ trait PlayByPlayUtils {
                 )
 
               val maybe_selected_pbp =
-                pbp_shots.filter(ev => right_kind_of_shot(shot, ev)) match {
-                  case Nil => None
+                pbp_shots.filter(ev =>
+                  right_kind_of_shot(shot, ev, strict = false)
+                ) match {
+                  case Nil =>
+                    println(
+                      s"[enrich_shot_events_with_pbp] WARN: discarding unmatched shot [$shot], NO_PBP [$pbp_shots] ([$maybe_next_pbp_event])"
+                    )
+                    None
+
                   case candidate_matches =>
                     val player_filtered_candidate_matches =
                       candidate_matches.filter(ev => {
@@ -94,17 +101,43 @@ trait PlayByPlayUtils {
                         // only one candidate match, so just use it
                         // Warning since this PbP event must match this shot, but the player codes don't match up
                         println(
-                          s"[enrich_shot_events_with_pbp] WARN: IGNORED player mismatch for shot [$shot] vs [$candidate_matches]"
+                          s"[enrich_shot_events_with_pbp] WARN: IGNORED player mismatch for shot [$shot] vs [$pbp_shots] -> [$candidate_matches]"
                         )
                         candidate_matches.headOption
-                      case Nil =>
-                        // Too many "wrong" candidate matches (or none, eg all the options were wrong distance/direction), bailing
-                        println(
-                          s"[enrich_shot_events_with_pbp] WARN: discarding unmatched shot [$shot], candidates=[$candidate_matches]"
-                        )
-                        None
-                      case other => // Pick first, assume ordering is correct!
-                        player_filtered_candidate_matches.headOption
+
+                      case Nil => // no player matches and multiple time/make-or-miss matches
+                        candidate_matches
+                          .filter(ev =>
+                            right_kind_of_shot(
+                              shot,
+                              ev,
+                              strict = true
+                            ) // use dist vs PbP shot type
+                          ) match {
+                          case List(single_matching_shot) =>
+                            Some(single_matching_shot)
+                          case _ =>
+                            // Too many "wrong" candidate matches (or none, eg all the options were wrong distance/direction), bailing
+                            println(
+                              s"[enrich_shot_events_with_pbp] WARN: discarding unmatched shot [$shot], candidates=[$candidate_matches]"
+                            )
+                            None
+                        }
+
+                      case List(single_match) => // A happy case!
+                        Some(single_match)
+
+                      case other =>
+                        // See if we can get a single match by filtering more strictly
+                        // otherwise just ... pick!
+                        player_filtered_candidate_matches
+                          .filter(ev =>
+                            right_kind_of_shot(shot, ev, strict = true)
+                          )
+                          .headOption
+                          .orElse(
+                            player_filtered_candidate_matches.headOption
+                          )
                     }
                 }
 
@@ -186,7 +219,7 @@ trait PlayByPlayUtils {
                           )
                         )
 
-                      maybe_debug_event(enriched_shot)
+                      maybe_debug_event(enriched_shot, shot.raw_event)
                       (
                         Some(enriched_shot),
                         pbp_clump_minus_matching_events,
@@ -214,7 +247,7 @@ trait PlayByPlayUtils {
               }
             case _ => // No matching PbP events
               println(
-                s"[enrich_shot_events_with_pbp] WARN: discarding unmatched shot [$shot], NO_PBP ([$maybe_next_pbp_event])"
+                s"[enrich_shot_events_with_pbp] WARN: discarding unmatched shot [$shot], NO_PBP_CLUMP ([$maybe_next_pbp_event])"
               )
               // For debugging: list all the PbP times
               val no_pbp_debug = false
@@ -254,8 +287,11 @@ trait PlayByPlayUtils {
       */
     val debug_print_enriched = false
 
-    def maybe_debug_event = (shot: ShotEvent) => {
-      if (debug_print_enriched) {
+    def maybe_debug_event = (shot: ShotEvent, maybe_ev_str: Option[String]) => {
+      val LONG_DISTANCE = 40.0
+      val is_long_distance =
+        shot.dist >= LONG_DISTANCE && !maybe_ev_str.exists(_.contains(" 00:0"))
+      if (debug_print_enriched || is_long_distance) {
         val team = shot.team.team.name match {
           case target_team if shot.is_off =>
             target_team.toUpperCase
@@ -280,6 +316,9 @@ trait PlayByPlayUtils {
           else if (shot.is_assisted.contains(true)) "(A)"
           else ""
 
+        val long_dist =
+          if (is_long_distance) " [WARNING][LONG_DISTANCE]" else ""
+
         val loc_info = f"[${shot.x}%.1f],[${shot.y}%.1f]=>[${shot.dist}%.1f]ft"
         val score_info = s"([${shot.score.scored}]-[${shot.score.allowed}])"
         val maybe_trans =
@@ -289,7 +328,7 @@ trait PlayByPlayUtils {
           s"[${shot.value}]pts ${if (shot.pts > 0) "[MADE]" else "[MISSED]"}"
 
         println(
-          s"[enrich_shot_events_with_pbp] $time$score_info $shot_value [$shooter]$maybe_assisted_by$maybe_trans $loc_info" +
+          s"[enrich_shot_events_with_pbp]$long_dist $time$score_info $shot_value [$shooter]$maybe_assisted_by$maybe_trans $loc_info" +
             s" | [$team][$oppo] [$lineup_info]"
         )
       }
@@ -618,19 +657,21 @@ trait PlayByPlayUtils {
       */
     def right_kind_of_shot(
         shot: ShotEvent,
-        pbp_event: Model.MiscGameEvent
+        pbp_event: Model.MiscGameEvent,
+        strict: Boolean
     ): Boolean = {
       val ev_shot_value = shot_value(pbp_event.event_string)
       val ev_shot_made =
         EventUtils.ParseShotMade.unapply(pbp_event.event_string).isDefined
       val shot_made = shot.pts > 0
       val definitely_2 =
-        shot.dist < 21 // 21.6 to be more exact but we give a little leeway
+        shot.dist < 20 // 21.6 to be more exact but there are big discrepancies so be conservative
       val definitely_3 =
-        shot.dist > 22.5 // 22.1 to be more exact but we give a little leeway
+        shot.dist >= 23.1 // 22.1 to be more exact but there are big discrepancies so basically ignore
 
       (shot_made == ev_shot_made) && (
-        (definitely_2 && ev_shot_value == 2) ||
+        !strict ||
+          (definitely_2 && ev_shot_value == 2) ||
           (definitely_3 && ev_shot_value == 3) ||
           (!definitely_2 && !definitely_3)
       )

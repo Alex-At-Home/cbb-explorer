@@ -124,6 +124,7 @@ trait ShotEventParser {
           resolve_team_name(name_and_team)
             .map(_.trim)
             .map(ExtractorUtils.name_in_v0_box_format)
+            .map(_.trim)
             .filter(_.nonEmpty)
         case _ => None
       }
@@ -384,31 +385,97 @@ trait ShotEventParser {
     * some more fields
     */
   protected def phase1_shot_event_enrichment(
-      sorted_very_raw_events: List[(Int, ShotEvent)]
+      sorted_very_raw_events: List[(Int, ShotEvent)],
+      second_half_override: Option[Set[Int]] = None
   ): List[ShotEvent] = {
+    val LONG_DISTANCE = 50.0
     val women_game = is_women_game(sorted_very_raw_events)
 
     // Next question ... which side of the screen is which team shooting on
     val (team_shooting_left_in_first_period, first_period) =
       is_team_shooting_left_to_start(sorted_very_raw_events)
 
-    sorted_very_raw_events.map { case (period, shot) =>
-      val ascending_time = get_ascending_time(shot, period, women_game)
+    case class State(
+        total_shots: Map[Int, Int] = Map(),
+        long_shots: Map[Int, Int] = Map(),
+        shots: List[ShotEvent] = Nil
+    )
+    val results = sorted_very_raw_events.foldLeft(State()) {
+      case (state, (period, shot)) =>
+        val ascending_time = get_ascending_time(shot, period, women_game)
+        val second_half_switch = if (women_game) {
+          period > 2 && first_period <= 2 // (just handle edge case where first shot is in 2nd half)
+        } else {
+          period > 1 && first_period <= 1
+        }
 
-      val (x, y) = transform_shot_location(
-        shot.x,
-        shot.y,
-        period - first_period,
-        team_shooting_left_in_first_period,
-        shot.is_off
+        val (x, y, alt_x, alt_y) = transform_shot_location(
+          shot.x,
+          shot.y,
+          second_half_switch && !second_half_override.exists(
+            _.contains(period)
+          ),
+          team_shooting_left_in_first_period,
+          shot.is_off
+        )
+        val dist = Math.sqrt(x * x + y * y)
+        val alt_dist = Math.sqrt(alt_x * alt_x + alt_y * alt_y)
+        val trans_shot =
+          if ((dist < 1.2 * alt_dist) || (shot.shot_min < 0.1)) {
+            // (the 1.2x means if the 2 are close we trust the original more)
+            // (currently the shot clock is descending so this is "shots with <6s left in the quarter")
+            shot.copy(
+              x = x,
+              y = y,
+              dist = dist,
+              shot_min = ascending_time
+            )
+          } else {
+            shot.copy(
+              x = alt_x,
+              y = alt_y,
+              dist = alt_dist,
+              shot_min = ascending_time
+            )
+          }
+        // (note: we use "dist" to look for long shots, because that way we can look for systemtically
+        // bad periods where the court is flipped)
+        state.copy(
+          state.total_shots + (period -> (state.total_shots
+            .getOrElse(period, 0) + 1)),
+          if (dist > LONG_DISTANCE)
+            state.long_shots + (period -> (state.long_shots
+              .getOrElse(period, 0) + 1))
+          else state.long_shots,
+          shots = state.shots ++ List(trans_shot)
+        )
+    }
+    val maybe_problem_periods = results.long_shots.filter {
+      case (period, count) =>
+        val total_shots = results.total_shots.getOrElse(period, 1)
+        // if too many shots are long distance, probably the court is flipped
+        val bad_period = total_shots >= 6 && count > 0.75 * total_shots
+        bad_period
+    }.keys
+
+    if (maybe_problem_periods.nonEmpty) {
+      val firstShot = sorted_very_raw_events.headOption
+      val team = firstShot.map(_._2.team.team)
+      val oppo = firstShot.map(_._2.opponent.team)
+      println(
+        s"[p1_s_e_e] [WARNING] [$team]v[$oppo] Flip court for periods: [$maybe_problem_periods] because [${results
+            .copy(shots = Nil)}]"
       )
-      val trans_shot = shot.copy(
-        x = x,
-        y = y,
-        dist = Math.sqrt(x * x + y * y),
-        shot_min = ascending_time
+    }
+
+    // If we had problem periods override them and re-run:
+    if (maybe_problem_periods.nonEmpty && second_half_override.isEmpty) {
+      phase1_shot_event_enrichment(
+        sorted_very_raw_events,
+        Some(maybe_problem_periods.toSet)
       )
-      trans_shot
+    } else {
+      results.shots
     }
   }
 
@@ -443,7 +510,7 @@ trait ShotEventParser {
   protected def is_women_game(
       sorted_very_raw_events: List[(Int, ShotEvent)]
   ): Boolean = {
-    val num_periods = sorted_very_raw_events.map(_._1).distinct.size
+    val num_periods = sorted_very_raw_events.lastOption.map(_._1).getOrElse(2)
     // Note that time is descending, so > 10 mins means eg 11:00:00 on the clock
     val shot_taken_before_1st_quarter_starts =
       sorted_very_raw_events.headOption.exists { _._2.shot_min > 10.0 }
@@ -466,38 +533,41 @@ trait ShotEventParser {
     val goal_y_px = 250.0
   }
 
-  /** Transform from pixel on screen to feet vs bucket */
+  /** Transform from pixel on screen to feet vs bucket -
+    * @returns
+    *   x/y it believes correct; the alternative x,y
+    */
   protected def transform_shot_location(
       x: Double,
       y: Double,
-      /** delta from 1st period */
-      period_delta: Int,
+      second_half_switch: Boolean,
       team_shooting_left_in_first_period: Boolean,
       is_offensive: Boolean
-  ): (Double, Double) = {
+  ): (Double, Double, Double, Double) = {
 
     // Step 1: transform to always be on the left side of the court
     // (each 'false' switches the side of the court)
     val goal_is_to_left = Array(
       team_shooting_left_in_first_period,
-      (period_delta % 2 == 0),
+      !second_half_switch,
       is_offensive
     ).map(if (_) 1 else -1).reduce(_ * _) > 0
 
-    val (trans_x, trans_y) = if (goal_is_to_left) {
-      (x, y)
+    val alt_x = ShotMapDimensions.court_length_x_px - x
+    val alt_y = ShotMapDimensions.court_width_y_px - y
+    val (trans_x, trans_y, alt_trans_x, alt_trans_y) = if (goal_is_to_left) {
+      (x, y, alt_x, alt_y)
     } else { // (we switch left so that left/right side of basket is consistent)
-      (
-        ShotMapDimensions.court_length_x_px - x,
-        ShotMapDimensions.court_width_y_px - y
-      )
+      (alt_x, alt_y, x, y)
     }
 
     // Step 2: co-ords relative to goal
 
     (
       (trans_x - ShotMapDimensions.goal_left_x_px) * ShotMapDimensions.ft_per_px_x,
-      (ShotMapDimensions.goal_y_px - trans_y) * ShotMapDimensions.ft_per_px_y // (+ve is to the right)
+      (ShotMapDimensions.goal_y_px - trans_y) * ShotMapDimensions.ft_per_px_y, // (+ve is to the right)
+      (alt_trans_x - ShotMapDimensions.goal_left_x_px) * ShotMapDimensions.ft_per_px_x,
+      (ShotMapDimensions.goal_y_px - alt_trans_y) * ShotMapDimensions.ft_per_px_y // (+ve is to the right)
     )
   }
 

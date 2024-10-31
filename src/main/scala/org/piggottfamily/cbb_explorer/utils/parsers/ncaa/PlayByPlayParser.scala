@@ -149,6 +149,20 @@ trait PlayByPlayParser {
   }
   protected var builders_from_version = Array(v0_builders, v1_builders)
 
+// Current issues:
+// 1:
+//[INFO] Failed to find the schedule in [/Users/alex/websites/NCAA_by_conf/nec/2023/Saint+Francis+%28PA%29_600.0/stats.ncaa.org/teams]
+
+// 2: women_sec
+// [inject_starting_lineup_into_box] WARN: Couldn't find 5 starters for [[TeamSeasonId(TeamId(Alabama),Year(2023))] vs [TeamSeasonId(TeamId(Tennessee),Year(2023))]]: [List(PlayerId(Ashlee Barker, Sarah), PlayerId(Cody, Essence), PlayerId(McQueen, Loyal), PlayerId(Nye, Aaliyah)) / List(SaAsBarker, EsCody, LoMcqueen, AaNye)]
+
+// [INFO] Reading [/Users/alex/websites/NCAA_by_conf/acc/2023/Clemson_147.0/stats.ncaa.org/contests/5254098/play_by_play.html]: [5254098]
+// [inject_starting_lineup_into_box] WARN: Couldn't find 5 starters for [[TeamSeasonId(TeamId(Clemson),Year(2023))] vs [TeamSeasonId(TeamId(New Mexico),Year(2023))]]: [List(PlayerId(Clark, Jack), PlayerId(Girard III, Joseph), PlayerId(Hunter, Chase), PlayerId(Schieffelin, Ian)) / List(JaClark, JoGirard, ChHunter, IaSchieffeli)]
+
+// [INFO] Reading [/Users/alex/websites/NCAA_by_conf/bigeast/2023/Providence_556.0/stats.ncaa.org/contests/3965272/play_by_play.html]: [3965272]
+// [inject_starting_lineup_into_box] WARN: Couldn't find 5 starters for [[TeamSeasonId(TeamId(Providence),Year(2023))] vs [TeamSeasonId(TeamId(Georgetown),Year(2023))]]: [List(PlayerId(Carter, Devin), PlayerId(Floy
+// d, Jr., Corey), PlayerId(Gaines, Davonte), PlayerId(Oduro, Josh)) / List(DeCarter, CoFloyd, DaGaines, JoOduro)]
+
   /** Combines the different methods to build a set of lineup events */
   def create_lineup_data(
       filename: String,

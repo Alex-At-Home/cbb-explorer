@@ -356,7 +356,7 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
               1 -> base_event.copy(shot_min =
                 11.0
               ), // shot taken before quarter
-              2 -> base_event.copy(shot_min = 9.0),
+              // (only shots in 3 quarters),
               3 -> base_event.copy(shot_min = 9.0),
               4 -> base_event.copy(shot_min = 9.0)
             ),
@@ -462,45 +462,76 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
             x = base_event.x,
             y = base_event.y,
             is_off = false // (2nd period so will be the same location)
+          ),
+          // Some edge cases:
+          // error checker will flip this back again because it's dist will be silly:
+          2 -> base_event.copy(
+            x = ShotMapDimensions.court_length_x_px - base_event.x,
+            y = ShotMapDimensions.court_width_y_px - base_event.y,
+            is_off = false
+          ),
+          // error checker will ignore this one because it could be a half court heave
+          2 -> base_event.copy(
+            x = ShotMapDimensions.court_length_x_px - base_event.x,
+            y = ShotMapDimensions.court_width_y_px - base_event.y,
+            is_off = false,
+            shot_min = 0.05
           )
         )
+
+        // TODO: test the "incorrectly flipped court" case (currently tested by hand)
 
         // (reminder pixel x and y are: cx="310.2" cy="235")
         val transformed_base_event = event_formatter(
           base_event.copy(
-            x = 26.02, // TODO is this right?
+            x = 26.02,
             y = 1.5,
             dist = 26.060000000000002
           )
         )
         TestUtils.inside(
           phase1_shot_event_enrichment(test_case).map(event_formatter)
-        ) { case List(t_event_1, t_event_2, t_event_3, t_event_4) =>
-          assert(t_event_1 == transformed_base_event.copy(shot_min = 6.91))
-          assert(
-            t_event_2 == transformed_base_event.copy(
-              shot_min = 6.91,
-              is_off = false
+        ) {
+          case List(
+                t_event_1,
+                t_event_2,
+                t_event_3,
+                t_event_4,
+                t_event_5,
+                t_event_6
+              ) =>
+            assert(t_event_1 == transformed_base_event.copy(shot_min = 6.91))
+            assert(
+              t_event_2 == transformed_base_event.copy(
+                shot_min = 6.91,
+                is_off = false
+              )
             )
-          )
-          assert(t_event_3 == transformed_base_event.copy(shot_min = 26.91))
-          assert(
-            t_event_4 == transformed_base_event.copy(
-              shot_min = 26.91,
-              is_off = false
+            assert(t_event_3 == transformed_base_event.copy(shot_min = 26.91))
+            assert(
+              t_event_4 == transformed_base_event.copy(
+                shot_min = 26.91,
+                is_off = false
+              )
             )
-          )
+            assert(
+              t_event_5 == transformed_base_event.copy(
+                shot_min = 26.91,
+                is_off = false
+              )
+            )
+            assert(t_event_6.dist > 55.0) // (half court heave)
         }
         TestUtils.inside(
           transform_shot_location(
             x = ShotMapDimensions.court_length_x_px - base_event.x,
             y = ShotMapDimensions.court_width_y_px - base_event.y,
-            period_delta = 0, // (1st period)
+            second_half_switch = false, // (1st period)
             team_shooting_left_in_first_period =
               false, // (just want to check this case)
             is_offensive = true
           )
-        ) { case (result_x, result_y) =>
+        ) { case (result_x, result_y, _, _) =>
           assert(double_formatter(result_x) == transformed_base_event.x)
           assert(double_formatter(result_y) == transformed_base_event.y)
         }

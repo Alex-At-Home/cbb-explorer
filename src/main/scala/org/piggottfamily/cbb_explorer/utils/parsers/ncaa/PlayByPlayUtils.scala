@@ -45,7 +45,7 @@ trait PlayByPlayUtils {
       case (state, shot) =>
         val (pbp_clump, maybe_next_pbp_event) =
           find_pbp_clump(
-            shot.shot_min,
+            shot.min,
             state.pbp_it,
             state.curr_pbp_clump,
             state.maybe_next_pbp_event
@@ -190,24 +190,24 @@ trait PlayByPlayUtils {
 
                       val shot_val = shot_value(selected_pbp.event_string)
                       val enriched_shot = shot.copy(
-                        shooter = shot.shooter.filter(_ =>
+                        player = shot.player.filter(_ =>
                           shot.is_off
                         ), // (discard oppo shooters)
                         lineup_id = Some(lineup.lineup_id).filterNot(_ =>
                           used_bad_lineup
                         ),
-                        raw_event = None,
+                        raw_event = None, // (filter out before writing to disk)
                         players = lineup.players,
                         pts = shot.pts * shot_val,
                         value = shot_val,
-                        is_assisted = Some(maybe_assist_pbp.isDefined)
+                        is_ast = Some(maybe_assist_pbp.isDefined)
                           .filter(_ == true),
-                        assisted_by = maybe_assist_pbp
+                        ast_by = maybe_assist_pbp
                           .filter(_ => shot.is_off) // (discard oppo passers)
                           .flatMap(ev =>
                             extract_player_from_ev(shot, ev, tidy_ctx)
                           ),
-                        in_transition = Some(
+                        is_trans = Some(
                           selected_pbp.event_string.contains("fastbreak")
                         ).filter(_ == true)
                       )
@@ -255,7 +255,7 @@ trait PlayByPlayUtils {
                 val pbp_times = sorted_pbp_events
                   .map {
                     case ev: Model.MiscGameEvent =>
-                      if (Math.abs(ev.min - shot.shot_min) < 0.1) {
+                      if (Math.abs(ev.min - shot.min) < 0.1) {
                         s"${ev.min}:[${ev.event_string}]"
                       } else f"${ev.min}%.2f"
                     case ev => f"(${ev.min}%.2f)"
@@ -302,8 +302,8 @@ trait PlayByPlayUtils {
             target_team.toUpperCase
           case oppo_team => oppo_team
         }
-        val time = f"[${shot.shot_min}%.1f]"
-        val shooter = shot.shooter.map(_.code) match {
+        val time = f"[${shot.min}%.1f]"
+        val shooter = shot.player.map(_.code) match {
           case Some(shooter) => shooter
           case _ if shot.is_off =>
             "ERROR"
@@ -312,17 +312,18 @@ trait PlayByPlayUtils {
         }
         val maybe_assisted_by =
           if (shot.is_off)
-            shot.assisted_by.map(_.code).map(a => s"(A)[$a]").getOrElse("")
-          else if (shot.is_assisted.contains(true)) "(A)"
+            shot.ast_by.map(_.code).map(a => s"(A)[$a]").getOrElse("")
+          else if (shot.is_ast.contains(true)) "(A)"
           else ""
 
         val long_dist =
           if (is_long_distance) " [WARNING][LONG_DISTANCE]" else ""
 
-        val loc_info = f"[${shot.x}%.1f],[${shot.y}%.1f]=>[${shot.dist}%.1f]ft"
+        val loc_info =
+          f"[${shot.loc.x}%.1f],[${shot.loc.y}%.1f]=>[${shot.dist}%.1f]ft"
         val score_info = s"([${shot.score.scored}]-[${shot.score.allowed}])"
         val maybe_trans =
-          if (shot.in_transition.contains(true)) "(TRANS)" else ""
+          if (shot.is_trans.contains(true)) "(TRANS)" else ""
         val lineup_info = shot.players.map(_.code).mkString("_")
         val shot_value =
           s"[${shot.value}]pts ${if (shot.pts > 0) "[MADE]" else "[MISSED]"}"
@@ -381,15 +382,15 @@ trait PlayByPlayUtils {
           val maybe_matching_lineup = curr_lineup match {
             case Some(lineup)
                 if lineup_matcher(
-                  shot.shot_min
+                  shot.min
                 )(lineup) =>
               curr_lineup
             case _ =>
               // Check stash then back to main list looking for candidate lineups
               stashed_it
-                .find(shot.shot_min <= _.end_min)
+                .find(shot.min <= _.end_min)
                 .orElse(
-                  lineup_it.find(shot.shot_min <= _.end_min)
+                  lineup_it.find(shot.min <= _.end_min)
                 )
           }
           val updated_stash =
@@ -409,7 +410,7 @@ trait PlayByPlayUtils {
               )
 
             case (Some(non_matching_lineup), _)
-                if !lineup_matcher(shot.shot_min)(non_matching_lineup) =>
+                if !lineup_matcher(shot.min)(non_matching_lineup) =>
               // 2.2] This lineup starts after the shot, so no match but keep it in the stash
               RecursionState(
                 curr_lineup = None,
@@ -418,7 +419,7 @@ trait PlayByPlayUtils {
               )
 
             case (Some(matching_lineup), Nil)
-                if shot.shot_min < matching_lineup.end_min =>
+                if shot.min < matching_lineup.end_min =>
               // 2.3] Strictly inside the lineup and the previous lineup(s) didn't match (so no need for
               // more complex logic)
               RecursionState(
@@ -473,7 +474,7 @@ trait PlayByPlayUtils {
       val post_recursion_state =
         if (
           curr_lineups.headOption.exists(
-            _.start_min > shot.shot_min
+            _.start_min > shot.min
           )
         ) {
           // Special case: we've gone past the lineup, just do nothing and wait for the shot
@@ -642,11 +643,11 @@ trait PlayByPlayUtils {
     ): Boolean =
       extract_player_from_ev(shot, pbp_event, tidy_ctx).exists(player => {
         if (code_match) {
-          shot.shooter.exists(
+          shot.player.exists(
             _.code == player.code
           )
         } else {
-          shot.shooter.contains(player)
+          shot.player.contains(player)
         }
       })
 

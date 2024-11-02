@@ -241,7 +241,7 @@ trait ShotEventParser {
       }.sequence
 
       sorted_very_raw_events = very_raw_events.sortBy { case (period, shot) =>
-        period * 1000 - shot.shot_min // (switch to correctly sorted ascending times)
+        period * 1000 - shot.min // (switch to correctly sorted ascending times)
       }
 
       sorted_raw_events = phase1_shot_event_enrichment(sorted_very_raw_events)
@@ -249,7 +249,7 @@ trait ShotEventParser {
       _ =
         if (debug_print) sorted_raw_events.foreach { shot =>
           println(
-            s"[${shot.shooter.map(_.id).getOrElse(shot.opponent.team)}][${f"${shot.shot_min}%.2f"}] " +
+            s"[${shot.player.map(_.id).getOrElse(shot.opponent.team)}][${f"${shot.min}%.2f"}] " +
               s"dist=[${f"${shot.dist}%.2f"}] hit?=[${shot.pts}]"
           )
         }
@@ -328,7 +328,7 @@ trait ShotEventParser {
 
         Right(
           period -> build_base_event(box_lineup).copy(
-            shooter = maybe_player_code_id,
+            player = maybe_player_code_id,
             is_off = is_offensive,
             score = box_lineup.location_type match {
               case Game.LocationType.Home => score
@@ -338,10 +338,12 @@ trait ShotEventParser {
                 if (target_team_first) score
                 else Game.Score(score.allowed, score.scored)
             },
-            shot_min = time,
+            min = time,
             raw_event = builders.title_extractor(event),
-            x = location._1, // (enrich these in next phase of this function)
-            y = location._2,
+            loc = ShotEvent.ShotLocation(
+              x = location._1, // (enrich these in next phase of this function)
+              y = location._2
+            ),
             pts =
               if (result) 1
               else 0 // (enrich in final phase)
@@ -368,7 +370,7 @@ trait ShotEventParser {
       box_lineup: LineupEvent
   ): ShotEvent = {
     ShotEvent(
-      shooter = None, // (override immediately)
+      player = None, // (override immediately)
       date = box_lineup.date,
       location_type = box_lineup.location_type,
       team = box_lineup.team,
@@ -377,17 +379,22 @@ trait ShotEventParser {
       lineup_id = None, // (fill in final phase)
       players = Nil, // (fill in later)
       score = Game.Score(0, 0), // (override immediately)
-      shot_min = 0.0, // (override immediately)
+      min = 0.0, // (override immediately)
       raw_event = None, // (fill in later)
-      x =
-        0.0, // (override immediately; enrich these in next phase of this function)
-      y = 0.0,
-      dist = 0.0, // (fill in thsese in next phase of this function)
+      loc = ShotEvent.ShotLocation(
+        0.0,
+        0.0
+      ), // (override immediately; enrich these in next phase of this function)
+      geo = ShotEvent.ShotGeo(
+        0.0,
+        0.0
+      ), // (fill in right at the end)
+      dist = 0.0, // (fill in these in next phase of this function)
       pts = 0, // (override immediately)
       value = 0, // (fill in final phase)
-      assisted_by = None, // (fill these in final phase)
-      is_assisted = None,
-      in_transition = None
+      ast_by = None, // (fill these in final phase)
+      is_ast = None,
+      is_trans = None
     )
   }
 
@@ -420,8 +427,8 @@ trait ShotEventParser {
         }
 
         val (x, y, alt_x, alt_y) = transform_shot_location(
-          shot.x,
-          shot.y,
+          shot.loc.x,
+          shot.loc.y,
           second_half_override.exists(
             _.contains(period)
           ) match {
@@ -434,21 +441,19 @@ trait ShotEventParser {
         val dist = Math.sqrt(x * x + y * y)
         val alt_dist = Math.sqrt(alt_x * alt_x + alt_y * alt_y)
         val trans_shot =
-          if ((dist < 1.2 * alt_dist) || (shot.shot_min < 0.1)) {
+          if ((dist < 1.2 * alt_dist) || (shot.min < 0.1)) {
             // (the 1.2x means if the 2 are close we trust the original more)
             // (currently the shot clock is descending so this is "shots with <6s left in the quarter")
             shot.copy(
-              x = x,
-              y = y,
+              loc = ShotEvent.ShotLocation(x, y),
               dist = dist,
-              shot_min = ascending_time
+              min = ascending_time
             )
           } else {
             shot.copy(
-              x = alt_x,
-              y = alt_y,
+              loc = ShotEvent.ShotLocation(alt_x, alt_y),
               dist = alt_dist,
-              shot_min = ascending_time
+              min = ascending_time
             )
           }
         // (note: we use "dist" to look for long shots, because that way we can look for systemtically
@@ -498,7 +503,7 @@ trait ShotEventParser {
       period: Int,
       is_women_game: Boolean
   ): Double = {
-    ExtractorUtils.duration_from_period(period, is_women_game) - event.shot_min
+    ExtractorUtils.duration_from_period(period, is_women_game) - event.min
   }
 
   /** It seems random which team gets the left court on the shot graphics */
@@ -511,7 +516,7 @@ trait ShotEventParser {
       sorted_very_raw_events.takeWhile(_._1 == first_period).map(_._2)
     val (shots_to_left, shots_to_right) =
       first_period_shots.filter(_.is_off).partition {
-        _.x < ShotMapDimensions.half_court_x_px
+        _.loc.x < ShotMapDimensions.half_court_x_px
       }
     val team_shooting_left_in_first_period =
       shots_to_left.size > shots_to_right.size
@@ -526,7 +531,7 @@ trait ShotEventParser {
     val num_periods = sorted_very_raw_events.lastOption.map(_._1).getOrElse(2)
     // Note that time is descending, so > 10 mins means eg 11:00:00 on the clock
     val shot_taken_before_1st_quarter_starts =
-      sorted_very_raw_events.headOption.exists { _._2.shot_min > 10.0 }
+      sorted_very_raw_events.headOption.exists { _._2.min > 10.0 }
     (num_periods >= 4) && !shot_taken_before_1st_quarter_starts
   }
 

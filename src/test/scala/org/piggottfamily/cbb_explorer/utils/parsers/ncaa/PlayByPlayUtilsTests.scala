@@ -53,7 +53,7 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
     LineupErrorAnalysisUtils.build_tidy_player_context(box_lineup)
 
   val base_shot_event = ShotEvent(
-    shooter = box_players.headOption,
+    player = box_players.headOption,
     date = new DateTime(),
     location_type = Game.LocationType.Home,
     team = TeamSeasonId(TeamId("Maryland"), Year(2023)),
@@ -62,16 +62,16 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
     lineup_id = None,
     players = box_players,
     score = Game.Score(0, 0),
-    shot_min = 0.0,
+    min = 0.0,
     raw_event = None,
-    x = 0.0,
-    y = 0.0,
+    loc = ShotEvent.ShotLocation(x = 0.0, y = 0.0),
+    geo = ShotEvent.ShotGeo(lat = 0.0, lon = 0.0),
     dist = 0.0,
     pts = 1,
     value = 1,
-    assisted_by = None,
-    is_assisted = None,
-    in_transition = None
+    ast_by = None,
+    is_ast = None,
+    is_trans = None
   )
   val base_team_pbp =
     Model.OtherTeamEvent(
@@ -106,32 +106,32 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
       "enrich_shot_events_with_pbp" - {
         val raw_shots = List(
           base_shot_event.copy( // (shot1)
-            shot_min = 5.0,
+            min = 5.0,
             is_off = true
           ), // (on lineup boundary)
           base_shot_event.copy( // (shot2)
-            shot_min = 6.0,
+            min = 6.0,
             is_off = true
           ),
           base_shot_event.copy( // (shot3)
-            shot_min = 7.0,
+            min = 7.0,
             dist = 27.0,
             is_off = true
           ), // (3P shot in transition)
           base_shot_event.copy(
-            shot_min = 8.0,
+            min = 8.0,
             is_off = false
           ), // (no PbP match)
           base_shot_event.copy(
-            shot_min = 11.0,
+            min = 11.0,
             is_off = true
           ), // (will be discarded because matches 2 PbPs)
-          base_shot_event.copy(shot_min = 13.0, is_off = true), // (shot4)
+          base_shot_event.copy(min = 13.0, is_off = true), // (shot4)
           // Two valid shots at the same time, check they both get picked up:
-          base_shot_event.copy(shot_min = 14.5, is_off = true), // (shot5/_)
-          base_shot_event.copy(shot_min = 14.5, is_off = true), // (shot6/_)
+          base_shot_event.copy(min = 14.5, is_off = true), // (shot5/_)
+          base_shot_event.copy(min = 14.5, is_off = true), // (shot6/_)
           base_shot_event.copy(
-            shot_min = 16.0,
+            min = 16.0,
             is_off = true
           ) // (no lineup match)
         )
@@ -212,18 +212,18 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
                 assert(shot4.lineup_id == Some(LineupEvent.LineupId("test3")))
               }
               // Assist calcs
-              assert(shot1.is_assisted == None)
-              assert(shot2.is_assisted == Some(true))
+              assert(shot1.is_ast == None)
+              assert(shot2.is_ast == Some(true))
               assert(
-                shot2.assisted_by == Some(
+                shot2.ast_by == Some(
                   LineupEvent.PlayerCodeId("KyGuy", PlayerId("Guy, Kyle"))
                 )
               )
-              assert(shot3.is_assisted == None)
-              assert(shot4.is_assisted == None)
+              assert(shot3.is_ast == None)
+              assert(shot4.is_ast == None)
               enriched_shots.foreach { shot =>
-                if (!shot.is_assisted.contains(true)) {
-                  assert(shot.assisted_by == None)
+                if (!shot.is_ast.contains(true)) {
+                  assert(shot.ast_by == None)
                 }
               }
               // Shot value
@@ -232,10 +232,10 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
               assert(shot3.value == 3)
               assert(shot4.value == 3)
               // Transition calcs
-              assert(shot1.in_transition == None)
-              assert(shot2.in_transition == None)
-              assert(shot3.in_transition == Some(true))
-              assert(shot4.in_transition == None)
+              assert(shot1.is_trans == None)
+              assert(shot2.is_trans == None)
+              assert(shot3.is_trans == Some(true))
+              assert(shot4.is_trans == None)
 
           }
         }
@@ -251,7 +251,7 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
           // First: quick check for shot being before lineup:
           val before_stashed_lineups = List(lineup2, lineup3)
           val before_lineup_res = find_lineup(
-            base_shot_event.copy(shot_min = 2.5),
+            base_shot_event.copy(min = 2.5),
             curr_pbp = None,
             before_stashed_lineups,
             Iterator()
@@ -270,45 +270,45 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
           val test_scenarios =
             List(
               Scenario(
-                base_shot_event.copy(shot_min = 0.0),
+                base_shot_event.copy(min = 0.0),
                 Some(lineup1)
               ),
               Scenario(
-                base_shot_event.copy(shot_min = 1.0),
+                base_shot_event.copy(min = 1.0),
                 Some(lineup1)
               ),
               Scenario(
-                base_shot_event.copy(shot_min = 5.0),
+                base_shot_event.copy(min = 5.0),
                 Some(lineup1)
               ),
               Scenario(
-                base_shot_event.copy(shot_min = 5.1),
+                base_shot_event.copy(min = 5.1),
                 Some(lineup2)
               ),
               Scenario(
-                base_shot_event.copy(shot_min = 10.0),
+                base_shot_event.copy(min = 10.0),
                 Some(lineup2)
               ),
               Scenario(
-                base_shot_event.copy(shot_min = 10.5),
+                base_shot_event.copy(min = 10.5),
                 Some(lineup3)
               ),
               Scenario(
-                base_shot_event.copy(shot_min = 15.0),
+                base_shot_event.copy(min = 15.0),
                 Some(lineup3)
               ),
               Scenario(
-                base_shot_event.copy(shot_min = 15.0),
+                base_shot_event.copy(min = 15.0),
                 Some(lineup3)
               ),
               Scenario(
-                base_shot_event.copy(shot_min = 25.0),
+                base_shot_event.copy(min = 25.0),
                 expected_lineup = None,
                 expected_stash = List(lineup_post_gap),
                 expected_iterator_remaining = false
               ),
               Scenario(
-                base_shot_event.copy(shot_min = 40.0),
+                base_shot_event.copy(min = 40.0),
                 expected_lineup = None,
                 expected_iterator_remaining = false
               )
@@ -363,7 +363,7 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
                 stashing_result == (scenario.expected_lineup, scenario.expected_lineup.toList ++ remaining_stash)
               )
               assert( // (check the iterator is only used at the very end, until then only the stash)
-                stashing_lineup_it.hasNext == scenario.shot.shot_min < 40.0
+                stashing_lineup_it.hasNext == scenario.shot.min < 40.0
               )
             }
           }
@@ -380,7 +380,7 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
           )
           val scenario_1_it = List(scenario_1_lineup_1, box_lineup).iterator
           val scenario_1_result = find_lineup(
-            base_shot_event.copy(shot_min = 5.0, is_off = true),
+            base_shot_event.copy(min = 5.0, is_off = true),
             Some(base_team_pbp.copy(min = 5.0)),
             curr_lineups = Nil,
             scenario_1_it
@@ -414,7 +414,7 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
           val scenario_2_it =
             List(scenario_2_lineup_1, scenario_2_lineup_2, box_lineup).iterator
           val scenario_2_result = find_lineup(
-            base_shot_event.copy(shot_min = 5.0, is_off = false),
+            base_shot_event.copy(min = 5.0, is_off = false),
             Some(base_team_pbp.copy(min = 5.0)),
             curr_lineups = Nil,
             scenario_2_it
@@ -448,7 +448,7 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
               scenario_3_lineup_3
             ).iterator
           val scenario_3_result = find_lineup(
-            base_shot_event.copy(shot_min = 5.0, is_off = false),
+            base_shot_event.copy(min = 5.0, is_off = false),
             Some(base_team_pbp.copy(min = 5.0)),
             curr_lineups = Nil,
             scenario_3_it
@@ -494,21 +494,21 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
           )
           val test_scenarios = List(
             Scenario(
-              base_shot_event.copy(shot_min = 5.0),
+              base_shot_event.copy(min = 5.0),
               pbp_curr = Nil,
               pbp_remaining = Nil,
               next = None,
               expected = (Nil, None)
             ),
             Scenario(
-              base_shot_event.copy(shot_min = 5.0),
+              base_shot_event.copy(min = 5.0),
               pbp_curr = Nil,
               pbp_remaining = List(base_team_pbp.copy(min = 10.0)),
               next = None,
               expected = (Nil, Some(base_team_pbp.copy(min = 10.0)))
             ),
             Scenario(
-              base_shot_event.copy(shot_min = 5.0),
+              base_shot_event.copy(min = 5.0),
               pbp_curr = Nil,
               pbp_remaining = List(
                 base_team_pbp.copy(min = 2.5),
@@ -526,7 +526,7 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
               )
             ),
             Scenario(
-              base_shot_event.copy(shot_min = 5.0),
+              base_shot_event.copy(min = 5.0),
               pbp_curr = Nil,
               pbp_remaining = List(
                 base_team_pbp.copy(min = 5.0),
@@ -544,7 +544,7 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
               )
             ),
             Scenario(
-              base_shot_event.copy(shot_min = 5.0),
+              base_shot_event.copy(min = 5.0),
               pbp_curr = List(
                 base_team_pbp.copy(min = 5.0),
                 base_team_pbp.copy(min = 5.0)
@@ -562,7 +562,7 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
               )
             ),
             Scenario(
-              base_shot_event.copy(shot_min = 10.0),
+              base_shot_event.copy(min = 10.0),
               pbp_curr = Nil,
               pbp_remaining = List(
                 base_team_pbp.copy(min = 10.0),
@@ -577,7 +577,7 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
               )
             ),
             Scenario(
-              base_shot_event.copy(shot_min = 5.0),
+              base_shot_event.copy(min = 5.0),
               pbp_curr = List(
                 base_team_pbp.copy(min = 5.0),
                 base_team_pbp.copy(min = 5.0)
@@ -594,7 +594,7 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
             ),
             // Test removing old events from curr:
             Scenario(
-              base_shot_event.copy(shot_min = 8.0),
+              base_shot_event.copy(min = 8.0),
               pbp_curr = List(
                 base_team_pbp.copy(min = 7.0)
               ),
@@ -610,7 +610,7 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
           )
           test_scenarios.zipWithIndex.foreach { case (scenario, test_num) =>
             val result = find_pbp_clump(
-              scenario.shot.shot_min,
+              scenario.shot.min,
               scenario.pbp_remaining.iterator,
               scenario.pbp_curr,
               scenario.next
@@ -686,7 +686,7 @@ object PlayByPlayUtilsTests extends TestSuite with PlayByPlayUtils {
                 base_shot_event
                   .copy(
                     is_off = scenario.is_off,
-                    shooter = box_players.headOption
+                    player = box_players.headOption
                   ),
                 base_team_pbp.copy(event_string = scenario.ev_str),
                 tidy_ctx,

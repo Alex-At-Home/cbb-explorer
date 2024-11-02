@@ -36,10 +36,12 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
   }
   def event_formatter(in: ShotEvent): ShotEvent =
     in.copy(
-      shot_min = double_formatter(in.shot_min),
+      min = double_formatter(in.min),
       raw_event = None, // (we only use this for debug)
-      x = double_formatter(in.x),
-      y = double_formatter(in.y),
+      loc = ShotEvent.ShotLocation(
+        x = double_formatter(in.loc.x),
+        y = double_formatter(in.loc.y)
+      ),
       dist = double_formatter(in.dist)
     )
 
@@ -119,17 +121,15 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
       "parse_shot_html" - {
         val base_event_1 =
           build_base_event(box_lineup).copy(
-            x = 310.2,
-            y = 235,
-            shot_min = 13.08,
-            shooter = Some(box_players.head),
+            loc = ShotEvent.ShotLocation(x = 310.2, y = 235),
+            min = 13.08,
+            player = Some(box_players.head),
             score = Game.Score(9, 6)
           )
         val base_event_2 = build_base_event(box_lineup).copy(
-          x = 629.8000000000001,
-          y = 185,
-          shot_min = 4.46,
-          shooter =
+          loc = ShotEvent.ShotLocation(x = 629.8000000000001, y = 185),
+          min = 4.46,
+          player =
             Some(LineupEvent.PlayerCodeId("KaClary", PlayerId("Clary, Kanye"))),
           score = Game.Score(25, 20),
           is_off = false,
@@ -160,7 +160,7 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
             """,
             base_event_1.copy(
               is_off = true, // (also checks that team is correctly extracted)
-              shooter = Some(
+              player = Some(
                 LineupEvent
                   .PlayerCodeId(
                     "Ru(deuce)Dean",
@@ -348,35 +348,33 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
 
         val test_scenarios = List(
           TestScenario(
-            List(1 -> base_event.copy(shot_min = 9.0)),
+            List(1 -> base_event.copy(min = 9.0)),
             false // (not enough periods)
           ),
           TestScenario(
             List(
-              1 -> base_event.copy(shot_min =
-                11.0
-              ), // shot taken before quarter
+              1 -> base_event.copy(min = 11.0), // shot taken before quarter
               // (only shots in 3 quarters),
-              3 -> base_event.copy(shot_min = 9.0),
-              4 -> base_event.copy(shot_min = 9.0)
+              3 -> base_event.copy(min = 9.0),
+              4 -> base_event.copy(min = 9.0)
             ),
             false // (shot taken before quarter)
           ),
           TestScenario(
             List(
-              1 -> base_event.copy(shot_min = 9.0),
-              2 -> base_event.copy(shot_min = 9.0),
-              3 -> base_event.copy(shot_min = 9.0),
-              3 -> base_event.copy(shot_min = 9.0)
+              1 -> base_event.copy(min = 9.0),
+              2 -> base_event.copy(min = 9.0),
+              3 -> base_event.copy(min = 9.0),
+              3 -> base_event.copy(min = 9.0)
             ),
             false // (not enough periods)
           ),
           TestScenario(
             List(
-              1 -> base_event.copy(shot_min = 9.0),
-              2 -> base_event.copy(shot_min = 9.0),
-              3 -> base_event.copy(shot_min = 9.0),
-              4 -> base_event.copy(shot_min = 9.0)
+              1 -> base_event.copy(min = 9.0),
+              2 -> base_event.copy(min = 9.0),
+              3 -> base_event.copy(min = 9.0),
+              4 -> base_event.copy(min = 9.0)
             ),
             true
           )
@@ -388,12 +386,12 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
       "get_ascending_time" - {
         // Women's games
         List(
-          (get_ascending_time(base_event.copy(shot_min = 4.0), 1, true), 6.0),
-          (get_ascending_time(base_event.copy(shot_min = 6.0), 2, true), 14.0),
-          (get_ascending_time(base_event.copy(shot_min = 1.0), 3, true), 29.0),
-          (get_ascending_time(base_event.copy(shot_min = 8.0), 4, true), 32.0),
-          (get_ascending_time(base_event.copy(shot_min = 2.0), 5, true), 43.0),
-          (get_ascending_time(base_event.copy(shot_min = 0.0), 6, true), 50.0)
+          (get_ascending_time(base_event.copy(min = 4.0), 1, true), 6.0),
+          (get_ascending_time(base_event.copy(min = 6.0), 2, true), 14.0),
+          (get_ascending_time(base_event.copy(min = 1.0), 3, true), 29.0),
+          (get_ascending_time(base_event.copy(min = 8.0), 4, true), 32.0),
+          (get_ascending_time(base_event.copy(min = 2.0), 5, true), 43.0),
+          (get_ascending_time(base_event.copy(min = 0.0), 6, true), 50.0)
         ).foreach {
           TestUtils.inside(_) { case (result, expected) =>
             assert(result == expected)
@@ -401,10 +399,10 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
         }
         // Men's games
         List(
-          (get_ascending_time(base_event.copy(shot_min = 4.0), 1, false), 16.0),
-          (get_ascending_time(base_event.copy(shot_min = 6.0), 2, false), 34.0),
-          (get_ascending_time(base_event.copy(shot_min = 1.0), 3, false), 44),
-          (get_ascending_time(base_event.copy(shot_min = 4.0), 4, false), 46.0)
+          (get_ascending_time(base_event.copy(min = 4.0), 1, false), 16.0),
+          (get_ascending_time(base_event.copy(min = 6.0), 2, false), 34.0),
+          (get_ascending_time(base_event.copy(min = 1.0), 3, false), 44),
+          (get_ascending_time(base_event.copy(min = 4.0), 4, false), 46.0)
         ).foreach {
           TestUtils.inside(_) { case (result, expected) =>
             assert(result == expected)
@@ -412,36 +410,36 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
         }
       }
       "is_team_shooting_left_to_start" - {
+        val switched_x_base_event =
+          base_event.copy(loc = base_event.loc.copy(x = 1000))
         val test_case_1 = List(
           1 -> base_event,
           1 -> base_event,
           1 -> base_event,
-          1 -> base_event.copy(x = 1000),
-          1 -> base_event.copy(
-            x = 1000,
+          1 -> switched_x_base_event,
+          1 -> switched_x_base_event.copy(
             is_off = false
           ), // (these will all be ignored because they are not offensive)
-          1 -> base_event.copy(x = 1000, is_off = false),
-          1 -> base_event.copy(x = 1000, is_off = false),
-          1 -> base_event.copy(x = 1000, is_off = false),
-          1 -> base_event.copy(x = 1000, is_off = false),
-          1 -> base_event.copy(x = 1000, is_off = false),
-          2 -> base_event.copy(x =
-            1000
-          ), // (these will all be ignored because they are in period 2)
-          2 -> base_event.copy(x = 1000),
-          2 -> base_event.copy(x = 1000),
-          2 -> base_event.copy(x = 1000),
-          2 -> base_event.copy(x = 1000),
-          2 -> base_event.copy(x = 1000)
+          1 -> switched_x_base_event.copy(is_off = false),
+          1 -> switched_x_base_event.copy(is_off = false),
+          1 -> switched_x_base_event.copy(is_off = false),
+          1 -> switched_x_base_event.copy(is_off = false),
+          1 -> switched_x_base_event.copy(is_off = false),
+          // (these will all be ignored because they are in period 2)
+          2 -> switched_x_base_event,
+          2 -> switched_x_base_event,
+          2 -> switched_x_base_event,
+          2 -> switched_x_base_event,
+          2 -> switched_x_base_event,
+          2 -> switched_x_base_event
         )
         assert(is_team_shooting_left_to_start(test_case_1) == (true, 1))
 
         val test_case_2 = test_case_1.map { case (period, event) =>
-          if (event.x > 800)
-            (period, event.copy(x = 300))
+          if (event.loc.x > 800)
+            (period, event.copy(loc = base_event.loc.copy(x = 300)))
           else
-            (period, event.copy(x = 1000))
+            (period, event.copy(loc = base_event.loc.copy(x = 1000)))
         }
         assert(is_team_shooting_left_to_start(test_case_2) == (false, 1))
       }
@@ -450,32 +448,47 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
         val test_case = List(
           1 -> base_event,
           1 -> base_event.copy(
-            x = ShotMapDimensions.court_length_x_px - base_event.x,
-            y = ShotMapDimensions.court_width_y_px - base_event.y,
+            loc = ShotEvent
+              .ShotLocation(
+                x = ShotMapDimensions.court_length_x_px - base_event.loc.x,
+                y = ShotMapDimensions.court_width_y_px - base_event.loc.y
+              ),
             is_off = false // (will convert back to the same location)
           ),
           2 -> base_event.copy(
-            x = ShotMapDimensions.court_length_x_px - base_event.x,
-            y = ShotMapDimensions.court_width_y_px - base_event.y
+            loc = ShotEvent
+              .ShotLocation(
+                x = ShotMapDimensions.court_length_x_px - base_event.loc.x,
+                y = ShotMapDimensions.court_width_y_px - base_event.loc.y
+              )
           ), // (2nd period so will be the same location)
           2 -> base_event.copy(
-            x = base_event.x,
-            y = base_event.y,
+            loc = ShotEvent
+              .ShotLocation(
+                x = base_event.loc.x,
+                y = base_event.loc.y
+              ),
             is_off = false // (2nd period so will be the same location)
           ),
           // Some edge cases:
           // error checker will flip this back again because it's dist will be silly:
           2 -> base_event.copy(
-            x = ShotMapDimensions.court_length_x_px - base_event.x,
-            y = ShotMapDimensions.court_width_y_px - base_event.y,
+            loc = ShotEvent
+              .ShotLocation(
+                x = ShotMapDimensions.court_length_x_px - base_event.loc.x,
+                y = ShotMapDimensions.court_width_y_px - base_event.loc.y
+              ),
             is_off = false
           ),
           // error checker will ignore this one because it could be a half court heave
           2 -> base_event.copy(
-            x = ShotMapDimensions.court_length_x_px - base_event.x,
-            y = ShotMapDimensions.court_width_y_px - base_event.y,
+            loc = ShotEvent
+              .ShotLocation(
+                x = ShotMapDimensions.court_length_x_px - base_event.loc.x,
+                y = ShotMapDimensions.court_width_y_px - base_event.loc.y
+              ),
             is_off = false,
-            shot_min = 0.05
+            min = 0.05
           )
         )
 
@@ -484,8 +497,11 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
         // (reminder pixel x and y are: cx="310.2" cy="235")
         val transformed_base_event = event_formatter(
           base_event.copy(
-            x = 26.02,
-            y = 1.5,
+            loc = ShotEvent
+              .ShotLocation(
+                x = 26.02,
+                y = 1.5
+              ),
             dist = 26.060000000000002
           )
         )
@@ -500,23 +516,23 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
                 t_event_5,
                 t_event_6
               ) =>
-            assert(t_event_1 == transformed_base_event.copy(shot_min = 6.91))
+            assert(t_event_1 == transformed_base_event.copy(min = 6.91))
             assert(
               t_event_2 == transformed_base_event.copy(
-                shot_min = 6.91,
+                min = 6.91,
                 is_off = false
               )
             )
-            assert(t_event_3 == transformed_base_event.copy(shot_min = 26.91))
+            assert(t_event_3 == transformed_base_event.copy(min = 26.91))
             assert(
               t_event_4 == transformed_base_event.copy(
-                shot_min = 26.91,
+                min = 26.91,
                 is_off = false
               )
             )
             assert(
               t_event_5 == transformed_base_event.copy(
-                shot_min = 26.91,
+                min = 26.91,
                 is_off = false
               )
             )
@@ -524,16 +540,16 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
         }
         TestUtils.inside(
           transform_shot_location(
-            x = ShotMapDimensions.court_length_x_px - base_event.x,
-            y = ShotMapDimensions.court_width_y_px - base_event.y,
+            x = ShotMapDimensions.court_length_x_px - base_event.loc.x,
+            y = ShotMapDimensions.court_width_y_px - base_event.loc.y,
             second_half_switch = false, // (1st period)
             team_shooting_left_in_first_period =
               false, // (just want to check this case)
             is_offensive = true
           )
         ) { case (result_x, result_y, _, _) =>
-          assert(double_formatter(result_x) == transformed_base_event.x)
-          assert(double_formatter(result_y) == transformed_base_event.y)
+          assert(double_formatter(result_x) == transformed_base_event.loc.x)
+          assert(double_formatter(result_y) == transformed_base_event.loc.y)
         }
       }
     }

@@ -456,6 +456,25 @@ trait ShotEventParser {
               min = ascending_time
             )
           }
+
+        // Create a fake geo for the points (converting ft to meters to give our 64b floats a better
+        // resolution. We do this because there's lots more visualizations and aggregations for geo)
+        val BASE_LAT = 40.750298
+        val BASE_LON = -73.993324
+        val `PI/180` = Math.PI / 180.0
+        val `180/PI` = 1.0 / `PI/180`
+        val EARTH_RADIUS = 6371000.0
+        val shot_lat = BASE_LAT + (trans_shot.loc.y / EARTH_RADIUS) * `180/PI`
+        val eff_radius = EARTH_RADIUS * Math.cos(shot_lat * `PI/180`)
+        val shot_lon = BASE_LON + (trans_shot.loc.y / eff_radius) * `180/PI`
+
+        val trans_shot_with_geo = trans_shot.copy(
+          geo = ShotEvent.ShotGeo(
+            lat = shot_lat,
+            lon = shot_lon
+          )
+        )
+
         // (note: we use "dist" to look for long shots, because that way we can look for systemtically
         // bad periods where the court is flipped)
         state.copy(
@@ -465,7 +484,7 @@ trait ShotEventParser {
             state.long_shots + (period -> (state.long_shots
               .getOrElse(period, 0) + 1))
           else state.long_shots,
-          shots = state.shots ++ List(trans_shot)
+          shots = state.shots ++ List(trans_shot_with_geo)
         )
     }
     val maybe_problem_periods = results.long_shots.filter {

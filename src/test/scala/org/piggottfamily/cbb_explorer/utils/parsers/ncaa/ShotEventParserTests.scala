@@ -502,6 +502,11 @@ object ShotEventParserTests extends TestSuite with ShotEventParser {
                 x = 26.02,
                 y = 1.5
               ),
+            geo = ShotEvent
+              .ShotGeo(
+                lat = 40.75031148982409,
+                lon = -73.99330619309556
+              ),
             dist = 26.060000000000002
           )
         )

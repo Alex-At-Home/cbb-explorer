@@ -466,7 +466,7 @@ trait ShotEventParser {
         val EARTH_RADIUS = 6371000.0
         val shot_lat = BASE_LAT + (trans_shot.loc.y / EARTH_RADIUS) * `180/PI`
         val eff_radius = EARTH_RADIUS * Math.cos(shot_lat * `PI/180`)
-        val shot_lon = BASE_LON + (trans_shot.loc.y / eff_radius) * `180/PI`
+        val shot_lon = BASE_LON + (trans_shot.loc.x / eff_radius) * `180/PI`
 
         val trans_shot_with_geo = trans_shot.copy(
           geo = ShotEvent.ShotGeo(

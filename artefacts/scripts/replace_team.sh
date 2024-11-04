@@ -8,7 +8,7 @@
 
 REPROCESS=${REDOWNLOAD:="yes"}
 REDOWNLOAD=${REDOWNLOAD:="no"}
-CURR_YEAR_STR=${CURR_YEAR_STR:="2022_23"}
+CURR_YEAR_STR=${CURR_YEAR_STR:="2024_25"}
 CURR_YEAR=$(echo $CURR_YEAR_STR | cut -c1-4)
 
 if [[ "$REDOWNLOAD" == "yes" ]] && [[ "$CURR_YEAR_STR" == "" ]]; then

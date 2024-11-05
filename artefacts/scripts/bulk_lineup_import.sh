@@ -27,7 +27,8 @@ export CURR_TIME=${CURR_TIME:=$(date +"%s")}
 export CURR_YEAR_STR=${CURR_YEAR_STR:="2024_25"}
 export CURR_YEAR=$(echo $CURR_YEAR_STR | cut -c1-4)
 
-export CONFS=${CONFS:="acc american atlanticten bigeast bigten bigtwelve pactwelve sec wcc mountainwest mvc conferenceusa mac socon sunbelt bigsky colonial summit americaeast atlanticsun bigsouth bigwest horizon ivy maac meac nec ovc patriot southland swac wac women_acc women_american women_bigeast women_bigten women_bigtwelve women_pactwelve women_sec women_misc_conf"}
+# TOOD: removed pactwelve / women_pactwelve for now
+export CONFS=${CONFS:="acc american atlanticten bigeast bigten bigtwelve sec wcc mountainwest mvc conferenceusa mac socon sunbelt bigsky colonial summit americaeast atlanticsun bigsouth bigwest horizon ivy maac meac nec ovc patriot southland swac wac women_acc women_american women_bigeast women_bigten women_bigtwelve women_sec women_misc_conf"}
 #export CONFS=${CONFS:="acc american atlanticten bigeast bigten bigtwelve pactwelve sec misc_conf"}
 #export CONFS=${CONFS:="women_acc women_american women_bigeast women_bigten women_bigtwelve women_pactwelve women_sec women_misc_conf"}
 #export CONFS=${CONFS:="wcc mountainwest mvc conferenceusa mac socon sunbelt bigsky colonial summit"}
@@ -52,7 +53,7 @@ for i in $CONFS; do
 
     # Some error checking for a common httrack/server issue that crops up:
     # (see also daily_cbb_import.sh - but this version fixes it on the fly)
-    if grep -F "************ ERRORS" $PBP_OUT_DIR/tmp_download_logs.txt; then
+    if grep -q -F "************ ERRORS" $PBP_OUT_DIR/tmp_download_logs.txt; then
       echo "Found errors in PBP downloads, see [$PBP_OUT_DIR/tmp_download_errs_$i.txt]"
       grep -F "************ ERRORS" $PBP_OUT_DIR/tmp_download_logs.txt |  cut -d" " -f3 > $PBP_OUT_DIR/tmp_download_errs_$i.txt
       for err_file in $(cat $PBP_OUT_DIR/tmp_download_errs_$i.txt); do
@@ -63,8 +64,15 @@ for i in $CONFS; do
           export ERR_LINK=$(cat /tmp/cbb-explorer-tofix | head -n 1)
           echo "Found fixable issue: [zip -d $ERR_DIR/hts-cache/new.zip $ERR_LINK]"
           zip -d $ERR_DIR/hts-cache/new.zip $ERR_LINK
-          echo "Now retry download (ignoring any further errors until next run)"
-          $PBP_SRC_ROOT/artefacts/httrack-scripts/conf-years/${i}/${CURR_YEAR_STR}/lineups-cli.sh
+          echo "Now retry download (ignoring any further errors until next run) after a 10m wait"
+          sleep 600
+          $PBP_SRC_ROOT/artefacts/httrack-scripts/conf-years/${i}/${CURR_YEAR_STR}/lineups-cli.sh \
+            | tee $PBP_OUT_DIR/tmp_download_logs_2.txt
+
+          if ! grep -q -F "************ ERRORS" $PBP_OUT_DIR/tmp_download_logs_2.txt; then
+            echo "************ ERRORS: FIXED [$PBP_OUT_DIR/tmp_download_errs_$i.txt]"
+          fi
+          rm -f $PBP_OUT_DIR/tmp_download_logs_2.txt
         fi
       done
     fi

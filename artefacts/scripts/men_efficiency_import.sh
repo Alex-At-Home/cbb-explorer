@@ -8,6 +8,8 @@ if [[ "$TO_UPLOAD" != "" ]]; then
 
    curl "$EFF_TRIGGER_UPLOAD" --data-binary @$HOME/Downloads/$TO_UPLOAD
    echo
+   #(remove file so don't spuriously reprocess)
+   rm $HOME/Downloads/$TO_UPLOAD
 
 else
    echo "men_efficiency_import: Nothing to upload"

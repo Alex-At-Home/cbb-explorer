@@ -4,7 +4,7 @@ TO_DOWNLOAD=$HOME/Downloads/2024_team_results.csv
 rm -f $TO_DOWNLOAD
 curl -o $TO_DOWNLOAD 'https://barttorvik.com/ncaaw/2024_team_results.csv'
 
-TO_UPLOAD=$(ls -t $HOME/Downloads/ | grep -E "2024_team_results[.]csv" | head -n 1)
+TO_UPLOAD=$(ls -t $HOME/Downloads/ | grep -E "^2024_team_results[.]csv" | head -n 1)
 if [[ "$TO_UPLOAD" != "" ]]; then
    NUM_LINES=$(wc -l $HOME/Downloads/$TO_UPLOAD | awk '{ print $1 }')
    echo "women_efficiency_import: Uploading [$NUM_LINES] teams from [$HOME/Downloads/$TO_UPLOAD]"

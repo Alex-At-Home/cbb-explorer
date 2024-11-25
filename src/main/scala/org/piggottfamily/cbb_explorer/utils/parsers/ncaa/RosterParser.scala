@@ -96,7 +96,9 @@ trait RosterParser {
       (el >?> element("td:eq(6)")).map(_.text)
 
     def class_finder(el: Element): Option[String] =
-      (el >?> element("td:eq(4)")).map(_.text)
+      (el >?> element("td:eq(4)")).map(
+        _.text.replace(".", "")
+      ) // (remove trailing ".")
 
     def games_played_finder(el: Element): Option[String] =
       (el >?> element("td:eq(0)")).map(_.text)

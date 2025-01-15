@@ -5,7 +5,6 @@ source $PBP_SRC_ROOT/artefacts/httrack-scripts/v1_import.sh
 YEAR=2024
 CONF=american
 array=(
-   '663.0/16700::SMU'
    '782.0/16700::Wichita+St.'
    '404.0/16700::Memphis'
    '196.0/16700::East+Carolina'

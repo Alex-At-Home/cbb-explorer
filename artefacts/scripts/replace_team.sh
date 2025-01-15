@@ -4,9 +4,9 @@
 # optionally set REDOWNLOAD="yes" to redownload
 # optionally set REPROCESS="no" to skip the parsing (eg if you are going to do it later)
 # DRY_RUN=yes to ignore
-# eg PING="lpong" CURR_TIME="12" TEAM_NAME="Alabama A&M" TEAM_NAME_URL="Alabama+A%26M" CURR_YEAR_STR="2021_22" CONF_YEAR="swac" DRY_RUN="yes" 
+# eg PING="lpong" CURR_TIME="12" TEAM_NAME="Alabama A&M" TEAM_NAME_URL="Alabama+A%26M" CURR_YEAR_STR="2021_22" CONF="swac" DRY_RUN="yes" 
 
-REPROCESS=${REDOWNLOAD:="yes"}
+REPROCESS=${REPROCESS:="yes"}
 REDOWNLOAD=${REDOWNLOAD:="no"}
 CURR_YEAR_STR=${CURR_YEAR_STR:="2024_25"}
 CURR_YEAR=$(echo $CURR_YEAR_STR | cut -c1-4)
@@ -21,7 +21,7 @@ if [[ "$REPROCESS" == "yes" ]]; then
         exit -1
     fi
 else
-    if [[ "$TEAM_NAME" == "" ]]
+    if [[ "$TEAM_NAME" == "" ]]; then
         echo "Must specify TEAM_NAME [${TEAM_NAME}]"
         exit -1
     fi

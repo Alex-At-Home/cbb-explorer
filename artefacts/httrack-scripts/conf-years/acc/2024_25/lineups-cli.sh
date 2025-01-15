@@ -22,6 +22,7 @@ array=(
    '147.0/16700::Clemson'
    '107.0/16700::California'
    '674.0/16700::Stanford'
+   '663.0/16700::SMU'
 )
 
 import_data_v1 "$YEAR" "$CONF" "${array[@]}"

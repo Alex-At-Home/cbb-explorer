@@ -158,6 +158,10 @@ object DataQualityIssues {
         // Wrong in the PBP, 2018/19
         "CHA,ISAIAH POOR" -> "Poor Bear-Chandler, Isaiah"
       ),
+      Option(TeamId("LSU")) -> Map( // (SEC)
+        // Wrong in the PBP, W 2024/125
+        "Johnson, Flau'Jae" -> "Johnson, Flau'jae"
+      ),
 
       /////////////////////////////////
 

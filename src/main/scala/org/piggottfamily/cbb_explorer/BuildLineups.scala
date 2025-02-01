@@ -23,6 +23,9 @@ object BuildLineups {
         |[--team]=<<only include teams containing this string>>
         |[--full] (includes player in/out and raw events)
         |[--player-events] (includes player events in a separate file)
+        |[--shot-events] (includes shot chart events in a separate file)
+        |[--defense-events] (includes defensive events in a separate file, every 100 possessions is actually 1)
+        |[--roster-dir=<<roster-dir>>] (Points to the path for the roster info for defense)
         |[--from=<<filter-files-before-this-unix-timestamp>>]
         """)
       System.exit(-1)
@@ -51,6 +54,15 @@ object BuildLineups {
 
     val include_shot_events = // (only with v1 lineup formats)
       args.toList.map(_.trim).exists(_ == "--shot-events")
+
+    val include_defense_events =
+      args.toList.map(_.trim).exists(_ == "--defense-events")
+
+    val maybe_roster_dir = args
+      .map(_.trim)
+      .filter(_.startsWith("--roster-dir="))
+      .headOption
+      .map(_.split("=", 2)(1))
 
     val maybe_filter = args
       .map(_.trim)
@@ -107,6 +119,7 @@ object BuildLineups {
             val team_dir = subdir / "stats.ncaa.org"
             val decoded_team_name =
               URLDecoder.decode(team_name.replace("+", " "))
+
             ncaa_lineup_controller.build_team_lineups(
               team_dir,
               TeamId(decoded_team_name),

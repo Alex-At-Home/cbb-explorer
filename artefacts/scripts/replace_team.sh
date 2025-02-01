@@ -79,6 +79,7 @@ else
     echo "URL1: https://$ELASTIC_URL/${CONF}_${CURR_YEAR}/_delete_by_query"
     echo "URL2: https://$ELASTIC_URL/player_events${MAYBE_MEN}_${CONF}_${CURR_YEAR}/_delete_by_query"
     echo "URL3: https://$ELASTIC_URL/bad_lineups_${GENDER}_$CURR_YEAR/_delete_by_query"
+    echo "Team Name: [$TEAM_NAME]"
     if [[ "$REPROCESS" == "yes" ]]; then
         echo "PING=\"$PING\" CURR_TIME=\"$CURR_TIME\" DOWNLOAD=\"$REDOWNLOAD\" PARSE=\"yes\" UPLOAD=\"yes\" CURR_YEAR_STR=\"$CURR_YEAR_STR\" TEAM_FILTER=\"=$TEAM_NAME_URL\" CONFS=\"$CONF\""
     fi

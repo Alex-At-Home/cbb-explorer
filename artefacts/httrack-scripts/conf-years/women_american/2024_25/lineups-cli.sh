@@ -12,7 +12,6 @@ array=(
    '404.0/16720::Memphis'
    '196.0/16720::East+Carolina'
    '719.0/16720::Tulsa'
-   '663.0/16720::SMU'
    #(missing some schools taken from C-USA)
 )
 

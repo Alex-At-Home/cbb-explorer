@@ -72,7 +72,7 @@ if [[ "$DRY_RUN" != "yes" ]]; then
     if [[ "$REPROCESS" == "yes" ]]; then
         echo "Re-uploading data"
 
-        PING="$PING" CURR_TIME="$CURR_TIME" DOWNLOAD="$REDOWNLOAD" PARSE="yes" UPLOAD="yes" CURR_YEAR_STR="$CURR_YEAR_STR" TEAM_FILTER="=$TEAM_NAME_URL" CONFS="$CONF" $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh 
+        PING="$PING" CURR_TIME="$CURR_TIME" DOWNLOAD="$REDOWNLOAD" PARSE="yes" UPLOAD="yes" CURR_YEAR_STR="$CURR_YEAR_STR" TEAM_FILTER="=$TEAM_NAME_URL" CONFS="$CONF" CLOSE_EOF=true $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh 
     fi
 else
     echo "(Dry Run)"

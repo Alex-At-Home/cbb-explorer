@@ -202,6 +202,12 @@ object DataQualityIssues {
         "Darius, Dominique" -> "Onu, Dominique",
         "Dominique Darius" -> "Onu, Dominique"
       ),
+      Option(TeamId("Florida")) -> Map( // (SEC)
+        (
+          // Married during the season, switch to married name
+          alias_combos(("Alexia", "Mobley") -> "Gassett, Alexia")
+        ): _*
+      ),
 
       /////////////////////////////////
 

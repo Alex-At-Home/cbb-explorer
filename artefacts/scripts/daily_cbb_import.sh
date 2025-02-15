@@ -194,10 +194,11 @@ if [[ "$BUILD_LEADERBOARDS" == "yes" ]] || [[ "$BUILD_LEADERBOARDS" = "cron" && 
 
    # compress all the files
    for i in $(ls ./public/leaderboards/lineups/*2024_[HLMC]*.json); do
-      gzip $i
+      gzip -k $i
    done
+   #(note we keep the old files around so that local features that need them don't need to go to GCS)
 
-   # Upload to GCS (and delete on success) - (High/Med/Low/Combo but not Preseason)
+   # Upload to GCS (and delete gzips on success) - (High/Med/Low/Combo but not Preseason)
    gsutil cp ./public/leaderboards/lineups/*2024_[HLMC]*.json.gz gs://$LEADERBOARD_BUCKET/ && \
       rm -f ./public/leaderboards/lineups/*2024_[HLMC]*.json.gz
 

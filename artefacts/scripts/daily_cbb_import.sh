@@ -14,6 +14,9 @@ if [[ "$OFFSEASON_MODE" == "yes" ]]; then
    export BUILD_LEADERBOARDS="no"
 fi
 
+# Use this to rebuild for a given team instead of just getting previous days games
+#export FULL_TEAM_DOWNLOAD="yes"
+
 # For some reason launchctl "randomly" runs as "root" not the user whose domain I specified
 # So we switch to alex and re-run self
 # TODO take user to run as from environment
@@ -68,7 +71,14 @@ if [[ "$DAILY_IMPORT" == "yes" ]]; then
    ############
 
    echo "daily_cbb_import: [$(date)] Download / parse / upload new data"
-   PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
+   if [ "$FULL_TEAM_DOWNLOAD" != "yes" ]; then
+      GAME_BASED_FILTER=$(date -v -1d '+%m:%d:%Y')
+      echo "Downloading only games from [$GAME_BASED_FILTER]"
+   else
+      GAME_BASED_FILTER=
+      echo "Downloading all un-downloaded games"
+   fi
+   GAME_BASED_FILTER=$GAME_BASED_FILTER PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
 
    # Check for errors (will also alert on old errors, you have to delete import_out.txt to start again)
    cat import_out.txt| grep ERRORS > tmp_alert_file.txt

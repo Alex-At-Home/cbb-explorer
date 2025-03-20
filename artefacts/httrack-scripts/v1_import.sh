@@ -21,6 +21,17 @@ import_data_v1 () {
       fi
 
       echo "$FULLTEAMID ($TEAMID) - $TEAM_NAME"
+
+      # Support for new game-based filtering (e.g. only teams with games):
+      if [ "$GAME_BASED_FILTER_FILE" != "" ]; then
+         #echo "Using [$GAME_BASED_FILTER_FILE] to check if $TEAMID has games"
+         if ! grep -q -F "_${TEAMID}_" "$GAME_BASED_FILTER_FILE"; then
+            echo "Skipping $FULLTEAMID, not in [$GAME_BASED_FILTER_FILE]"
+            continue
+         fi
+         #echo "Processing $FULLTEAMID"
+      fi
+
       #TODO: only do this if you want to remove and recalc everything, otherwise will find deltas
       #rm -rf $CONF_CRAWL_PATH
       mkdir -p $CONF_CRAWL_PATH
@@ -35,7 +46,7 @@ import_data_v1 () {
       # Old format:
       #httrack "$PBP_ROOT_URL/team/$FULLTEAMID" --continue --depth=3 --path $CONF_CRAWL_PATH --robots=0 "-*" "+$PBP_ROOT_URL/contests/*/box_score" "+$PBP_ROOT_URL/team/$SUBTEAMID/roster/$YEARID" "+$PBP_ROOT_URL/game/index/*" +"$PBP_ROOT_URL/game/box_score/*?period_no=1" +"$PBP_ROOT_URL/game/play_by_play/*"
       # New format:
-      httrack "$PBP_ROOT_URL/team/$FULLTEAMID" --continue --depth=3 --path $CONF_CRAWL_PATH --robots=0 "-*"  "+$PBP_ROOT_URL/teams/*/roster" "+$PBP_ROOT_URL/contests/*/box_score" "+$PBP_ROOT_URL/contests/*/play_by_play" "+$PBP_ROOT_URL/contests/*/individual_stats" 
+      httrack "$PBP_ROOT_URL/team/$FULLTEAMID" -c1 --continue --depth=3 --path $CONF_CRAWL_PATH --robots=0 "-*"  "+$PBP_ROOT_URL/teams/*/roster" "+$PBP_ROOT_URL/contests/*/box_score" "+$PBP_ROOT_URL/contests/*/play_by_play" "+$PBP_ROOT_URL/contests/*/individual_stats"
 
       #Check for any errors:
       ERRS=$(grep -c 'Error:' $CONF_CRAWL_PATH/hts-log.txt)

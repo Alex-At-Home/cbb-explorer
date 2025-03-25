@@ -141,6 +141,7 @@ trait RosterParser {
               None,
               "",
               -1,
+              None,
               None
             )
           }
@@ -187,7 +188,8 @@ trait RosterParser {
               height_in,
               year_class,
               Try(gp.toInt).getOrElse(0),
-              origin
+              origin,
+              None
             )).toList
           }
           .sortWith { // So below we dedup the smaller number of games played

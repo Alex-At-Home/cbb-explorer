@@ -6,6 +6,7 @@
 
 #Off season mode: do nothing except keep track of transfers
 export OFFSEASON_MODE="no"
+export INSEASON_PORTAL_TRACKING="yes" #(set to "yes" one portal szn starts)
 export PRESEASON_LEADERBOARD_MODE="no" #(this is "no" until it settles down a bit, say mid April)
 if [[ "$OFFSEASON_MODE" == "yes" ]]; then
    echo "In Off-season mode, will just keep track of transfers"
@@ -141,8 +142,10 @@ cd $HOOPEXP_SRC_DIR
 source .env
 
 #Hack: during the end of the regular season also sort transfers out
-#IGNORE_NBA="yes" \
-#   sh $PBP_SRC_ROOT/artefacts/scripts/build_transfer_filter.sh | grep -v "LineupErrorAnalysisUtils"
+if [[ "$INSEASON_PORTAL_TRACKING" == "yes" ]]; then
+   IGNORE_NBA="yes" \
+      sh $PBP_SRC_ROOT/artefacts/scripts/build_transfer_filter.sh | grep -v "LineupErrorAnalysisUtils"
+fi
 
 if [[ "$DAILY_IMPORT" == "yes" ]]; then
    # If we've made any changes so far then redeploy

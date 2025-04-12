@@ -5,8 +5,8 @@
 #(ATTN: Before starting the off-season - there are some 2024 literals that need to be fixed)
 
 #Off season mode: do nothing except keep track of transfers
-export OFFSEASON_MODE="no"
-export INSEASON_PORTAL_TRACKING="yes" #(set to "yes" one portal szn starts)
+export OFFSEASON_MODE="yes"
+export INSEASON_PORTAL_TRACKING="no" #(set to "yes" one portal szn starts)
 export PRESEASON_LEADERBOARD_MODE="no" #(this is "no" until it settles down a bit, say mid April)
 if [[ "$OFFSEASON_MODE" == "yes" ]]; then
    echo "In Off-season mode, will just keep track of transfers"

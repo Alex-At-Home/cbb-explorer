@@ -167,7 +167,7 @@ if [[ "$OFFSEASON_MODE" == "yes" ]]; then
 
 
       #(TODO: IGNORE_NBA until this info starts getting published somewhere)
-      #IGNORE_NBA="yes" \
+      IGNORE_NBA="yes" \
       sh $PBP_SRC_ROOT/artefacts/scripts/build_transfer_filter.sh | grep -v "LineupErrorAnalysisUtils"
 
       # Now we've update the transfers, recalculate the pre-season leaderboard and update GCS with the new file

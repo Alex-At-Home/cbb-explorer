@@ -1,13 +1,16 @@
 #!/bin/bash
 # (put = in TEAM_FILTER to make it exact match vs URL-encoded string)
 
-#(ATTN: Before starting new season - there are some 2024 literals that need to be fixed)
-#(ATTN: Before starting the off-season - there are some 2024 literals that need to be fixed)
+#(ATTN: Before starting new season / off-season)
+#(also don't forget to change the code so that leaderboard stats are read locally instead of GCS)
+#(also don't forget to copy stats_all_Men_${PREV_OFFSEASON_YEAR)_Preseason.json.gz into public/leaderboards/lineups/)
+export SEASON_YEAR = "2024"
+export OFFSEASON_YEAR = "2025"
 
 #Off season mode: do nothing except keep track of transfers
 export OFFSEASON_MODE="yes"
 export INSEASON_PORTAL_TRACKING="no" #(set to "yes" one portal szn starts)
-export PRESEASON_LEADERBOARD_MODE="no" #(this is "no" until it settles down a bit, say mid April)
+export PRESEASON_LEADERBOARD_MODE="no" #(this is "no" until it settles down a bit, maybe as late as June?)
 if [[ "$OFFSEASON_MODE" == "yes" ]]; then
    echo "In Off-season mode, will just keep track of transfers"
    export DAILY_IMPORT="no"
@@ -141,7 +144,7 @@ fi
 cd $HOOPEXP_SRC_DIR
 source .env
 
-#Hack: during the end of the regular season also sort transfers out
+#Hack: during the end of the regular season also sort transfers out (always ignore NBA)
 if [[ "$INSEASON_PORTAL_TRACKING" == "yes" ]]; then
    IGNORE_NBA="yes" \
       sh $PBP_SRC_ROOT/artefacts/scripts/build_transfer_filter.sh | grep -v "LineupErrorAnalysisUtils"
@@ -156,30 +159,25 @@ fi
 # Offseason only, first thing in the morning: download transfers, update pre-season prediction
 if [[ "$OFFSEASON_MODE" == "yes" ]]; then
 
-   # This ensures the team editor mode also shows the results of the team leaderboard
-   # (I'm a bit undecided, I left it off until June in 2024)
-   PRESEASON_LEADERBOARD_MODE="yes"
-
    echo "daily_cbb_import: [$(date)] Checking whether to download transfers (offseason leaderboard [$PRESEASON_LEADERBOARD_MODE])"
-#   if [[ $(date +%H) -lt 7 ]]; then
    if [[ true ]]; then
       echo "daily_cbb_import: [$(date)] Downloading transfers"
 
 
-      #(TODO: IGNORE_NBA until this info starts getting published somewhere)
-      IGNORE_NBA="yes" \
+      #(IGNORE_NBA until this info starts getting published somewhere)
+      IGNORE_NBA="no" \
       sh $PBP_SRC_ROOT/artefacts/scripts/build_transfer_filter.sh | grep -v "LineupErrorAnalysisUtils"
 
       # Now we've update the transfers, recalculate the pre-season leaderboard and update GCS with the new file
       # Note this requires moving the "players_all_Men_${year_start}_*.json" to "./public/leaderboards/lineups/"
       if [[ "$PRESEASON_LEADERBOARD_MODE" == "yes" ]]; then
          echo "daily_cbb_import: [$(date)] Updating pre-season leaderboard"      
-         cp $PBP_OUT_DIR/transfers_2024.json $HOOPEXP_SRC_DIR
+         cp $PBP_OUT_DIR/transfers_${OFFSEASON_YEAR}.json $HOOPEXP_SRC_DIR
          BUILD_OFFSEASON_STATS_LEADERBOARD=true npm run test src/__tests__/buildOffseasonStatsLeaderboard.test.ts  -- --coverage=false
-         gzip ./stats_all_Men_2024_Preseason.json
-         gsutil cp ./stats_all_Men_2024_Preseason.json.gz gs://$LEADERBOARD_BUCKET/ && \
-            rm -f ./stats_all_Men_2024_Preseason.json.gz && \
-            rm -f $HOOPEXP_SRC_DIR/transfers_2024.json
+         gzip ./stats_all_Men_${OFFSEASON_YEAR}_Preseason.json
+         gsutil cp ./stats_all_Men_${OFFSEASON_YEAR}_Preseason.json.gz gs://$LEADERBOARD_BUCKET/ && \
+            rm -f ./stats_all_Men_${OFFSEASON_YEAR}_Preseason.json.gz && \
+            rm -f $HOOPEXP_SRC_DIR/transfers_${OFFSEASON_YEAR}.json
       fi
 
       if [[ "$OFFSEASON_MODE" == "yes" ]]; then
@@ -206,14 +204,14 @@ if [[ "$BUILD_LEADERBOARDS" == "yes" ]] || [[ "$BUILD_LEADERBOARDS" = "cron" && 
    npm run build_leaderboards -- --gender=Women --tier=High
 
    # compress all the files
-   for i in $(ls ./public/leaderboards/lineups/*2024_[HLMC]*.json); do
+   for i in $(ls ./public/leaderboards/lineups/*${SEASON_YEAR}_[HLMC]*.json); do
       gzip -k $i
    done
    #(note we keep the old files around so that local features that need them don't need to go to GCS)
 
    # Upload to GCS (and delete gzips on success) - (High/Med/Low/Combo but not Preseason)
-   gsutil cp ./public/leaderboards/lineups/*2024_[HLMC]*.json.gz gs://$LEADERBOARD_BUCKET/ && \
-      rm -f ./public/leaderboards/lineups/*2024_[HLMC]*.json.gz
+   gsutil cp ./public/leaderboards/lineups/*${SEASON_YEAR}_[HLMC]*.json.gz gs://$LEADERBOARD_BUCKET/ && \
+      rm -f ./public/leaderboards/lineups/*${SEASON_YEAR}_[HLMC]*.json.gz
 
    # Now need to redeploy _again_ to clear the cache
    sh handle-updated-data.sh

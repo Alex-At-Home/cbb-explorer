@@ -38,6 +38,7 @@ trait RosterParser {
     def player_info_finder(doc: Document): Option[List[Element]]
     def name_finder(el: Element): Option[String]
     def number_finder(el: Element): Option[String]
+    def ncaa_id_finder(el: Element): Option[String]
     def pos_finder(el: Element): Option[String]
     def height_finder(el: Element): Option[String]
     def class_finder(el: Element): Option[String]
@@ -54,6 +55,13 @@ trait RosterParser {
 
     def name_finder(el: Element): Option[String] =
       (el >?> element("td:eq(1)")).map(_.text)
+
+    def ncaa_id_finder(el: Element): Option[String] =
+      (el >?> element("td:eq(1) > a"))
+        .map(_.attr("href"))
+        .map(
+          _.split("stats_player_seq=").last
+        ) // (split guaranteed to have 1 element)
 
     def number_finder(el: Element): Option[String] =
       (el >?> element("td:eq(0)")).map(_.text)
@@ -85,6 +93,11 @@ trait RosterParser {
 
     def name_finder(el: Element): Option[String] =
       (el >?> element("td:eq(3)")).map(_.text)
+
+    def ncaa_id_finder(el: Element): Option[String] =
+      (el >?> element("td:eq(3) > a"))
+        .map(_.attr("href"))
+        .map(_.split("/").last) // (split guaranteed to have 1 element)
 
     def number_finder(el: Element): Option[String] =
       (el >?> element("td:eq(2)")).map(_.text)
@@ -163,10 +176,14 @@ trait RosterParser {
               // No initials allowed in the roster:
               _ <- if (name_is_initials(name).nonEmpty) None else Some(())
 
-              player_code_id = build_player_code(
+              maybe_ncaa_id = builders.ncaa_id_finder(el)
+
+              player_code_id = build_player_code( // (fixes accent and misspellings)
                 name,
                 Some(team_id)
-              ) // (fixes accent and misspellings)
+              ).copy(
+                ncaa_id = maybe_ncaa_id
+              )
               number <- builders.number_finder(el)
               pos <- builders.pos_finder(el)
               height <- builders.height_finder(el)

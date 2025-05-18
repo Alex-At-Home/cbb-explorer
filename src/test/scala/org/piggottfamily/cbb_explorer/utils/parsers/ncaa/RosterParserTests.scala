@@ -45,39 +45,55 @@ object RosterParserTests extends TestSuite with RosterParser {
         case Right(
               List(
                 RosterEntry(
-                  PlayerCodeId("RjEytle-rock", PlayerId("Eytle-Rock, R.J.")),
-                  "11",
-                  "G",
-                  "6-3",
-                  Some(75),
-                  "Jr",
-                  20,
-                  None
-                ),
-                RosterEntry(
-                  PlayerCodeId("KeKennedy", PlayerId("Kennedy, Keondre")),
-                  "0",
-                  "G",
-                  "6-6",
-                  Some(78),
-                  "Jr",
-                  20,
-                  None
-                ),
-                RosterEntry(
-                  PlayerCodeId("DaRogers", PlayerId("Rogers, Darnell")),
+                  PlayerCodeId(
+                    "DaRogers",
+                    PlayerId("Rogers, Darnell"),
+                    Some("2265903")
+                  ),
                   "2",
                   "G",
                   "5-2",
                   Some(62),
                   "Sr",
                   20,
+                  None,
+                  None
+                ),
+                RosterEntry(
+                  PlayerCodeId(
+                    "RjEytle-rock",
+                    PlayerId("Eytle-Rock, R.J."),
+                    Some("2084828")
+                  ),
+                  "11",
+                  "G",
+                  "6-3",
+                  Some(75),
+                  "Jr",
+                  20,
+                  None,
+                  None
+                ),
+                RosterEntry(
+                  PlayerCodeId(
+                    "KeKennedy",
+                    PlayerId("Kennedy, Keondre"),
+                    Some("2265883")
+                  ),
+                  "0",
+                  "G",
+                  "6-6",
+                  Some(78),
+                  "Jr",
+                  20,
+                  None,
                   None
                 ),
                 RosterEntry(
                   PlayerCodeId(
                     "DiSpasojevic",
-                    PlayerId("Spasojevic, Dimitrije")
+                    PlayerId("Spasojevic, Dimitrije"),
+                    Some("1958411")
                   ),
                   "32",
                   "F",
@@ -85,16 +101,22 @@ object RosterParserTests extends TestSuite with RosterParser {
                   Some(80),
                   "Sr",
                   20,
+                  None,
                   None
                 ),
                 RosterEntry(
-                  PlayerCodeId("BrHorvath", PlayerId("Horvath, Brandon")),
-                  "12",
-                  "F",
-                  "6-10",
-                  Some(82),
-                  "Sr",
+                  PlayerCodeId(
+                    "LjOwens",
+                    PlayerId("Owens, L.J."),
+                    Some("2081843")
+                  ),
+                  "1",
+                  "G",
+                  "6-3",
+                  Some(75),
+                  "Jr",
                   19,
+                  None,
                   None
                 )
 

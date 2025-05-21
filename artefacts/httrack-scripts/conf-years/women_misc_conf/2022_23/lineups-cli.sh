@@ -1,10 +1,7 @@
 #!/bin/bash
 
-#(source .lineup.env first to set up these variables)
-#CRAWL_PATH=TODO
-#ROOT_URL=TODO
-#(to get the team navigate to https://$PBP_ROOT_URL/reports/attendance?id=XXX (couln)
-# pick the team, select the year, then the team id is the last bit of the URL)
+source $PBP_SRC_ROOT/artefacts/httrack-scripts/v1_import.sh
+
 YEAR=2022
 CONF=women_misc_conf
 array=(

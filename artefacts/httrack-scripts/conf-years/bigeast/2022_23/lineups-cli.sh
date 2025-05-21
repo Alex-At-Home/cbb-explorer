@@ -1,6 +1,7 @@
 #!/bin/bash
 
-#(source .lineup.env first to set up these variables)
+source $PBP_SRC_ROOT/artefacts/httrack-scripts/v1_import.sh
+
 YEAR=2022
 CONF=bigeast
 array=(
@@ -16,4 +17,5 @@ array=(
    '251.0/16060::Georgetown'
    '87.0/16060::Butler'
 )
+
 import_data_v1 "$YEAR" "$CONF" "${array[@]}"

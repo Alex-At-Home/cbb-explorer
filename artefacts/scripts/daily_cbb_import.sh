@@ -10,7 +10,7 @@ export OFFSEASON_YEAR = "2025"
 #Off season mode: do nothing except keep track of transfers
 export OFFSEASON_MODE="yes"
 export INSEASON_PORTAL_TRACKING="no" #(set to "yes" one portal szn starts)
-export PRESEASON_LEADERBOARD_MODE="no" #(this is "no" until it settles down a bit, maybe as late as June?)
+export PRESEASON_LEADERBOARD_MODE="yes" #(this is "no" until it settles down a bit, maybe as late as June?)
 if [[ "$OFFSEASON_MODE" == "yes" ]]; then
    echo "In Off-season mode, will just keep track of transfers"
    export DAILY_IMPORT="no"

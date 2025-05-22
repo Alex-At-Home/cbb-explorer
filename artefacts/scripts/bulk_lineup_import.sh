@@ -32,7 +32,8 @@ export CURR_YEAR=$(echo $CURR_YEAR_STR | cut -c1-4)
 export ACADEMIC_YEAR=$(echo "20$(echo $CURR_YEAR_STR | cut -c6-7)")
 
 # TOOD: removed pactwelve / women_pactwelve for now
-export CONFS=${CONFS:="acc american atlanticten bigeast bigten bigtwelve sec wcc mountainwest mvc conferenceusa mac socon sunbelt bigsky colonial summit americaeast atlanticsun bigsouth bigwest horizon ivy maac meac nec ovc patriot southland swac wac women_acc women_american women_bigeast women_bigten women_bigtwelve women_sec women_misc_conf"}
+#export CONFS=${CONFS:="acc american atlanticten bigeast bigten bigtwelve sec wcc mountainwest mvc conferenceusa mac socon sunbelt bigsky colonial summit americaeast atlanticsun bigsouth bigwest horizon ivy maac meac nec ovc patriot southland swac wac women_acc women_american women_bigeast women_bigten women_bigtwelve women_sec women_misc_conf"}
+export CONFS=${CONFS:="pactwelve women_pactwelve acc american atlanticten bigeast bigten bigtwelve sec wcc mountainwest mvc conferenceusa mac socon sunbelt bigsky colonial summit americaeast atlanticsun bigsouth bigwest horizon ivy maac meac nec ovc patriot southland swac wac women_acc women_american women_bigeast women_bigten women_bigtwelve women_sec women_misc_conf"}
 #export CONFS=${CONFS:="acc american atlanticten bigeast bigten bigtwelve pactwelve sec misc_conf"}
 #export CONFS=${CONFS:="women_acc women_american women_bigeast women_bigten women_bigtwelve women_pactwelve women_sec women_misc_conf"}
 #export CONFS=${CONFS:="wcc mountainwest mvc conferenceusa mac socon sunbelt bigsky colonial summit"}

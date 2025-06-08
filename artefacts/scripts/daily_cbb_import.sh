@@ -4,8 +4,8 @@
 #(ATTN: Before starting new season / off-season)
 #(also don't forget to change the code so that leaderboard stats are read locally instead of GCS)
 #(also don't forget to copy stats_all_Men_${PREV_OFFSEASON_YEAR)_Preseason.json.gz into public/leaderboards/lineups/)
-export SEASON_YEAR = "2024"
-export OFFSEASON_YEAR = "2025"
+export SEASON_YEAR="2024"
+export OFFSEASON_YEAR="2025"
 
 #Off season mode: do nothing except keep track of transfers
 export OFFSEASON_MODE="yes"

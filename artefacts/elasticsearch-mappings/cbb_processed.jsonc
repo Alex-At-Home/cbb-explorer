@@ -1,0 +1,80 @@
+//(need this to have correct mapping of numbers)
+//PUT _index_template/cbb_processed_template
+{
+   "index_patterns": ["hoopexp_men_players*","hoopexp_women_players*"],
+   "priority": 10,
+   "template": {
+      "mappings": {
+         "dynamic_templates": [
+            {
+               "totals_are_counts": {
+                  "match_pattern": "regex",
+                  "mapping": {
+                     "type": "long"
+                  },
+                  "match": "^total.*value$"
+               }
+            },
+            {
+               "ranks_are_counts": {
+                  "match_pattern": "regex",
+                  "mapping": {
+                     "type": "long"
+                  },
+                  "match": "_rank$"
+               }
+            },
+            {
+               "other_values_are_doubles": {
+                  "match_pattern": "regex",
+                  "path_match": ".*value$",
+                  "mapping": {
+                     "type": "double"
+                  }
+               }
+            },
+            {
+               "positionals_are_doubles_1": {
+                  "match_pattern": "regex",
+                  "path_match": ".^posFreqs.*$",
+                  "mapping": {
+                     "type": "double"
+                  }
+               }
+            },
+            {
+               "positionals_are_doubles_2": {
+                  "match_pattern": "regex",
+                  "path_match": ".^posConfidences.*$",
+                  "mapping": {
+                     "type": "double"
+                  }
+               }
+            },
+            {
+               "pctiles_are_doubles": {
+                  "match_pattern": "regex",
+                  "path_match": ".*pctile$",
+                  "mapping": {
+                     "type": "double"
+                  }
+               }
+            }
+         ],
+         "properties": {
+            "roster.lat": {
+               "type": "double"
+            },
+            "roster.lon": {
+               "type": "double"
+            },
+            "shotInfo.total_freq": {
+               "enabled":false
+            },
+            "shotInfo.info": {
+               "enabled":false
+            }         
+         }
+      }
+   }
+}

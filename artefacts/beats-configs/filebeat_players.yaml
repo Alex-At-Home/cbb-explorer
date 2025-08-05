@@ -1,0 +1,49 @@
+#================================ Input =====================================
+
+filebeat.inputs:
+  - type: log
+    close_eof: ${CLOSE_EOF}
+    enabled: true
+    paths:
+      - ./men_playerproc_*.ndjson
+      - ./women_playerproc_*.ndjson
+
+    json.keys_under_root: true
+    json.document_id: "_id"
+
+#================================ Processing =====================================
+
+processors:
+
+#================================ Output =====================================
+
+setup.ilm.enabled: false
+
+cloud.id: "${ELASTIC_CLOUD_ID:?ELASTIC_CLOUD_ID}"
+cloud.auth: "${ELASTIC_USER:?ELASTIC_USER}:${ELASTIC_PASS:?ELASTIC_PASS}"
+
+output.elasticsearch:
+  indices:
+    # Just check a ping/pong var is set:
+    - index: "test_playerproc_${PING:?PING=ping-or-pong}"
+      when.regexp:
+        log.file.path: "DUMMY_PATTERN_JUST_ERROR_CHECKING"
+
+    # Player 360s:
+
+    # Men and women
+    - index: "hoopexp_men_players_%{[year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/men_playerproc_[0-9]+(_.*)?.ndjson"
+
+    - index: "hoopexp_women_players_%{[year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_playerproc_[0-9]+(_.*)?.ndjson"
+
+setup.template.enabled: false
+
+#================================ Logging =====================================
+
+# Sets log level. The default log level is info.
+# Available log levels are: error, warning, info, debug
+logging.level: info

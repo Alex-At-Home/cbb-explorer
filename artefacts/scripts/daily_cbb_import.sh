@@ -18,6 +18,9 @@ if [[ "$OFFSEASON_MODE" == "yes" ]]; then
    export BUILD_LEADERBOARDS="no"
 fi
 
+# TODO: Done for the summer
+exit 1
+
 # Use this to rebuild for a given team instead of just getting previous days games
 #export FULL_TEAM_DOWNLOAD="yes"
 

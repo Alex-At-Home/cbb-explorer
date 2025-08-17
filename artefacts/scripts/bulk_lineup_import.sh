@@ -4,6 +4,9 @@
 # Set this to be $(date -v -1d '+%m:%d:%Y') in order to run the script in minimal collection mode
 # GAME_BASED_FILTER=$(date -v -1d '+%m:%d:%Y')
 
+# To get just the roster and player pages (to get the lowest NCAA id, since there is no UUID)
+# set ROSTER_DOWNLOAD_ONLY=yes
+
 if [ "$PING" != "lping" ] && [ "$PING" != "lpong" ] && [ "$PING" != "ltest" ]; then
   echo "Need to specify PING env var as either 'lping' or 'lpong' (or 'ltest'), not '$PING'"
   exit -1
@@ -89,7 +92,8 @@ for i in $CONFS; do
       unset $GAME_BASED_FILTER
     fi
 
-    GAME_BASED_FILTER_FILE=$GAME_BASED_FILTER_FILE $PBP_SRC_ROOT/artefacts/httrack-scripts/conf-years/${i}/${CURR_YEAR_STR}/lineups-cli.sh \
+    GAME_BASED_FILTER_FILE=$GAME_BASED_FILTER_FILE \
+      $PBP_SRC_ROOT/artefacts/httrack-scripts/conf-years/${i}/${CURR_YEAR_STR}/lineups-cli.sh \
       | tee $PBP_OUT_DIR/tmp_download_logs.txt
 
     # Some error checking for a common httrack/server issue that crops up:

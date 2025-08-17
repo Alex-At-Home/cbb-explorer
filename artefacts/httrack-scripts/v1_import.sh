@@ -35,24 +35,33 @@ import_data_v1 () {
       #TODO: only do this if you want to remove and recalc everything, otherwise will find deltas
       #rm -rf $CONF_CRAWL_PATH
       mkdir -p $CONF_CRAWL_PATH
-      # Remove the main crawl file from the caches:
-      for file in old new; do
-         if [ -e $CONF_CRAWL_PATH/hts-cache/${file}.zip ]; then
-         for i in $(unzip -l $CONF_CRAWL_PATH/hts-cache/${file}.zip | grep -E "/teams?/" | awk '{ print $4 }'); do
-            zip -d $CONF_CRAWL_PATH/hts-cache/${file}.zip $i;
-         done
-         fi
-      done
-      # Old format:
-      #httrack "$PBP_ROOT_URL/team/$FULLTEAMID" --continue --depth=3 --path $CONF_CRAWL_PATH --robots=0 "-*" "+$PBP_ROOT_URL/contests/*/box_score" "+$PBP_ROOT_URL/team/$SUBTEAMID/roster/$YEARID" "+$PBP_ROOT_URL/game/index/*" +"$PBP_ROOT_URL/game/box_score/*?period_no=1" +"$PBP_ROOT_URL/game/play_by_play/*"
-      # New format:
-      httrack "$PBP_ROOT_URL/team/$FULLTEAMID" -c1 --continue --depth=3 --path $CONF_CRAWL_PATH --robots=0 "-*"  "+$PBP_ROOT_URL/teams/*/roster" "+$PBP_ROOT_URL/contests/*/box_score" "+$PBP_ROOT_URL/contests/*/play_by_play" "+$PBP_ROOT_URL/contests/*/individual_stats"
 
-      #Check for any errors:
-      ERRS=$(grep -c 'Error:' $CONF_CRAWL_PATH/hts-log.txt)
-      if [ $ERRS -gt 0 ]; then
-         echo "************ ERRORS $CONF_CRAWL_PATH/hts-log.txt"
-         exit -1
-      fi   
+      if [ "$ROSTER_DOWNLOAD_ONLY" == "" ]; then
+         # Remove the main crawl file from the caches:
+         for file in old new; do
+            if [ -e $CONF_CRAWL_PATH/hts-cache/${file}.zip ]; then
+            for i in $(unzip -l $CONF_CRAWL_PATH/hts-cache/${file}.zip | grep -E "/teams?/" | awk '{ print $4 }'); do
+               zip -d $CONF_CRAWL_PATH/hts-cache/${file}.zip $i;
+            done
+            fi
+         done
+         # Old format:
+         #httrack "$PBP_ROOT_URL/team/$FULLTEAMID" --continue --depth=3 --path $CONF_CRAWL_PATH --robots=0 "-*" "+$PBP_ROOT_URL/contests/*/box_score" "+$PBP_ROOT_URL/team/$SUBTEAMID/roster/$YEARID" "+$PBP_ROOT_URL/game/index/*" +"$PBP_ROOT_URL/game/box_score/*?period_no=1" +"$PBP_ROOT_URL/game/play_by_play/*"
+         # New format:
+         httrack "$PBP_ROOT_URL/team/$FULLTEAMID" -c1 --continue --depth=3 --path $CONF_CRAWL_PATH --robots=0 "-*"  "+$PBP_ROOT_URL/teams/*/roster" "+$PBP_ROOT_URL/contests/*/box_score" "+$PBP_ROOT_URL/contests/*/play_by_play" "+$PBP_ROOT_URL/contests/*/individual_stats"
+
+         #Check for any errors:
+         ERRS=$(grep -c 'Error:' $CONF_CRAWL_PATH/hts-log.txt)
+         if [ $ERRS -gt 0 ]; then
+            echo "************ ERRORS $CONF_CRAWL_PATH/hts-log.txt"
+            exit -1
+         fi   
+      else
+         ROSTER_CRAWL_PATH=${CONF_CRAWL_PATH}/roster_crawl
+         mkdir -p $ROSTER_CRAWL_PATH
+         echo "Roster crawl: $ROSTER_CRAWL_PATH"
+         # all new logic to grab JS-aware player pages for roster building purposes
+         FULLTEAMID="$FULLTEAMID" CONF_CRAWL_PATH="$ROSTER_CRAWL_PATH" CRAWLEE_STORAGE_DIR="$ROSTER_CRAWL_PATH" npm --prefix $PBP_CRAWL_PROJECT run crawl
+      fi
    done
 }

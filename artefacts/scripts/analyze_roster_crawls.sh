@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Run this like
+# CURR_YEAR=2024 ./artefacts/scripts/analyze_roster_crawls.sh 
+# to delete JSONs representing failed files
+# (then re-running the script will re-download them)
+
+echo "Searching for failed persistent crawl JSON files under $PBP_CRAWL_PATH (year [$CURR_YEAR]) (DRY_RUN=[$DRY_RUN]) ..."
+
+OVERRIDE_DIR=${OVERRIDE_DIR:-""}
+if [ "$OVERRIDE_DIR" != "" ]; then
+   echo "Looking in [$OVERRIDE_DIR]"
+   find "$OVERRIDE_DIR/roster_crawl" -type f -path "*/roster_crawl/request_queues/persistent_crawl_state/*.json" | while read -r file; do
+      echo "Looking in [$file]"
+
+      # Skip files that have retryCount = 0 (fast grep)
+      if grep -q '"retryCount": 0' "$file"; then
+        continue
+      fi
+
+      # extract inner "json" string and parse it
+      inner_json=$(jq -r '.json' "$file")
+      # check if errorMessages array has length > 0
+      if [ -n "$inner_json" ] && echo "$inner_json" | jq -e '.errorMessages | length > 0' &>/dev/null; then
+      echo "❌ Error JSON: $file"
+      fi
+   done
+   exit 0
+fi
+
+# loop through each conference
+for conf_dir in "$PBP_CRAWL_PATH"/*; do
+  if [[ -d "$conf_dir/$CURR_YEAR" ]]; then
+    # search only inside $conf_dir/$YEAR
+    echo "Looking in [$conf_dir/$CURR_YEAR]"
+    for team_dir in "$conf_dir/$CURR_YEAR"/*; do
+       #echo "Looking in [$team_dir]"
+      if [[ -d "$team_dir/roster_crawl" ]]; then
+         find "$team_dir/roster_crawl" -type f -path "*/roster_crawl/request_queues/persistent_crawl_state/*.json" | while read -r file; do
+            #echo "Looking in [$file]"
+            # Skip files that have retryCount = 0 (fast grep)
+            if grep -q '"retryCount": 0' "$file"; then
+               continue
+            fi
+            
+
+            # extract inner "json" string and parse it
+            inner_json=$(jq -r '.json' "$file")
+            # check if errorMessages array has length > 0
+            if [ -n "$inner_json" ] && echo "$inner_json" | jq -e '.errorMessages | length > 0' &>/dev/null; then
+               echo "❌ Error JSON: $file"
+               if [ "$DRY_RUN" == "no" ]; then
+                  rm $file
+               fi
+            fi
+         done
+      fi
+    done
+  fi
+done

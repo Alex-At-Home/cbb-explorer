@@ -26,7 +26,8 @@ for c in $CONFS; do
   echo "Parsing roster files..."
   java -cp "$PBP_SRC_ROOT/target/scala-2.12/cbb-explorer-assembly-0.1-deps.jar:$PBP_SRC_ROOT/target/scala-2.12/cbb-explorer_2.12-0.1.jar" \
     org.piggottfamily.cbb_explorer.BuildRosters \
-    --in=$PBP_CRAWL_PATH/${c}/${CURR_YEAR}/ \
+    --in=$PBP_CRAWL_PATH/${c}/${CURR_YEAR} \
     --out=$HOOPEXP_SRC_DIR/public/rosters/ \
+    --unifiy-ids \
     $TEAM_FILTER
 done

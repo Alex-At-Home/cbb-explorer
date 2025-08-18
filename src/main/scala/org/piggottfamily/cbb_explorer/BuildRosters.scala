@@ -21,6 +21,7 @@ object BuildRosters {
         |--in=<<in-dir-up-to-conf-then-year>>
         |--out=<<out-dir-in-which-files-are-placed>>
         |[--team]=<<only include teams matching this string>>
+        |[--unifiy-ids]
         """)
       System.exit(-1)
     }
@@ -45,6 +46,11 @@ object BuildRosters {
       .filter(_.startsWith("--team="))
       .headOption
       .map(_.split("=", 2)(1))
+
+    val unify_ids = args
+      .map(_.trim)
+      .filter(_.startsWith("--unifiy-ids"))
+      .nonEmpty
 
     // Get year and then conference
 
@@ -73,7 +79,9 @@ object BuildRosters {
         subdir.last match {
           case get_team_id(team_name, _)
               if maybe_team_selector.forall(sel => team_name.contains(sel)) =>
-            val team_dir = subdir / "stats.ncaa.org"
+            val team_dir =
+              if (unify_ids) subdir / "roster_crawl"
+              else subdir / "stats.ncaa.org"
             val maybe_team_fileid = FileUtils
               .list_files(team_dir / LineupController.teams_dir, Some("html"))
               .take(1)
@@ -91,7 +99,8 @@ object BuildRosters {
                     team_dir,
                     TeamId(decoded_team_name),
                     maybe_team_fileid,
-                    include_coach = true
+                    include_coach = true,
+                    unify_ncaa_ids = unify_ids
                   )
                   ._1
               )

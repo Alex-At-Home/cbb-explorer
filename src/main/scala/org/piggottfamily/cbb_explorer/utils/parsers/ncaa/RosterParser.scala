@@ -31,6 +31,7 @@ trait RosterParser {
   // https://jsoup.org/cookbook/extracting-data/selector-syntax
 
   protected val `ncaa.parse_roster` = "ncaa.parse_roster"
+  protected val `ncaa.parse_player` = "ncaa.parse_player"
 
   // Holds all the HTML parsing logic
   trait base_builders {
@@ -118,8 +119,37 @@ trait RosterParser {
 
     def origin_finder(el: Element): Option[String] =
       (el >?> element("td:eq(7)")).map(_.text)
+
+    def player_unified_ncaa_id_finder(doc: Document): List[String] =
+      (doc >?> elementList("tr[id^=player_season_] td:first-child a"))
+        .map { els =>
+          els.flatMap { el =>
+            val href = el.attr("href") // "/players/7033318"
+            href.split("/").lastOption // "7033318"
+          }
+        }
+        .getOrElse(Nil)
   }
   protected def builders_array = Array(builders_v0, builders_v1)
+
+  /** Gets bonus player info from the HTML page */
+  def get_unified_ncaa_id(
+      filename: String,
+      in: String
+  ): Either[List[ParseError], Option[String]] = {
+    val browser = JsoupBrowser()
+
+    val doc_request_builder =
+      ParseUtils.build_request[Document](`ncaa.parse_player`, filename) _
+
+    for {
+      doc <- doc_request_builder(browser.parseString(in))
+      ncaa_ids = builders_v1.player_unified_ncaa_id_finder(doc)
+    } yield ncaa_ids
+      .sortBy(_.toInt)
+      .headOption
+      .map(_.toString) // pick the lowest numberical value
+  }
 
   /** Gets the boxscore lineup from the HTML page */
   def parse_roster(

@@ -215,7 +215,8 @@ class LineupController(d: Dependencies = Dependencies()) {
       root_dir: Path,
       team: TeamId,
       team_fileid: Option[String] = None,
-      include_coach: Boolean = false
+      include_coach: Boolean = false,
+      unify_ncaa_ids: Boolean = false
   ): ((List[String], List[RosterEntry]), Int) = {
     val (roster_players, format_version) = ((Try(
       d.file_manager.list_files(
@@ -238,13 +239,43 @@ class LineupController(d: Dependencies = Dependencies()) {
     }) match {
       case (file :: _, format_version) =>
         val roster_html = d.file_manager.read_file(file)
-        val roster_lineup = RosterParser.parse_roster(
-          file.last.toString,
-          roster_html,
-          team,
-          format_version,
-          include_coach
-        )
+        val roster_lineup = RosterParser
+          .parse_roster(
+            file.last.toString,
+            roster_html,
+            team,
+            format_version,
+            include_coach
+          )
+          .map { roster_entries =>
+            roster_entries.map { roster_entry =>
+              // If there is a player file for this roster entry then parse it to get unified NCAA id
+              roster_entry.player_code_id.ncaa_id match {
+                case Some(ncaa_id) if unify_ncaa_ids =>
+                  val player_html = d.file_manager.read_file(
+                    root_dir / players_dir / s"${ncaa_id}.html"
+                  )
+                  val maybe_unified_ncaa_id = RosterParser
+                    .get_unified_ncaa_id(ncaa_id, player_html)
+                    .toOption
+                    .flatten
+
+                  // DEBUG
+                  // println(
+                  //   s"******* [${roster_entry.player_code_id}] USE [$maybe_unified_ncaa_id]"
+                  // )
+
+                  roster_entry.copy(
+                    player_code_id = roster_entry.player_code_id
+                      .copy(ncaa_id =
+                        maybe_unified_ncaa_id.orElse(Some(ncaa_id))
+                      ) // (fallback to existing NCAA id))
+                  )
+                case _ =>
+                  roster_entry
+              }
+            }
+          }
 
         roster_lineup.left.foreach { errors =>
           d.logger.error(
@@ -443,6 +474,7 @@ class LineupController(d: Dependencies = Dependencies()) {
 object LineupController {
 
   val teams_dir = RelPath("teams")
+  val players_dir = RelPath("players")
   val play_by_play_dir = RelPath("game") / RelPath("play_by_play")
   val boxscore_dir = RelPath("game") / RelPath("box_score")
   val contests_dir = RelPath("contests")

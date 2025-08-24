@@ -23,7 +23,21 @@ if [ "$OVERRIDE_DIR" != "" ]; then
       inner_json=$(jq -r '.json' "$file")
       # check if errorMessages array has length > 0
       if [ -n "$inner_json" ] && echo "$inner_json" | jq -e '.errorMessages | length > 0' &>/dev/null; then
-      echo "❌ Error JSON: $file"
+         echo "❌ Error JSON: $file"
+         # Need to remove the top-level teams + roster so we re-add the players
+         for other_file in "$OVERRIDE_DIR/roster_crawl/request_queues/persistent_crawl_state"/*.json; do
+            if grep -q 'uniqueKey.*/team' $other_file; then
+               echo "(Means need to delete [$other_file] to force recrawl)"
+               if [ "$DRY_RUN" == "no" ]; then
+                  echo "(not in dry run: removed [$other_file])"
+                  rm $other_file
+               fi
+            fi
+         done
+         if [ "$DRY_RUN" == "no" ]; then
+            echo "(not in dry run: removed [$file])"
+            rm $file
+         fi
       fi
    done
    exit 0
@@ -43,14 +57,24 @@ for conf_dir in "$PBP_CRAWL_PATH"/*; do
             if grep -q '"retryCount": 0' "$file"; then
                continue
             fi
-            
 
             # extract inner "json" string and parse it
             inner_json=$(jq -r '.json' "$file")
             # check if errorMessages array has length > 0
             if [ -n "$inner_json" ] && echo "$inner_json" | jq -e '.errorMessages | length > 0' &>/dev/null; then
                echo "❌ Error JSON: $file"
+               # Need to remove the top-level teams + roster so we re-add the players
+               for other_file in "$team_dir/roster_crawl/request_queues/persistent_crawl_state"/*.json; do
+                  if grep -q 'uniqueKey.*/team' $other_file; then
+                     echo "(Means need to delete [$other_file] to force recrawl)"
+                     if [ "$DRY_RUN" == "no" ]; then
+                        echo "(not in dry run: removed [$other_file])"
+                        rm $other_file
+                     fi
+                  fi
+               done
                if [ "$DRY_RUN" == "no" ]; then
+                  echo "(not in dry run: removed [$file])"
                   rm $file
                fi
             fi

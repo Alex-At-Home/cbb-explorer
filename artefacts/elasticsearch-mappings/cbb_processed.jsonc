@@ -62,6 +62,9 @@
             }
          ],
          "properties": {
+            "key": {
+               "type": "search_as_you_type"
+            },           
             "roster.lat": {
                "type": "double"
             },

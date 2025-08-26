@@ -76,6 +76,9 @@
             },
             "shotInfo.info": {
                "enabled":false
+            },    
+            "shotInfo.data": {
+               "enabled":false
             }         
          }
       }

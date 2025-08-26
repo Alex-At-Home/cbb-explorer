@@ -2,7 +2,9 @@
 set -euo pipefail
 
 # Run this like
-# CURR_YEAR=2024 ./artefacts/scripts/analyze_roster_crawls.sh 
+# CURR_YEAR=2024 DRY_RUN=yes|no ./artefacts/scripts/analyze_roster_crawls.sh 
+# debug:
+# OVERRIDE_DIR=$path/NCAA_by_conf/women_acc/2024/North+Carolina_457.0 DRY_RUN=yes|no ./artefacts/scripts/analyze_roster_crawls.sh 
 # to delete JSONs representing failed files
 # (then re-running the script will re-download them)
 
@@ -30,13 +32,13 @@ if [ "$OVERRIDE_DIR" != "" ]; then
                echo "(Means need to delete [$other_file] to force recrawl)"
                if [ "$DRY_RUN" == "no" ]; then
                   echo "(not in dry run: removed [$other_file])"
-                  rm $other_file
+                  rm -f $other_file
                fi
             fi
          done
          if [ "$DRY_RUN" == "no" ]; then
             echo "(not in dry run: removed [$file])"
-            rm $file
+            rm -f $file
          fi
       fi
    done
@@ -52,6 +54,10 @@ for conf_dir in "$PBP_CRAWL_PATH"/*; do
        #echo "Looking in [$team_dir]"
       if [[ -d "$team_dir/roster_crawl" ]]; then
          find "$team_dir/roster_crawl" -type f -path "*/roster_crawl/request_queues/persistent_crawl_state/*.json" | while read -r file; do
+            if [ ! -f $file ]; then
+               echo "(skip deleted file [$file]), 1"
+               continue
+            fi
             #echo "Looking in [$file]"
             # Skip files that have retryCount = 0 (fast grep)
             if grep -q '"retryCount": 0' "$file"; then
@@ -65,17 +71,22 @@ for conf_dir in "$PBP_CRAWL_PATH"/*; do
                echo "❌ Error JSON: $file"
                # Need to remove the top-level teams + roster so we re-add the players
                for other_file in "$team_dir/roster_crawl/request_queues/persistent_crawl_state"/*.json; do
+                  if [ ! -f $other_file ]; then
+                     echo "(skip deleted file [$other_file], 2)"
+                     continue
+                  fi
+
                   if grep -q 'uniqueKey.*/team' $other_file; then
                      echo "(Means need to delete [$other_file] to force recrawl)"
                      if [ "$DRY_RUN" == "no" ]; then
                         echo "(not in dry run: removed [$other_file])"
-                        rm $other_file
+                        rm -f $other_file
                      fi
                   fi
                done
                if [ "$DRY_RUN" == "no" ]; then
                   echo "(not in dry run: removed [$file])"
-                  rm $file
+                  rm -f $file
                fi
             fi
          done

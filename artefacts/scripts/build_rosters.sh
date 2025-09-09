@@ -28,6 +28,5 @@ for c in $CONFS; do
     org.piggottfamily.cbb_explorer.BuildRosters \
     --in=$PBP_CRAWL_PATH/${c}/${CURR_YEAR} \
     --out=$HOOPEXP_SRC_DIR/public/rosters/ \
-    --unifiy-ids \
     $TEAM_FILTER
 done

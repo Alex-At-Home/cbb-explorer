@@ -4,6 +4,7 @@ export CURR_YEAR=$(echo $CURR_YEAR_STR | cut -c1-4)
 
 #for i in "2018/9" "2019/20" "2020/21" "2021/22" "2022/23" "2023/24" "2024/25"; do echo $i; CURR_YEAR_STR=$i sh ../../cbb-explorer/artefacts/beats-scripts/players-upload.sh; sleep 2;  done
 #for i in "2021/22" "2022/23" "2023/24" "2024/25"; do echo $i; CURR_YEAR_STR=$i sh ../../cbb-explorer/artefacts/beats-scripts/players-upload.sh; sleep 2;  done
+# Use GENDER_FILTER="men" || GENDER_FILTER="women" if you want only one gender
 
 export CLOSE_EOF="true"
 export CURR_TIME=${CURR_TIME:=$(date +"%s")}
@@ -21,11 +22,19 @@ mv ${PBP_OUT_DIR}/women_playerproc_* ${PBP_OUT_DIR}/archive
 
 echo "(formatting new files from ${CURR_YEAR})"
 
-cat ${HOOPEXP_SRC_DIR}/enrichedPlayers/players_*_Men_${CURR_YEAR}_*.json  | jq -c '.players[] | .year |= .[0:4]' > ${PBP_OUT_DIR}/men_playerproc_${CURR_TIME}.ndjson
-cat ${HOOPEXP_SRC_DIR}/enrichedPlayers/players_*_Women_${CURR_YEAR}_*.json  | jq -c '.players[] | .year |= .[0:4]' > ${PBP_OUT_DIR}/women_playerproc_${CURR_TIME}.ndjson
+if [ "$GENDER_FILTER" != "women" ]; then
+   cat ${HOOPEXP_SRC_DIR}/enrichedPlayers/players_*_Men_${CURR_YEAR}_*.json  | jq -c '.players[] | .year |= .[0:4]' > ${PBP_OUT_DIR}/men_playerproc_${CURR_TIME}.ndjson
+fi
+if [ "$GENDER_FILTER" != "men" ]; then
+   cat ${HOOPEXP_SRC_DIR}/enrichedPlayers/players_*_Women_${CURR_YEAR}_*.json  | jq -c '.players[] | .year |= .[0:4]' > ${PBP_OUT_DIR}/women_playerproc_${CURR_TIME}.ndjson
+fi
 
-echo "formatted $(wc -l ${PBP_OUT_DIR}/men_playerproc_${CURR_TIME}.ndjson | awk '{ print $1 }') men"
-echo "formatted $(wc -l ${PBP_OUT_DIR}/women_playerproc_${CURR_TIME}.ndjson | awk '{ print $1 }') women"
+if [ "$GENDER_FILTER" != "women" ]; then
+   echo "formatted $(wc -l ${PBP_OUT_DIR}/men_playerproc_${CURR_TIME}.ndjson | awk '{ print $1 }') men"
+fi
+if [ "$GENDER_FILTER" != "men" ]; then
+   echo "formatted $(wc -l ${PBP_OUT_DIR}/women_playerproc_${CURR_TIME}.ndjson | awk '{ print $1 }') women"
+fi
 
 # Invoke filebeat to ingest them
 

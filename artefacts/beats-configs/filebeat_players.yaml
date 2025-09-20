@@ -5,15 +5,69 @@ filebeat.inputs:
     close_eof: ${CLOSE_EOF}
     enabled: true
     paths:
-      - ./men_playerproc_*.ndjson
-      - ./women_playerproc_*.ndjson
+      - ./men_playerproc_*_all.ndjson
+      - ./women_playerproc_*_all.ndjson
 
+    fields:
+      sample_name: "all"
+    fields_under_root: true
+    json.keys_under_root: true
+    json.document_id: "_id"
+
+  - type: log
+    close_eof: ${CLOSE_EOF}
+    enabled: true
+    paths:
+      - ./men_playerproc_*_conf.ndjson
+      - ./women_playerproc_*_conf.ndjson
+
+    fields:
+      sample_name: "conf"
+    fields_under_root: true
+    json.keys_under_root: true
+    json.document_id: "_id"
+
+  - type: log
+    close_eof: ${CLOSE_EOF}
+    enabled: true
+    paths:
+      - ./men_playerproc_*_t100.ndjson
+      - ./women_playerproc_*_t100.ndjson
+
+    fields:
+      sample_name: "t100"
+    fields_under_root: true
+    json.keys_under_root: true
+    json.document_id: "_id"
+
+  - type: log
+    close_eof: ${CLOSE_EOF}
+    enabled: true
+    paths:
+      - ./men_playerproc_*_lowvol.ndjson
+      - ./women_playerproc_*_lowvol.ndjson
+
+    fields:
+      sample_name: "lowvol"
+    fields_under_root: true
     json.keys_under_root: true
     json.document_id: "_id"
 
 #================================ Processing =====================================
+# Make it so that existing docs will be updated, to avoid deleting/recreating every day
 
 processors:
+  - add_fields:
+      target: ""
+      fields:
+        temp_op_type: "index"
+  - convert:
+      fields:
+        - from: temp_op_type
+          to: "@metadata.op_type"
+          type: string
+  - drop_fields:
+      fields: ["temp_op_type"]
 
 #================================ Output =====================================
 

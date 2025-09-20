@@ -28,6 +28,17 @@ final case class ShotEvent(
     raw_event: Option[String] // (discard before writing to disk)
 )
 
+final case class CutdownShotEvent(
+    loc: Option[ShotEvent.ShotLocation],
+    geo: Option[ShotEvent.ShotGeo],
+    dist: Option[Double],
+    pts: Int,
+    value: Int,
+    is_ast: Option[Boolean],
+    is_trans: Option[Boolean],
+    is_orb: Option[Boolean]
+)
+
 object ShotEvent {
 
   /** Will turn ft into meters to make the granularity of the data better */

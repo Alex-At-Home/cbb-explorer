@@ -23,23 +23,30 @@ mv ${PBP_OUT_DIR}/women_playerproc_* ${PBP_OUT_DIR}/archive
 echo "(formatting new files from ${CURR_YEAR})"
 
 if [ "$GENDER_FILTER" != "women" ]; then
-   cat ${HOOPEXP_SRC_DIR}/enrichedPlayers/players_*_Men_${CURR_YEAR}_*.json  | jq -c '.players[] | .year |= .[0:4]' > ${PBP_OUT_DIR}/men_playerproc_${CURR_TIME}.ndjson
+   for i in all conf t100 lowvol; do 
+      cat ${HOOPEXP_SRC_DIR}/enrichedPlayers/players_${i}_Men_${CURR_YEAR}_*.json  | jq -c '.players[] | .year |= .[0:4]' > ${PBP_OUT_DIR}/men_playerproc_${CURR_TIME}_${i}.ndjson
+   done
 fi
 if [ "$GENDER_FILTER" != "men" ]; then
-   cat ${HOOPEXP_SRC_DIR}/enrichedPlayers/players_*_Women_${CURR_YEAR}_*.json  | jq -c '.players[] | .year |= .[0:4]' > ${PBP_OUT_DIR}/women_playerproc_${CURR_TIME}.ndjson
+   for i in all conf t100 lowvol; do 
+      cat ${HOOPEXP_SRC_DIR}/enrichedPlayers/players_${i}_Women_${CURR_YEAR}_*.json  | jq -c '.players[] | .year |= .[0:4]' > ${PBP_OUT_DIR}/women_playerproc_${CURR_TIME}_${i}.ndjson
+   done
 fi
 
 if [ "$GENDER_FILTER" != "women" ]; then
-   echo "formatted $(wc -l ${PBP_OUT_DIR}/men_playerproc_${CURR_TIME}.ndjson | awk '{ print $1 }') men"
+   echo "formatted $(wc -l ${PBP_OUT_DIR}/men_playerproc_${CURR_TIME}*.ndjson | awk '{ print $1 }') men"
 fi
 if [ "$GENDER_FILTER" != "men" ]; then
-   echo "formatted $(wc -l ${PBP_OUT_DIR}/women_playerproc_${CURR_TIME}.ndjson | awk '{ print $1 }') women"
+   echo "formatted $(wc -l ${PBP_OUT_DIR}/women_playerproc_${CURR_TIME}*.ndjson | awk '{ print $1 }') women"
 fi
 
 # Invoke filebeat to ingest them
 
 echo "(uploading men and women)"
 
-$ELASTIC_FILEBEAT_BIN -E PING="$PING" -E CLOSE_EOF="$CLOSE_EOF" -c $ELASTIC_FILEBEAT_CONFIG_ROOT/filebeat_players.yaml --once
-
+if [ "$DRY_RUN" != "yes" ]; then
+   $ELASTIC_FILEBEAT_BIN -E PING="$PING" -E CLOSE_EOF="$CLOSE_EOF" -c $ELASTIC_FILEBEAT_CONFIG_ROOT/filebeat_players.yaml --once
+else
+   echo "(Dry run)"
+fi
 echo "(done)"

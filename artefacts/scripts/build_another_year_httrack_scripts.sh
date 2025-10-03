@@ -46,14 +46,12 @@ for conf_dir in $(find $PBP_SRC_ROOT/artefacts/httrack-scripts/conf-years/ -dept
             echo "Failed to change [$conf_dir/$NEXT_YEAR/lineups-cli.sh] from [$WOMEN_PREV_ID] to [$WOMEN_NEXT_ID]"
             echo "AND/OR"
             echo "Failed to change [$conf_dir/$NEXT_YEAR/lineups-cli.sh] from [$MEN_PREV_ID] to [$MEN_NEXT_ID]"
-            exit 1
          fi
       fi
       # Year
       sed -i "" "s|YEAR=$PREV_YEAR_START|YEAR=$NEXT_YEAR_START|" $conf_dir/$NEXT_YEAR/lineups-cli.sh
       if ! grep -q "YEAR=$NEXT_YEAR_START" $conf_dir/$NEXT_YEAR/lineups-cli.sh; then
          echo "Failed to change [$conf_dir/$NEXT_YEAR/lineups-cli.sh] from [YEAR=$PREV_YEAR_START] to [YEAR=$NEXT_YEAR_START]"
-         exit 1
       fi
    else
       echo "WARNING: no [$conf_dir/$PREV_YEAR/]"

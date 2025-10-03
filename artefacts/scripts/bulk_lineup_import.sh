@@ -61,14 +61,11 @@ if [ "$DOWNLOAD" == "yes" ]; then
     GAME_BASED_FILTER_SUFFIX=$(echo "$GAME_BASED_FILTER" | sed 's/:/_/g')
     # Note this is only applicable for a given season, for previous seasons need to use the old download way
     # at start of season need to change the season_divisions id
-    if true; then
-      curl -o "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_men.html" \
-            -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3.1 Safari/605.1.15' \
-        "https://stats.ncaa.org/contests/livestream_scoreboards?utf8=%E2%9C%93&sport_code=MBB&academic_year=${ACADEMIC_YEAR}&division=1&game_date=$(echo $GAME_BASED_FILTER | sed 's/:/\%2F/g')&commit=Submit"
-      curl -o "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_women.html" \
-            -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3.1 Safari/605.1.15' \
-        "https://stats.ncaa.org/contests/livestream_scoreboards?utf8=%E2%9C%93&sport_code=WBB&academic_year=${ACADEMIC_YEAR}&division=1&game_date=$(echo $GAME_BASED_FILTER | sed 's/:/\%2F/g')&commit=Submit"
-    fi
+
+    CONF_CRAWL_PATH="." \
+      ACADEMIC_YEAR=${ACADEMIC_YEAR} GAME_BASED_FILTER=${GAME_BASED_FILTER} \
+      npm --prefix $PBP_CRAWL_PROJECT run ncaa_schedule_crawl
+
     cat "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_men.html" | grep -E -o 'src="https:.*/[0-9]+.gif"' | sed -E 's|.*/([0-9]+)[.]gif"|_\1.0_|g' > "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_men.txt"
     cat "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_women.html" | grep -E -o 'src="https:.*/[0-9]+.gif"' | sed -E 's|.*/([0-9]+)[.]gif"|_\1.0_|g' > "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_women.txt"
 
@@ -96,31 +93,8 @@ for i in $CONFS; do
       $PBP_SRC_ROOT/artefacts/httrack-scripts/conf-years/${i}/${CURR_YEAR_STR}/lineups-cli.sh \
       | tee $PBP_OUT_DIR/tmp_download_logs.txt
 
-    # Some error checking for a common httrack/server issue that crops up:
-    # (see also daily_cbb_import.sh - but this version fixes it on the fly)
-    if grep -q -F "************ ERRORS" $PBP_OUT_DIR/tmp_download_logs.txt; then
-      echo "Found errors in PBP downloads, see [$PBP_OUT_DIR/tmp_download_errs_$i.txt]"
-      grep -F "************ ERRORS" $PBP_OUT_DIR/tmp_download_logs.txt |  cut -d" " -f3 > $PBP_OUT_DIR/tmp_download_errs_$i.txt
-      for err_file in $(cat $PBP_OUT_DIR/tmp_download_errs_$i.txt); do
-        echo "Checking [$err_file] for possible fix"
-        grep "Error" $err_file | grep "50[03]" | grep -o "at link https://[^ ]*" | grep -o "https://[^ ]*" > /tmp/cbb-explorer-tofix
-        if [ -s /tmp/cbb-explorer-tofix ]; then
-          export ERR_DIR=$(dirname $err_file)
-          export ERR_LINK=$(cat /tmp/cbb-explorer-tofix | head -n 1)
-          echo "Found fixable issue: [zip -d $ERR_DIR/hts-cache/new.zip $ERR_LINK]"
-          zip -d $ERR_DIR/hts-cache/new.zip $ERR_LINK
-          echo "Now retry download (ignoring any further errors until next run) after a 10m wait"
-          sleep 600
-          $PBP_SRC_ROOT/artefacts/httrack-scripts/conf-years/${i}/${CURR_YEAR_STR}/lineups-cli.sh \
-            | tee $PBP_OUT_DIR/tmp_download_logs_2.txt
-
-          if ! grep -q -F "************ ERRORS" $PBP_OUT_DIR/tmp_download_logs_2.txt; then
-            echo "************ ERRORS: FIXED [$PBP_OUT_DIR/tmp_download_errs_$i.txt]"
-          fi
-          rm -f $PBP_OUT_DIR/tmp_download_logs_2.txt
-        fi
-      done
-    fi
+    #TODO: replace old error checking
+  
     rm -f $PBP_OUT_DIR/tmp_download_logs.txt
   else
     echo "Skipping download"

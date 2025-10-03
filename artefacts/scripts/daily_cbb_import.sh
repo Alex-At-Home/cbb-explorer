@@ -18,9 +18,6 @@ if [[ "$OFFSEASON_MODE" == "yes" ]]; then
    export BUILD_LEADERBOARDS="no"
 fi
 
-# TODO: Done for the summer
-exit 1
-
 # Use this to rebuild for a given team instead of just getting previous days games
 #export FULL_TEAM_DOWNLOAD="yes"
 
@@ -57,23 +54,19 @@ fi
 source $ENV_FILE
 cd $PBP_OUT_DIR
 
+# TODO: Done for the summer
+# TODO: test crawler
+source $CBB_CRAWLER_SRC_DIR/.env
+
+PING="lping" DOWNLOAD=yes PARSE=no UPLOAD=no CURR_YEAR=2024 CURR_YEAR_STR=2024_25 CURR_TIME=0 \
+   CONFS="women_atlanticten" TEAM_FILTER="Duquesne" \
+   ../../cbb-explorer/artefacts/scripts/bulk_lineup_import.sh
+
+exit 1
+
+
+
 if [[ "$DAILY_IMPORT" == "yes" ]]; then
-
-   echo "daily_cbb_import: [$(date)] Fix broken play-by-play files TEST 1"
-   #^ (error in the zip file)
-
-   for i in $(find $PBP_CRAWL_PATH -name "*.zip" | grep "/$CURR_YEAR/"); do
-      j=$(unzip -l $i | grep box_score | grep -E "\s+[0-9][0-9][0-9]?\s+" | grep -o 'https:.*') && \
-         echo "FIX BROKEN1: $i /// $j" && zip -d $i "$j";
-   done
-
-   echo "daily_cbb_import: [$(date)] Fix broken play-by-play files TEST 2"
-   #^ (error in the cache - this is also done in bulk_lineup_import.sh)
-
-   for i in $(find $PBP_CRAWL_PATH -name "hts-log.txt" | grep "/$CURR_YEAR/"); do
-      j=$(cat $i | grep "Error" | grep "500" | grep -o "at link https://[^ ]*" | head -n 1 | grep -o "https://[^ ]*") && \
-         echo "FIX BROKEN2: $i /// $j" && zip -d $(dirname $i)/hts-cache/new.zip "$j";
-   done
 
    ############
 
@@ -89,6 +82,7 @@ if [[ "$DAILY_IMPORT" == "yes" ]]; then
 
    # Check for errors (will also alert on old errors, you have to delete import_out.txt to start again)
    cat import_out.txt| grep ERRORS > tmp_alert_file.txt
+   cat import_out.txt| grep "ERROR PlaywrightCrawler" >> tmp_alert_file.txt
    if [ -s tmp_alert_file.txt ]; then
       echo "daily_cbb_import: [$(date)] ERRORS in this file, send e-mail"
       cat $PBP_SRC_ROOT/artefacts/gmail-scripts/import_errors_mail.txt tmp_alert_file.txt > tmp_alert_mail.txt

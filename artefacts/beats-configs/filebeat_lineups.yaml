@@ -10,12 +10,41 @@ filebeat.inputs:
 
       # Women high majors
       - ./women_acc_20*.ndjson
-      - ./women_american_20*.ndjson
       - ./women_bigeast_20*.ndjson
       - ./women_bigten_20*.ndjson
       - ./women_bigtwelve_20*.ndjson
       - ./women_pactwelve_20*.ndjson
       - ./women_sec_20*.ndjson
+      # Women mid-high majors
+      - ./women_american_20*.ndjson
+      - ./women_atlanticten_20*.ndjson
+      - ./women_mountainwest_20*.ndjson
+      - ./women_wcc_20*.ndjson
+      # Women mid majors
+      - ./women_bigwest_20*.ndjson
+      - ./women_conferenceusa_20*.ndjson
+      - ./women_colonial_20*.ndjson
+      - ./women_horizon_20*.ndjson
+      - ./women_ivy_20*.ndjson
+      - ./women_mac_20*.ndjson
+      - ./women_mvc_20*.ndjson
+      - ./women_summit_20*.ndjson
+      - ./women_sunbelt_20*.ndjson
+      # Women mid low majors
+      - ./women_bigsky_20*.ndjson
+      - ./women_maac_20*.ndjson
+      - ./women_ovc_20*.ndjson
+      - ./women_patriot_20*.ndjson
+      - ./women_socon_20*.ndjson
+      - ./women_wac_20*.ndjson
+      # Women low majors
+      - ./women_americaeast_20*.ndjson
+      - ./women_atlanticsun_20*.ndjson
+      - ./women_bigsouth_20*.ndjson
+      - ./women_meac_20*.ndjson
+      - ./women_nec_20*.ndjson
+      - ./women_southland_20*.ndjson
+      - ./women_swac_20*.ndjson
 
       # Men high majors
       - ./acc_20*.ndjson
@@ -127,15 +156,6 @@ output.elasticsearch:
     - index: "shot_events_women_acc_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/shot_events_women_acc_[0-9]+(_.*)?.ndjson"
-    - index: "women_american_%{[team.year]}_${PING}"
-      when.regexp:
-        log.file.path: ".*/women_american_[0-9]+(_.*)?.ndjson"
-    - index: "player_events_women_american_%{[team.year]}_${PING}"
-      when.regexp:
-        log.file.path: ".*/player_events_women_american_[0-9]+(_.*)?.ndjson"
-    - index: "shot_events_women_american_%{[team.year]}_${PING}"
-      when.regexp:
-        log.file.path: ".*/shot_events_women_american_[0-9]+(_.*)?.ndjson"
     - index: "women_bigeast_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/women_bigeast_[0-9]+(_.*)?.ndjson"
@@ -181,6 +201,250 @@ output.elasticsearch:
     - index: "shot_events_women_sec_%{[team.year]}_${PING}"
       when.regexp:
         log.file.path: ".*/shot_events_women_sec_[0-9]+(_.*)?.ndjson"
+
+    # Women mid-high majors
+    - index: "women_american_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_american_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_american_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_american_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_american_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_american_[0-9]+(_.*)?.ndjson"
+    - index: "women_atlanticten_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_atlanticten_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_atlanticten_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_atlanticten_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_atlanticten_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_atlanticten_[0-9]+(_.*)?.ndjson"
+    - index: "women_mountainwest_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_mountainwest_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_mountainwest_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_mountainwest_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_mountainwest_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_mountainwest_[0-9]+(_.*)?.ndjson"
+    - index: "women_wcc_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_wcc_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_wcc_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_wcc_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_wcc_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_wcc_[0-9]+(_.*)?.ndjson"
+
+    # Women Mid-mid majors
+    - index: "women_bigwest_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_bigwest_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_bigwest_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_bigwest_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_bigwest_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_bigwest_[0-9]+(_.*)?.ndjson"
+    - index: "women_conferenceusa_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_conferenceusa_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_conferenceusa_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_conferenceusa_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_conferenceusa_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_conferenceusa_[0-9]+(_.*)?.ndjson"
+    - index: "women_colonial_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_colonial_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_colonial_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_colonial_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_colonial_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_colonial_[0-9]+(_.*)?.ndjson"
+    - index: "women_horizon_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_horizon_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_horizon_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_horizon_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_horizon_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_horizon_[0-9]+(_.*)?.ndjson"
+    - index: "women_ivy_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_ivy_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_ivy_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_ivy_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_ivy_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_ivy_[0-9]+(_.*)?.ndjson"
+    - index: "women_mac_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_mac_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_mac_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_mac_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_mac_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_mac_[0-9]+(_.*)?.ndjson"
+    - index: "women_mvc_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_mvc_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_mvc_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_mvc_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_mvc_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_mvc_[0-9]+(_.*)?.ndjson"
+    - index: "women_summit_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_summit_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_summit_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_summit_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_summit_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_summit_[0-9]+(_.*)?.ndjson"
+    - index: "women_sunbelt_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_sunbelt_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_sunbelt_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_sunbelt_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_sunbelt_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_sunbelt_[0-9]+(_.*)?.ndjson"
+
+    # Women Mid-low majors
+    - index: "women_bigsky_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_bigsky_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_bigsky_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_bigsky_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_bigsky_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_bigsky_[0-9]+(_.*)?.ndjson"
+    - index: "women_maac_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_maac_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_maac_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_maac_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_maac_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_maac_[0-9]+(_.*)?.ndjson"
+    - index: "women_ovc_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_ovc_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_ovc_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_ovc_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_ovc_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_ovc_[0-9]+(_.*)?.ndjson"
+    - index: "women_patriot_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_patriot_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_patriot_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_patriot_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_patriot_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_patriot_[0-9]+(_.*)?.ndjson"
+    - index: "women_socon_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_socon_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_socon_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_socon_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_socon_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_socon_[0-9]+(_.*)?.ndjson"
+    - index: "women_wac_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_wac_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_wac_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_wac_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_wac_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_wac_[0-9]+(_.*)?.ndjson"
+
+    # Women Low majors
+    - index: "women_americaeast_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_americaeast_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_americaeast_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_americaeast_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_americaeast_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_americaeast_[0-9]+(_.*)?.ndjson"
+    - index: "women_atlanticsun_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_atlanticsun_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_atlanticsun_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_atlanticsun_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_atlanticsun_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_atlanticsun_[0-9]+(_.*)?.ndjson"
+    - index: "women_bigsouth_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_bigsouth_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_bigsouth_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_bigsouth_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_bigsouth_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_bigsouth_[0-9]+(_.*)?.ndjson"
+    - index: "women_meac_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_meac_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_meac_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_meac_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_meac_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_meac_[0-9]+(_.*)?.ndjson"
+    - index: "women_nec_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_nec_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_nec_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_nec_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_nec_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_nec_[0-9]+(_.*)?.ndjson"
+    - index: "women_southland_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_southland_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_southland_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_southland_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_southland_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_southland_[0-9]+(_.*)?.ndjson"
+    - index: "women_swac_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/women_swac_[0-9]+(_.*)?.ndjson"
+    - index: "player_events_women_swac_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/player_events_women_swac_[0-9]+(_.*)?.ndjson"
+    - index: "shot_events_women_swac_%{[team.year]}_${PING}"
+      when.regexp:
+        log.file.path: ".*/shot_events_women_swac_[0-9]+(_.*)?.ndjson"
+
+    #################################################
 
     # Men high majors
     - index: "acc_%{[team.year]}_${PING}"

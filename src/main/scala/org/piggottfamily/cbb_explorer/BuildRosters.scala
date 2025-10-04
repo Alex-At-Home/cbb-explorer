@@ -75,7 +75,8 @@ object BuildRosters {
     subdirs
       .flatMap { subdir =>
         // TODO: add some error validation
-        val get_team_id = "(.*)_([0-9.]+)$".r
+        val get_team_id =
+          "(.*)(?:_([0-9.]+))?$".r // (from 25/26 the teamid is optional)
         subdir.last match {
           case get_team_id(team_name, _)
               if maybe_team_selector.forall(sel => team_name.contains(sel)) =>

@@ -1,10 +1,25 @@
 //(need this to have correct mapping of numbers)
 //PUT _index_template/cbb_field_template
+// for num_possessions_are_float:
+// * this is new for 24/25, but should be bwc?
+// for player_shot_info:
+// * (even though the default is long, we specify this explicitly, since it won't work if it's <long)
+// (priority:1 was a new requirement when I moved to 8.x)
 {
+  "priority": 1, 
   "index_patterns": ["*_lping", "*_lpong", "*_ltest"],
   "template": {
     "mappings": {
       "dynamic_templates": [
+        {
+          "num_possessions_are_float": {
+            "match_pattern": "regex",
+            "match": "^.*num_possessions$",
+            "mapping": {
+              "type": "double"
+            }
+          }
+        },
         {
           "mins_are_float": {
             "match_pattern": "regex",
@@ -14,7 +29,6 @@
             }
           }
         },
-        //(even though the default is long, we specify this explicitly, since it won't work if it's <long)
         {
           "player_shot_info": {
             "path_match": "*.player_shot_info.*",

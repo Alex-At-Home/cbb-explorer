@@ -14,6 +14,8 @@ if [ "$YEAR" == "" ]; then
 fi
 #INDEX_FILTER
 echo "Applying index filter [$INDEX_FILTER]"
+#BUILD_ONLY
+echo "Applying build-only [$BUILD_ONLY]"
 
 export INDICES=$(curl -u "$ELASTIC_USER:$ELASTIC_PASS" "https://$ELASTIC_URL/_cat/indices"| grep -E "${INDEX_FILTER}_${YEAR}(_lping|_lpong|\\$)?" | grep -v "ltest" | awk  '{ print $3 }' | sort -u)
 

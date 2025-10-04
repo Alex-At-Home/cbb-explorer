@@ -4,7 +4,7 @@
 #(ATTN: Before starting new season / off-season)
 #(also don't forget to change the code so that leaderboard stats are read locally instead of GCS)
 #(also don't forget to copy stats_all_Men_${PREV_OFFSEASON_YEAR)_Preseason.json.gz into public/leaderboards/lineups/)
-export SEASON_YEAR="2024"
+export SEASON_YEAR="2025"
 export OFFSEASON_YEAR="2025"
 
 #Off season mode: do nothing except keep track of transfers
@@ -58,9 +58,15 @@ cd $PBP_OUT_DIR
 # TODO: test crawler
 source $CBB_CRAWLER_SRC_DIR/.env
 
-PING="lping" DOWNLOAD=yes PARSE=no UPLOAD=no CURR_YEAR=2024 CURR_YEAR_STR=2024_25 CURR_TIME=0 \
-   CONFS="women_atlanticten" TEAM_FILTER="Duquesne" \
-   ../../cbb-explorer/artefacts/scripts/bulk_lineup_import.sh
+for i in "Davidson" "Dayton" "Duquesne" "Richmond" "VCU"; do
+   echo "***** Fetching [$i]"
+   PING="lping" DOWNLOAD=yes PARSE=no UPLOAD=no CURR_YEAR=2024 CURR_YEAR_STR=2024_25 CURR_TIME=0 \
+      CONFS="women_atlanticten" TEAM_FILTER="$i" \
+      ../../cbb-explorer/artefacts/scripts/bulk_lineup_import.sh
+done
+
+# TEST: Download latest file from KenPom (note I have his permission to do this):
+CRAWL_PATH=~/Downloads ACADEMIC_YEAR=${SEASON_YEAR} npm --prefix $PBP_CRAWL_PROJECT run kenpom_daily_download
 
 exit 1
 
@@ -115,16 +121,18 @@ fi
 # cron: Mon,Wed,Fri,Sun
 echo "daily_cbb_import: [$(date)] Checking to whether recalculate efficiency policy=[$BUILD_EFFICIENCY] day=[$(date +%u)]":
 if [[ "$BUILD_EFFICIENCY" == "yes" ]] || [[ "$BUILD_EFFICIENCY" == "cron" && $(date +%u) =~ [1357] ]]; then
-   if [[ "$EFF_TRIGGER_UPLOAD" == "" ]]; then
-      echo "daily_cbb_import: [$(date)] Recalculating full men's efficiency stats..."
-      sh $PBP_SRC_ROOT/artefacts/scripts/full_men_efficiency_import.sh
-   else 
+   if [[ "$EFF_TRIGGER_UPLOAD" != "" ]]; then
+      # Download latest file from KenPom (note I have his permission to do this):
+      CRAWL_PATH=~/Downloads ACADEMIC_YEAR=${SEASON_YEAR} npm --prefix $PBP_CRAWL_PROJECT run kenpom_daily_download
+
       echo "daily_cbb_import: [$(date)] Triggering men's efficiency tracking spreadsheet..."
       sh $PBP_SRC_ROOT/artefacts/scripts/men_efficiency_import.sh
       #(Ensure ES is updated)
       sleep 10
    fi
    if [[ "$EFF_WOMEN_TRIGGER_UPLOAD" != "" ]]; then
+      # Download latest file from Torvik (note I have his permission to do this):
+
       echo "daily_cbb_import: [$(date)] Triggering women's efficiency tracking spreadsheet..."
       sh $PBP_SRC_ROOT/artefacts/scripts/women_efficiency_import.sh
       #(Ensure ES is updated)

@@ -37,7 +37,18 @@
             }
           }
         }
-      ]
+      ],
+      "properties": {
+         "geo": {
+            "type": "geo_point"
+         },
+         "loc": {
+            "type": "point"
+         },
+         "min": {
+            "type": "double"
+         }
+      }
     }
   }
 }

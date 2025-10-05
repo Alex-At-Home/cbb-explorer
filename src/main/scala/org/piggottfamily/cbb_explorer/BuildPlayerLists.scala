@@ -1,6 +1,6 @@
 package org.piggottfamily.cbb_explorer
 
-import ammonite.ops._
+import java.nio.file.{Path, Paths}
 import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
 import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.models.ncaa._

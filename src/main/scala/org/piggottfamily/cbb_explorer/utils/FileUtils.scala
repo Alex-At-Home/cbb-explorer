@@ -1,42 +1,87 @@
 package org.piggottfamily.cbb_explorer.utils
 
-import ammonite.ops._
-import java.nio.file.attribute.FileTime
+import java.io.{BufferedWriter, FileWriter, IOException}
+import java.nio.file.{Files, Path, Paths}
+import scala.io.Source
+import scala.collection.JavaConverters._
+import scala.util.{Try, Using}
 
 /** File utils */
 trait FileUtils {
 
-  /** List a set of files with a given exension in */
+  /** List a set of files with a given extension in */
   def list_files(
     root_dir: Path, extension: Option[String], time_filter: Option[Long => Boolean] = None, recursive: Boolean = false
   ): List[Path] = {
-    (if (recursive) (extension match {
-      case Some(ext) => ls.rec! root_dir |? (_.ext == ext)
-      case None => ls.rec! root_dir
-    }) else (extension match {
-      case Some(ext) => ls! root_dir |? (_.ext == ext)
-      case None => ls! root_dir
-    })).filter { path =>
-      time_filter match {
-        case Some(lambda) =>
-          val file_stat = stat! path
-          lambda(file_stat.mtime.toMillis)
-        case None => true
-      }
-    }.toList
+    if (!Files.exists(root_dir)) return List.empty
+    
+    val stream = if (recursive) {
+      Files.walk(root_dir)
+    } else {
+      Files.list(root_dir)
+    }
+    
+    try {
+      stream.asScala
+        .filter(Files.isRegularFile(_))
+        .filter { path =>
+          extension match {
+            case Some(ext) => path.toString.endsWith(s".$ext")
+            case None => true
+          }
+        }
+        .filter { path =>
+          time_filter match {
+            case Some(lambda) =>
+              Try(Files.getLastModifiedTime(path).toMillis).map(lambda).getOrElse(true)
+            case None => true
+          }
+        }
+        .toList
+    } finally {
+      stream.close()
+    }
   }
 
   /** Reads a file into a string */
   def read_file(file: Path): String = {
-    read! file
+    Using(Source.fromFile(file.toFile)) { source =>
+      source.mkString
+    }.get
   }
 
   /** Writes a sequence of lines into the file */
   def write_lines_to_file(file: Path, lines: Traversable[String]): Unit = {
-    write.over(file, lines.map(_ + "\n"))
+    Files.createDirectories(file.getParent)
+    Using(new BufferedWriter(new FileWriter(file.toFile))) { writer =>
+      lines.foreach { line =>
+        writer.write(line)
+        writer.newLine()
+      }
+    }.get
   }
+  
   def read_lines_from_file(file: Path): Seq[String] = {
-    read.lines(file)
+    Using(Source.fromFile(file.toFile)) { source =>
+      source.getLines().toSeq
+    }.get
+  }
+  
+  /** Write string content to a file */
+  def write_file(file: Path, content: String): Unit = {
+    Files.createDirectories(file.getParent)
+    Files.write(file, content.getBytes)
+  }
+  
+  /** List directories in a path */
+  def list_dirs(root_dir: Path): List[Path] = {
+    if (!Files.exists(root_dir)) return List.empty
+    
+    Using(Files.list(root_dir)) { stream =>
+      stream.asScala
+        .filter(Files.isDirectory(_))
+        .toList
+    }.get
   }
 }
 object FileUtils extends FileUtils

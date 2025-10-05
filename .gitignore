@@ -3,6 +3,8 @@
 target/*
 project/target/*
 project/project/*
+.vscode
+.bsp
 .ensime
 .ensime_cache
 ensime.sbt

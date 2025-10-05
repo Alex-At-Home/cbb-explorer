@@ -1,6 +1,7 @@
 package org.piggottfamily.cbb_explorer
 
-import ammonite.ops._
+import java.nio.file.{Path, Paths}
+import java.io.File
 import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
 import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.models.ncaa._
@@ -21,7 +22,7 @@ object BuildRosters {
         |--in=<<in-dir-up-to-conf-then-year>>
         |--out=<<out-dir-in-which-files-are-placed>>
         |[--team]=<<only include teams matching this string>>
-        |[--unifiy-ids]
+        |[--unify-ids-legacy]
         """)
       System.exit(-1)
     }
@@ -47,9 +48,14 @@ object BuildRosters {
       .headOption
       .map(_.split("=", 2)(1))
 
-    val unify_ids = args
+    val legacy_code_format = args //(use prior to 2025/26 - now we use CBBD ids to dedup the codes)
       .map(_.trim)
-      .filter(_.startsWith("--unifiy-ids"))
+      .filter(_.startsWith("--legacy-code-format"))
+      .nonEmpty
+
+    val unify_ids_legacy = args //(don't use this any more, we are using CBBD ids now)
+      .map(_.trim)
+      .filter(_.startsWith("--unify-ids-legacy"))
       .nonEmpty
 
     // Get year and then conference
@@ -71,20 +77,20 @@ object BuildRosters {
     val storage_controller = new StorageController()
 
     // Iterate over directories
-    val subdirs = ls ! Path(in_dir)
+    val subdirs = FileUtils.list_dirs(Paths.get(in_dir))
     subdirs
       .flatMap { subdir =>
         // TODO: add some error validation
         val get_team_id =
           "(.*)(?:_([0-9.]+))?$".r // (from 25/26 the teamid is optional)
-        subdir.last match {
+        subdir.getFileName.toString match {
           case get_team_id(team_name, _)
               if maybe_team_selector.forall(sel => team_name.contains(sel)) =>
             val team_dir =
-              if (unify_ids) subdir / "roster_crawl"
-              else subdir / "stats.ncaa.org"
+              if (unify_ids_legacy) subdir.resolve("roster_crawl")
+              else subdir.resolve("stats.ncaa.org")
             val maybe_team_fileid = FileUtils
-              .list_files(team_dir / LineupController.teams_dir, Some("html"))
+              .list_files(team_dir.resolve(LineupController.teams_dir), Some("html"))
               .take(1)
               .map {
                 _.last.split("[.]")(0)
@@ -101,7 +107,7 @@ object BuildRosters {
                     TeamId(decoded_team_name),
                     maybe_team_fileid,
                     include_coach = true,
-                    unify_ncaa_ids = unify_ids
+                    unify_ncaa_ids = unify_ids_legacy
                   )
                   ._1
               )

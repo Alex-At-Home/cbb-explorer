@@ -7,7 +7,7 @@ import org.piggottfamily.cbb_explorer.utils.parsers.kenpom._
 
 import ParserController._
 
-import ammonite.ops.Path
+import java.nio.file.Path
 import scala.util.matching.Regex
 
 /** Top level business logic for parsing the different datasets */

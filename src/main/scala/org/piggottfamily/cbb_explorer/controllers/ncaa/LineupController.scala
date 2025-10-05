@@ -8,7 +8,7 @@ import org.piggottfamily.cbb_explorer.utils.parsers.ncaa._
 
 import LineupController._
 
-import ammonite.ops._
+import java.nio.file.{Path, Paths}
 import scala.util.matching.Regex
 import scala.util.{Try, Success, Failure}
 

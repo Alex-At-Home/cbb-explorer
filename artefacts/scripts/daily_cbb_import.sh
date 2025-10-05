@@ -58,12 +58,8 @@ cd $PBP_OUT_DIR
 # TODO: test crawler
 source $CBB_CRAWLER_SRC_DIR/.env
 
-for i in "Davidson" "Dayton" "Duquesne" "Richmond" "VCU"; do
-   echo "***** Fetching [$i]"
-   PING="lping" DOWNLOAD=yes PARSE=no UPLOAD=no CURR_YEAR=2024 CURR_YEAR_STR=2024_25 CURR_TIME=0 \
-      CONFS="women_atlanticten" TEAM_FILTER="$i" \
-      ../../cbb-explorer/artefacts/scripts/bulk_lineup_import.sh
-done
+# Pre-season activity, download all men rosters
+PING=lping DOWNLOAD=yes PARSE=no UPLOAD=no CURR_YEAR=2025 CURR_YEAR_STR=2025_26 CURR_TIME=0 CONFS=all_men ../../cbb-explorer/artefacts/scripts/bulk_lineup_import.sh
 
 # TEST: Download latest file from KenPom (note I have his permission to do this):
 CRAWL_PATH=~/Downloads ACADEMIC_YEAR=${SEASON_YEAR} npm --prefix $PBP_CRAWL_PROJECT run kenpom_daily_download

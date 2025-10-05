@@ -30,7 +30,7 @@ export CLOSE_EOF=${CLOSE_EOF:="false"}
 
 export CURR_TIME=${CURR_TIME:=$(date +"%s")}
 
-export CURR_YEAR_STR=${CURR_YEAR_STR:="2024_25"}
+export CURR_YEAR_STR=${CURR_YEAR_STR:="2025_26"}
 export CURR_YEAR=$(echo $CURR_YEAR_STR | cut -c1-4)
 export ACADEMIC_YEAR=$(echo "20$(echo $CURR_YEAR_STR | cut -c6-7)")
 
@@ -41,6 +41,12 @@ export CONFS=${CONFS:="pactwelve women_pactwelve acc american atlanticten bigeas
 #export CONFS=${CONFS:="women_acc women_american women_bigeast women_bigten women_bigtwelve women_pactwelve women_sec women_misc_conf"}
 #export CONFS=${CONFS:="wcc mountainwest mvc conferenceusa mac socon sunbelt bigsky colonial summit"}
 #export CONFS=${CONFS:="americaeast atlanticsun bigsouth bigwest horizon ivy maac meac nec ovc patriot southland swac wac"}
+if [ "$CONFS" == "all_men" ]; then
+  export CONFS="acc american atlanticten bigeast bigten bigtwelve sec wcc mountainwest mvc conferenceusa mac socon sunbelt bigsky colonial summit americaeast atlanticsun bigsouth bigwest horizon ivy maac meac nec ovc patriot southland swac wac"
+fi
+if [ "$CONFS" == "all_women" ]; then
+  export CONFS="women_acc women_american women_atlanticten women_bigeast women_bigten women_bigtwelve women_sec women_wcc women_mountainwest women_mvc women_conferenceusa women_mac women_socon women_sunbelt women_bigsky women_colonial women_summit women_americaeast women_atlanticsun women_bigsouth women_bigwest women_horizon women_ivy women_maac women_meac women_nec women_ovc women_patriot women_southland women_swac women_wac"
+fi
 
 echo ">>>>>>> Extracting from [$CURR_TIME] for [$CURR_YEAR]/[$CURR_YEAR_STR] on [$CONFS] with [$TEAM_FILTER/$TEAMID_FILTER]"
 sleep 2
@@ -62,7 +68,7 @@ if [ "$DOWNLOAD" == "yes" ]; then
     # Note this is only applicable for a given season, for previous seasons need to use the old download way
     # at start of season need to change the season_divisions id
 
-    CONF_CRAWL_PATH="." \
+    CONF_CRAWL_PATH=${PBP_OUT_DIR} \
       ACADEMIC_YEAR=${ACADEMIC_YEAR} GAME_BASED_FILTER=${GAME_BASED_FILTER} \
       npm --prefix $PBP_CRAWL_PROJECT run ncaa_schedule_crawl
 

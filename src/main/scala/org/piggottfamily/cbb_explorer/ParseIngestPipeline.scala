@@ -1,6 +1,7 @@
 package org.piggottfamily.cbb_explorer
 
-import ammonite.ops._
+import java.nio.file.{Path, Paths}
+import org.piggottfamily.cbb_explorer.utils.FileUtils
 import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
 import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.models.ncaa._
@@ -84,7 +85,7 @@ object ParseIngestPipeline {
         throw new Exception("--in is needed")
       }
 
-    val paths = ls.rec! Path(in_dir)
+    val paths = FileUtils.list_files(Paths.get(in_dir), None, None, true)
     val women_path_regex = ".*/women_([^/]+)/([0-9]+)/(.*)_[0-9.]+$".r
     val men_path_regex = ".*/([^/]+)/([0-9]+)/(.*)_[0-9.]+$".r
     case class TeamInfo(gender: String, conf: String, year: String, team: String)

@@ -12,13 +12,13 @@ import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
 
 import shapeless.syntax.std.tuple._
 
-import ammonite.ops.Path
+import java.nio.file.{Path, Paths}
 import scala.util.Try
 
 // Put the object first, ran into implicit resolution issues
 object StorageController {
 
-  val default_cache_root: Path = Path.home / ".cbb-explorer"
+  val default_cache_root: Path = Paths.get(System.getProperty("user.home"), ".cbb-explorer")
   val default_teams_cache: String =
     ".teams" // TODO include year for easy upload?
   val default_lineup_cache: String = s".lineups.ndjson"
@@ -61,10 +61,10 @@ object StorageController {
       }
 
     // Enums:
-    implicit val tierTypeEncoder = Encoder.enumEncoder(Game.TierType)
-    implicit val tierTypeDecoder = Decoder.enumDecoder(Game.TierType)
-    implicit val locationTypeEncoder = Encoder.enumEncoder(Game.LocationType)
-    implicit val locationTypeDecoder = Decoder.enumDecoder(Game.LocationType)
+    implicit val tierTypeEncoder = Encoder.encodeEnumeration(Game.TierType)
+    implicit val tierTypeDecoder = Decoder.decodeEnumeration(Game.TierType)
+    implicit val locationTypeEncoder = Encoder.encodeEnumeration(Game.LocationType)
+    implicit val locationTypeDecoder = Decoder.decodeEnumeration(Game.LocationType)
 
     // Ensure that we write maps in scala as arrays in JSON:
     implicit val playerMapEncoder =
@@ -133,7 +133,7 @@ class StorageController(
       cache_name: String = default_teams_cache
   ): Unit = {
     d.file_manager.write_lines_to_file(
-      cache_root / cache_name,
+      cache_root.resolve(cache_name),
       teams.values.flatMap(_.values).map(_.asJson.noSpaces)
     )
   }
@@ -147,7 +147,7 @@ class StorageController(
     Try(
       d.file_manager
         .read_lines_from_file(
-          cache_root / cache_name
+          cache_root.resolve(cache_name)
         )
         .map { json_str =>
           decode[TeamSeason](json_str)
@@ -174,7 +174,7 @@ class StorageController(
       roster.map(roster => roster.player_code_id.code -> roster).toMap.asJson
     d.file_manager.write_lines_to_file(
       file_path,
-      List(printer.pretty(roster_as_map))
+      List(printer.print(roster_as_map))
     )
   }
 
@@ -200,7 +200,7 @@ class StorageController(
       file_name: String = default_lineup_cache
   ): Unit = {
     d.file_manager.write_lines_to_file(
-      file_root / file_name,
+      file_root.resolve(file_name),
       lineups.map(_.asJson.noSpaces)
       // TODO: why isn't this printer.pretty to remove nulls? It appears to be intentional but I can't figure
       // out why I'd still nulls everywhere in the lineup events
@@ -215,8 +215,8 @@ class StorageController(
   ): Unit = {
     d.file_manager.write_lines_to_file(
       // (use printer.pretty to handle nulls, otherwise equivalent to _.asJson.noSpaces)
-      file_root / file_name,
-      player_events.map(p => printer.pretty(p.asJson))
+      file_root.resolve(file_name),
+      player_events.map(p => printer.print(p.asJson))
     )
   }
 
@@ -228,8 +228,8 @@ class StorageController(
   ): Unit = {
     d.file_manager.write_lines_to_file(
       // (use printer.pretty to handle nulls, otherwise equivalent to _.asJson.noSpaces)
-      file_root / file_name,
-      shot_events.map(p => printer.pretty(p.asJson))
+      file_root.resolve(file_name),
+      shot_events.map(p => printer.print(p.asJson))
     )
   }
 }

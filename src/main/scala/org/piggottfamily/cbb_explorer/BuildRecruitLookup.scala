@@ -1,6 +1,7 @@
 package org.piggottfamily.cbb_explorer
 
-import ammonite.ops._
+import java.nio.file.{Path, Paths}
+import org.piggottfamily.cbb_explorer.utils.FileUtils
 import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
 import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.models.ncaa._
@@ -82,8 +83,8 @@ object BuildRecruitLookup {
 
       // Get a list of teams and read in their rosters:
 
-      val recruits_file = Path(in_file)
-      val recruits_html = read.lines(recruits_file).mkString("\n")
+      val recruits_file = Paths.get(in_file)
+      val recruits_html = FileUtils.read_lines_from_file(recruits_file).mkString("\n")
 
       val storage_controller = new StorageController()
 
@@ -93,7 +94,7 @@ object BuildRecruitLookup {
 
          maybe_roster_dir.flatMap { roster_dir =>
             Try {
-               storage_controller.read_roster(Path(roster_dir) / s"Men_$year" / s"$translated_team.json")
+               storage_controller.read_roster(Paths.get(roster_dir).resolve(s"Men_$year").resolve(s"$translated_team.json"))
             }.recoverWith {
                case error =>
                   System.out.println(s"Failed to ingest [$team][$translated_team]: $error")
@@ -174,6 +175,6 @@ object BuildRecruitLookup {
          }).toMap }
 
       val printer = Printer.noSpaces.copy(dropNullValues = true)
-      write.over(Path(out_path), printer.pretty(transfer_codes_to_team.asJson))
+      FileUtils.write_file(Paths.get(out_path), printer.print(transfer_codes_to_team.asJson))
    }
 }

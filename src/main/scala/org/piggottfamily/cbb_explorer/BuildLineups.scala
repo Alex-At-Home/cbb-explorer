@@ -1,6 +1,7 @@
 package org.piggottfamily.cbb_explorer
 
-import ammonite.ops._
+import java.nio.file.{Path, Paths}
+import org.piggottfamily.cbb_explorer.utils.FileUtils
 import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
 import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.models.ncaa._
@@ -101,23 +102,23 @@ object BuildLineups {
     val storage_controller = new StorageController()
 
     // Iterate over directories
-    val subdirs = ls ! Path(in_dir)
+    val subdirs = FileUtils.list_dirs(Paths.get(in_dir))
     val (
-      good_games,
-      lineup_errors,
-      player_events,
-      shot_events
+      good_games: List[LineupEvent],
+      lineup_errors: List[LineupEvent], 
+      player_events: List[PlayerEvent],
+      shot_events: List[ShotEvent]
     ) = subdirs
       .map { subdir =>
         // TODO: add some error validation
         val get_team_id =
           "(.*)(?:_([0-9.]+))?$".r // (from 25/26 the teamid is optional)
-        subdir.last match {
+        subdir.getFileName.toString match {
           case get_team_id(team_name, _)
               if maybe_team_selector.forall(sel =>
                 team_name.contains(sel)
               ) && maybe_team_match.forall(_ == team_name) =>
-            val team_dir = subdir / "stats.ncaa.org"
+            val team_dir = subdir.resolve("stats.ncaa.org")
             val decoded_team_name =
               URLDecoder.decode(team_name.replace("+", " "))
 
@@ -173,7 +174,7 @@ object BuildLineups {
           }
         )
         .toList,
-      file_root = Path(out_dir),
+      file_root = Paths.get(out_dir),
       file_name = s"${conference}_$year${time_filter_suffix}.ndjson"
     )
     // Write bad lineups
@@ -191,7 +192,7 @@ object BuildLineups {
           }
         )
         .toList,
-      file_root = Path(out_dir),
+      file_root = Paths.get(out_dir),
       file_name = s"bad_lineups_${conference}_$year${time_filter_suffix}.ndjson"
     )
     if (include_player_events) {
@@ -210,7 +211,7 @@ object BuildLineups {
             }
           )
           .toList,
-        file_root = Path(out_dir),
+        file_root = Paths.get(out_dir),
         file_name =
           s"player_events_${conference}_$year${time_filter_suffix}.ndjson"
       )
@@ -219,7 +220,7 @@ object BuildLineups {
       println(s"[LineupUtils] Writing [${shot_events.size}] shot events")
       storage_controller.write_shot_events(
         shot_events = shot_events.toList,
-        file_root = Path(out_dir),
+        file_root = Paths.get(out_dir),
         file_name =
           s"shot_events_${conference}_$year${time_filter_suffix}.ndjson"
       )

@@ -1,6 +1,7 @@
 package org.piggottfamily.cbb_explorer
 
-import ammonite.ops._
+import java.nio.file.{Path, Paths}
+import org.piggottfamily.cbb_explorer.utils.FileUtils
 import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
 import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.models.ncaa._
@@ -56,8 +57,8 @@ object BuildPlayerLists {
       val d1_teams: Set[String] = team_lut.keys.toSet
 
       // Read in player list from file as CSV
-      val file = Path(in_file)
-      val transfer_csv = read.lines(file).mkString("\n")
+      val file = Paths.get(in_file)
+      val transfer_csv = FileUtils.read_lines_from_file(file).mkString("\n")
       type PlayerEntry = (String, String, String, String, String, String, String, String, String, String)
          //name,pos,height,birthplace,birthday,HS year,NBA year,school,ignore,country,
       case class PlayerInfo(name: String, team: String, fr_year: String)
@@ -109,7 +110,7 @@ object BuildPlayerLists {
          val encoded_team_name = URLEncoder.encode(team_name, "UTF-8").replace(" ", "+")
          val result = (team_name, all_years.filter(_ >= player_entry.fr_year).flatMap { year =>
             Try {
-               storage_controller.read_roster(Path(roster_dir) / s"Men_$year" / s"$encoded_team_name.json")
+               storage_controller.read_roster(Paths.get(roster_dir).resolve(s"Men_$year").resolve(s"$encoded_team_name.json"))
             }.recoverWith {
                case error =>
                   //System.out.println(s"BuildPlayerLists: Failed to ingest [$team_name][$encoded_team_name]: $error")

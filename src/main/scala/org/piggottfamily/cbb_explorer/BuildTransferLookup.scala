@@ -1,6 +1,7 @@
 package org.piggottfamily.cbb_explorer
 
-import ammonite.ops._
+import java.nio.file.{Path, Paths}
+import org.piggottfamily.cbb_explorer.utils.FileUtils
 import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
 import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.models.ncaa._
@@ -107,8 +108,8 @@ object BuildTransferLookup {
     val transfers = if (in_file.endsWith(".csv")) {
 
       // Read in transfer list from file as CSV
-      val file = Path(in_file)
-      val transfer_csv = read.lines(file).mkString("\n")
+      val file = Paths.get(in_file)
+      val transfer_csv = FileUtils.read_lines_from_file(file).mkString("\n")
       type TransferEntry = (
           String,
           String,
@@ -159,9 +160,9 @@ object BuildTransferLookup {
         }
         .toList
     } else if (in_file.endsWith(".json")) {
-      // Read in transfer list from file as JSON
-      val file = Path(in_file)
-      val transfer_json_str = read.lines(file).mkString("\n")
+      // Read in transfer list from file as JSON  
+      val file = Paths.get(in_file)
+      val transfer_json_str = FileUtils.read_lines_from_file(file).mkString("\n")
 
       val oldDecoder: Decoder[TransferInfo] = new Decoder[TransferInfo] {
         override def apply(hCursor: HCursor): Decoder.Result[TransferInfo] = {
@@ -325,8 +326,8 @@ object BuildTransferLookup {
 
     val nba_transfers: List[TransferInfo] = maybe_in_nba_file
       .map { filename =>
-        val nba_file = Path(filename)
-        val nba_html = read.lines(nba_file).mkString("\n")
+        val nba_file = Paths.get(filename)
+        val nba_html = FileUtils.read_lines_from_file(nba_file).mkString("\n")
 
         val nba_pairs = NbaDeclarationParser
           .get_declarations(filename, nba_html)
@@ -365,7 +366,7 @@ object BuildTransferLookup {
           URLEncoder.encode(team_name, "UTF-8").replace(" ", "+")
         Try {
           storage_controller.read_roster(
-            Path(roster_dir) / s"Men_$year" / s"$encoded_team_name.json"
+            Paths.get(roster_dir).resolve(s"Men_$year").resolve(s"$encoded_team_name.json")
           )
         }.recoverWith { case error =>
           System.out.println(
@@ -451,6 +452,6 @@ object BuildTransferLookup {
     )
 
     val printer = Printer.noSpaces.copy(dropNullValues = true)
-    write.over(Path(out_path), printer.pretty(transfer_codes_to_team.asJson))
+    FileUtils.write_file(Paths.get(out_path), printer.print(transfer_codes_to_team.asJson))
   }
 }

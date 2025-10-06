@@ -1,6 +1,8 @@
 package org.piggottfamily.cbb_explorer
 
-import ammonite.ops._
+import java.nio.file.{Path, Paths}
+import java.nio.file.Files
+import org.piggottfamily.cbb_explorer.utils.FileUtils
 import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
 import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.models.ncaa._
@@ -107,8 +109,8 @@ object BuildIngestPipeline {
     val template = Source.fromURL(getClass.getResource("/lineup-cli.template.sh")).mkString
 
     // Read in file
-    val file = Path(in_file)
-    val html_str = read.lines(file).mkString("\n")
+    val file = Paths.get(in_file)
+    val html_str = FileUtils.read_lines_from_file(file).mkString("\n")
 
     // Parse file
     val triples = TeamIdParser.get_team_triples(file.toString, html_str)
@@ -125,14 +127,14 @@ object BuildIngestPipeline {
           .replace("__TEAMIDS_HERE__", conf_strings(ConferenceId(conf)))
 
         // Create some dirs:
-        val parent_path = Path(out_dir) / conf_str / year_str
-        val new_file = parent_path / "lineups-cli.sh"
-        mkdir! parent_path
+        val parent_path = Paths.get(out_dir).resolve(conf_str).resolve(year_str)
+        val new_file = parent_path.resolve("lineups-cli.sh")
+        Files.createDirectories(parent_path)
         if (replace_existing) {
-          write.over(new_file, to_render)
+          FileUtils.write_file(new_file, to_render)
           println(s"Created/overwritten [$new_file]")
         } else {
-          Try(write(new_file, to_render)) match {
+          scala.util.Try(FileUtils.write_file(new_file, to_render)) match {
             case Success(_) => println(s"Created [$new_file]")
             case Failure(_) => println(s"Skipped existing [$new_file]")
           }

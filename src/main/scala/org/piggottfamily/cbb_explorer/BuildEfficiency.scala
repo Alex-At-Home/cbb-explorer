@@ -1,6 +1,6 @@
 package org.piggottfamily.cbb_explorer
 
-import ammonite.ops._
+import java.nio.file.{Path, Paths}
 import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
 import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.models.ncaa._
@@ -48,7 +48,7 @@ object BuildEfficiency {
       .map(_.trim).filter(_.startsWith("--year="))
       .headOption.map(_.split("=", 2)(1)).map(_.toInt).getOrElse(2022)
 
-    val eff_root = Path(in_dir)
+    val eff_root = Paths.get(in_dir)
 
     println("Starting cbb-explorer (BuildEfficiency):")
 
@@ -82,7 +82,7 @@ object BuildEfficiency {
 
     val storage_controller = new StorageController()
     storage_controller.cache_teams(eff,
-      cache_root = Path(out_dir),
+      cache_root = Paths.get(out_dir),
       cache_name = s"efficiency_men_${new java.util.Date().getTime()}.ndjson"
     )
   }

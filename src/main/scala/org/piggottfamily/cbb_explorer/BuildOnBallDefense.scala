@@ -1,6 +1,7 @@
 package org.piggottfamily.cbb_explorer
 
-import ammonite.ops._
+import java.nio.file.{Path, Paths}
+import org.piggottfamily.cbb_explorer.utils.FileUtils
 import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
 import org.piggottfamily.cbb_explorer.models._
 import org.piggottfamily.cbb_explorer.models.ncaa._
@@ -79,8 +80,8 @@ object BuildOnBallDefense {
 
       // Read in team on-ball defense from file as CSV and enrich with the roster info
 
-      val team_file = Path(in_team_file)
-      val team_csv = read.lines(team_file).mkString("\n")
+      val team_file = Paths.get(in_team_file)
+      val team_csv = FileUtils.read_lines_from_file(team_file).mkString("\n")
 
       // What you got if you ran this in 22/23:
       // case class TeamOnBallDefense(
@@ -110,7 +111,7 @@ object BuildOnBallDefense {
          val ncaa_team = team_lut.get(entry.team).getOrElse(entry.team)
          val encoded_team_name = URLEncoder.encode(ncaa_team, "UTF-8").replace(" ", "+")
          Try {
-            storage_controller.read_roster(Path(roster_dir) / s"Men_$year" / s"$encoded_team_name.json")
+            storage_controller.read_roster(Paths.get(roster_dir).resolve(s"Men_$year").resolve(s"$encoded_team_name.json"))
          }.recoverWith {
             case error =>
                System.out.println(s"Failed to ingest [${ncaa_team}][$encoded_team_name]: $error")
@@ -130,8 +131,8 @@ object BuildOnBallDefense {
 
       // Read in player on-ball defense from file as CSV
 
-      val player_file = Path(in_player_file)
-      val player_csv = read.lines(player_file).mkString("\n")
+      val player_file = Paths.get(in_player_file)
+      val player_csv = FileUtils.read_lines_from_file(player_file).mkString("\n")
 
       // What you got if you ran this in 22/23:
       // case class PlayerOnBallDefense(
@@ -213,7 +214,7 @@ object BuildOnBallDefense {
             s"${pd.rank},${pd.jersey},${entry.name_to_use},${pd.team},${pd.gp},${pd.poss},${pd.pct_time},${pd.points},${pd.ppp},${pd.fga},${pd.fg_made},${pd.fg_miss},${pd.fg_pct},${pd.efg_pct},${pd.to_pct},${pd.ft_pct},${pd.ft_rate},${pd.sf_pct},${pd.pct_score},,,,,,,"
          }
 
-         write.over(Path(out_path) / year.toString / s"${encoded_team_name}.txt", (List(team_row) ++ entry_rows).mkString("\n"))
+         FileUtils.write_file(Paths.get(out_path).resolve(year.toString).resolve(s"${encoded_team_name}.txt"), (List(team_row) ++ entry_rows).mkString("\n"))
       }
    }
 }

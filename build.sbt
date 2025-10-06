@@ -1,7 +1,7 @@
 
 // The simplest possible sbt build file is just one line:
 
-scalaVersion := "2.12.3"
+scalaVersion := "2.12.20"
 // That is, to create a valid sbt build, all you've got to do is define the
 // version of Scala you'd like your project to use.
 
@@ -84,7 +84,13 @@ lazy val root = (project in file("."))
 // To use cats...parMapN with Either:
 scalacOptions += "-Ypartial-unification"
 
-val circeVersion = "0.9.1"
+// Fix dependency conflicts
+ThisBuild / evictionErrorLevel := Level.Warn
+ThisBuild / libraryDependencySchemes ++= Seq(
+  "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always
+)
+
+val circeVersion = "0.14.9"
 
 libraryDependencies ++= Seq(
   "io.circe" %% "circe-core",
@@ -93,9 +99,9 @@ libraryDependencies ++= Seq(
 ).map(_ % circeVersion)
 
 // Lens support
-libraryDependencies += "com.softwaremill.quicklens" % "quicklens_2.12" % "1.6.1"
+libraryDependencies += "com.softwaremill.quicklens" %% "quicklens" % "1.6.1"
 
-val kantanVersion = "0.4.0"
+val kantanVersion = "0.6.2"
 
 // Core library, included automatically if any other module is imported.
 libraryDependencies += "com.nrinaudo" %% "kantan.csv" % kantanVersion
@@ -113,7 +119,7 @@ libraryDependencies += "com.nrinaudo" %% "kantan.csv-cats" % kantanVersion
 libraryDependencies += "com.nrinaudo" %% "kantan.csv-generic" % kantanVersion
 
 // Provides instances for joda time types.
-libraryDependencies += "com.nrinaudo" %% "kantan.csv-joda-time" % kantanVersion
+// libraryDependencies += "com.nrinaudo" %% "kantan.csv-joda-time" % kantanVersion
 
 // Provides instances for refined types.
 libraryDependencies += "com.nrinaudo" %% "kantan.csv-refined" % kantanVersion
@@ -124,37 +130,37 @@ libraryDependencies += "com.nrinaudo" %% "kantan.csv-enumeratum" % kantanVersion
 // Provides instances for libra types.
 libraryDependencies += "com.nrinaudo" %% "kantan.csv-libra" % kantanVersion
 
-libraryDependencies += "net.ruippeixotog" %% "scala-scraper" % "2.1.0"
+libraryDependencies += "net.ruippeixotog" %% "scala-scraper" % "3.1.1"
 
-val utestVersion = "0.6.3"
+val utestVersion = "0.8.4"
 
 libraryDependencies += "com.lihaoyi" %% "utest" % utestVersion % "test"
 
 testFrameworks += new TestFramework("utest.runner.Framework")
 
-val ammoniteVersion = "1.1.0"
+val ammoniteVersion = "2.5.4"
 
-libraryDependencies += "com.lihaoyi" %% "ammonite-ops" % ammoniteVersion
+// libraryDependencies += "com.lihaoyi" %% "ammonite-ops" % ammoniteVersion
 
-libraryDependencies += "com.lihaoyi" % "ammonite" % ammoniteVersion cross CrossVersion.full
+// libraryDependencies += "com.lihaoyi" % "ammonite" % ammoniteVersion % "test" cross CrossVersion.full
 
-val nameOfVersion = "1.0.3"
+val nameOfVersion = "4.0.0"
 
 libraryDependencies += "com.github.dwickern" %% "scala-nameof" % nameOfVersion % "provided"
 
-libraryDependencies += "me.xdrop" % "fuzzywuzzy" % "1.3.1"
+libraryDependencies += "me.xdrop" % "fuzzywuzzy" % "1.4.0"
 
 // Assembly for shell:
 // sbt assembly
 // java -jar ,/target/scala-2.12/cbb-explorer.jar
 
-assemblyMergeStrategy in assembly := {
+assembly / assemblyMergeStrategy := {
   case PathList("META-INF", xs @ _*) => MergeStrategy.discard
   case x => MergeStrategy.first
 }
 
-assemblyJarName in assembly := "cbb-explorer.jar"
-mainClass in assembly := Some("org.piggottfamily.cbb_explorer.Main")
+assembly / assemblyJarName := "cbb-explorer.jar"
+assembly / mainClass := Some("org.piggottfamily.cbb_explorer.Main")
 
 // Or for faster code-compile cycles (can't get 'sbt run' to work):
 // sbt assemblyPackageDependency
@@ -163,4 +169,4 @@ mainClass in assembly := Some("org.piggottfamily.cbb_explorer.Main")
 // sbt compile package
 // java -cp './target/scala-2.12/cbb-explorer-assembly-0.1-deps.jar:target/scala-2.12/cbb-explorer_2.12-0.1.jar' org.piggottfamily.cbb_explorer.Main
 
-libraryDependencies += "com.github.nscala-time" %% "nscala-time" % "2.18.0"
+libraryDependencies += "com.github.nscala-time" %% "nscala-time" % "2.32.0"

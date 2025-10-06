@@ -8,7 +8,7 @@ import org.piggottfamily.cbb_explorer.utils.parsers.ncaa._
 
 import LineupController._
 
-import ammonite.ops._
+import java.nio.file.{Path, Paths}
 import scala.util.matching.Regex
 import scala.util.{Try, Success, Failure}
 
@@ -65,21 +65,21 @@ class LineupController(d: Dependencies = Dependencies()) {
 
     val (neutral_games, team_fileid) = (for {
       team_filename <- d.file_manager
-        .list_files(root_dir / teams_dir, Some("html"))
+        .list_files(root_dir.resolve(teams_dir), Some("html"))
         .iterator
       team_html = d.file_manager.read_file(team_filename)
 
       format_results <- build_neutral_games(
-        team_filename.last,
+        team_filename.getFileName.toString,
         team_html,
         format_version = 0
       ) match {
         case None => // try with new format
-          build_neutral_games(team_filename.last, team_html, format_version = 1)
+          build_neutral_games(team_filename.getFileName.toString, team_html, format_version = 1)
         case results =>
           results
       }
-      tmp_team_fileid = team_filename.last.split("[.]")(0) // (remove extension)
+      tmp_team_fileid = team_filename.getFileName.toString.split("[.]")(0) // (remove extension)
 
     } yield format_results -> Some(tmp_team_fileid))
       .take(1)
@@ -87,7 +87,7 @@ class LineupController(d: Dependencies = Dependencies()) {
       .headOption
       .getOrElse {
         d.logger.info(
-          s"Failed to find the schedule in [${root_dir / teams_dir}]"
+          s"Failed to find the schedule in [${root_dir.resolve(teams_dir)}]"
         )
         Set[String]() -> None
       }
@@ -113,7 +113,7 @@ class LineupController(d: Dependencies = Dependencies()) {
         case 0 =>
           Try(
             d.file_manager.list_files(
-              root_dir / play_by_play_dir,
+              root_dir.resolve(play_by_play_dir),
               Some("html"),
               file_filter
             )
@@ -121,21 +121,21 @@ class LineupController(d: Dependencies = Dependencies()) {
         case _ =>
           Try(
             d.file_manager.list_files(
-              root_dir / contests_dir,
+              root_dir.resolve(contests_dir),
               Some("html"),
               file_filter,
               recursive = true
             )
           ).getOrElse(Nil).iterator.filter { p =>
-            p.last == v1_pbp_filename
+            p.getFileName.toString == v1_pbp_filename
           }
       }
 
       game_id = derived_format_version match {
         case 0 =>
-          game.last.split("[.]")(0)
+          game.getFileName.toString.split("[.]")(0)
         case _ =>
-          (game / up).last // (dirname is gameid in version 1)
+          game.getParent.getFileName.toString // (dirname is gameid in version 1)
       }
       if game_id_filter.forall(_.findFirstIn(game_id).isDefined)
     } yield game_id -> game
@@ -220,7 +220,7 @@ class LineupController(d: Dependencies = Dependencies()) {
   ): ((List[String], List[RosterEntry]), Int) = {
     val (roster_players, format_version) = ((Try(
       d.file_manager.list_files(
-        root_dir / roster_dir,
+        root_dir.resolve(roster_dir),
         Some("html"),
         None,
         recursive = true
@@ -228,8 +228,8 @@ class LineupController(d: Dependencies = Dependencies()) {
     ).getOrElse(Nil -> 1) match {
       case (Nil, _) if team_fileid.isDefined =>
         d.file_manager.list_files(
-          root_dir / teams_dir / RelPath(
-            team_fileid.getOrElse("__internal_logic_error__")
+          root_dir.resolve(teams_dir).resolve(
+            team_fileid.getOrElse("__internal_logic_error__") + ".html"
           ),
           Some("html"),
           None,
@@ -241,7 +241,7 @@ class LineupController(d: Dependencies = Dependencies()) {
         val roster_html = d.file_manager.read_file(file)
         val roster_lineup = RosterParser
           .parse_roster(
-            file.last.toString,
+            file.getFileName.toString,
             roster_html,
             team,
             format_version,
@@ -253,7 +253,7 @@ class LineupController(d: Dependencies = Dependencies()) {
               roster_entry.player_code_id.ncaa_id match {
                 case Some(ncaa_id) if unify_ncaa_ids =>
                   val player_html = d.file_manager.read_file(
-                    root_dir / players_dir / s"${ncaa_id}.html"
+                    root_dir.resolve(players_dir).resolve(s"${ncaa_id}.html")
                   )
                   val maybe_unified_ncaa_id = RosterParser
                     .get_unified_ncaa_id(ncaa_id, player_html)
@@ -294,7 +294,7 @@ class LineupController(d: Dependencies = Dependencies()) {
           case 0 =>
             Try(
               d.file_manager.list_files(
-                root_dir / boxscore_dir,
+                root_dir.resolve(boxscore_dir),
                 Some("html"),
                 None
               )
@@ -302,18 +302,18 @@ class LineupController(d: Dependencies = Dependencies()) {
           case _ =>
             Try(
               d.file_manager.list_files(
-                root_dir / contests_dir,
+                root_dir.resolve(contests_dir),
                 Some("html"),
                 None,
                 recursive = true
               )
             ).getOrElse(Nil).iterator.filter {
-              _.last == v1_boxscore_filename
+              _.getFileName.toString == v1_boxscore_filename
             }
         }
         box_html = d.file_manager.read_file(box)
         box_lineup <- (d.boxscore_parser.get_box_lineup(
-          box.last.toString,
+          box.getFileName.toString,
           box_html,
           team,
           format_version,
@@ -345,15 +345,15 @@ class LineupController(d: Dependencies = Dependencies()) {
           val boxscore_filename =
             s"${game_id}42b2.html" // (encoding of 1st period box score)
           (
-            root_dir / play_by_play_dir / playbyplay_filename,
-            root_dir / boxscore_dir / boxscore_filename,
+            root_dir.resolve(play_by_play_dir).resolve(playbyplay_filename),
+            root_dir.resolve(boxscore_dir).resolve(boxscore_filename),
             None
           )
         case _ =>
           (
-            root_dir / contests_dir / game_id / v1_pbp_filename,
-            root_dir / contests_dir / game_id / v1_boxscore_filename,
-            Some(root_dir / contests_dir / game_id / v1_shotlocs_filename)
+            root_dir.resolve(contests_dir).resolve(game_id).resolve(v1_pbp_filename),
+            root_dir.resolve(contests_dir).resolve(game_id).resolve(v1_boxscore_filename),
+            Some(root_dir.resolve(contests_dir).resolve(game_id).resolve(v1_shotlocs_filename))
           )
       }
 
@@ -363,7 +363,7 @@ class LineupController(d: Dependencies = Dependencies()) {
       maybe_shot_event_path.map(d.file_manager.read_file)
     for {
       tmp_box_lineup <- d.boxscore_parser.get_box_lineup(
-        boxscore_path.last,
+        boxscore_path.getFileName.toString,
         box_html,
         team,
         format_version,
@@ -374,7 +374,7 @@ class LineupController(d: Dependencies = Dependencies()) {
         if (format_version > 0) { // (used below in a couple of places)
           d.playbyplay_parser
             .get_sorted_pbp_events(
-              playbyplay_path.last,
+              playbyplay_path.getFileName.toString,
               play_by_play_html,
               tmp_box_lineup,
               format_version
@@ -398,7 +398,7 @@ class LineupController(d: Dependencies = Dependencies()) {
       )
 
       lineup_events <- d.playbyplay_parser.create_lineup_data(
-        playbyplay_path.last,
+        playbyplay_path.getFileName.toString,
         play_by_play_html,
         box_lineup,
         format_version
@@ -423,7 +423,7 @@ class LineupController(d: Dependencies = Dependencies()) {
           (
             lineup_with_shot_info,
             player_events.map(
-              modify[PlayerEvent](_.player_stats.player_shot_info).setTo(None)
+              _.modify(_.player_stats.player_shot_info).setTo(None)
             )
             // (remove shot info stats now that we've copied them across)
           )
@@ -435,7 +435,7 @@ class LineupController(d: Dependencies = Dependencies()) {
           case Some((path, html)) =>
             d.shot_parser
               .create_shot_event_data(
-                path.last,
+                path.getFileName.toString,
                 html,
                 box_lineup
               )
@@ -473,12 +473,12 @@ class LineupController(d: Dependencies = Dependencies()) {
 
 object LineupController {
 
-  val teams_dir = RelPath("teams")
-  val players_dir = RelPath("players")
-  val play_by_play_dir = RelPath("game") / RelPath("play_by_play")
-  val boxscore_dir = RelPath("game") / RelPath("box_score")
-  val contests_dir = RelPath("contests")
-  val roster_dir = RelPath("team")
+  val teams_dir = "teams"
+  val players_dir = "players"
+  val play_by_play_dir = "game/play_by_play"
+  val boxscore_dir = "game/box_score"
+  val contests_dir = "contests"
+  val roster_dir = "team"
 
   val v1_boxscore_filename = "individual_stats.html"
   val v1_pbp_filename = "play_by_play.html"

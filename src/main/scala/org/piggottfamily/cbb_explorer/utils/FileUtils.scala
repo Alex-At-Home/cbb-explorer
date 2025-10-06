@@ -4,7 +4,8 @@ import java.io.{BufferedWriter, FileWriter, IOException}
 import java.nio.file.{Files, Path, Paths}
 import scala.io.Source
 import scala.collection.JavaConverters._
-import scala.util.{Try, Using}
+import scala.util.{Try, Success, Failure}
+import java.util.stream.Collectors
 
 /** File utils */
 trait FileUtils {
@@ -22,7 +23,8 @@ trait FileUtils {
     }
     
     try {
-      stream.asScala
+      import scala.collection.JavaConverters._
+      stream.collect(Collectors.toList()).asScala.toList
         .filter(Files.isRegularFile(_))
         .filter { path =>
           extension match {
@@ -37,7 +39,6 @@ trait FileUtils {
             case None => true
           }
         }
-        .toList
     } finally {
       stream.close()
     }
@@ -45,26 +46,35 @@ trait FileUtils {
 
   /** Reads a file into a string */
   def read_file(file: Path): String = {
-    Using(Source.fromFile(file.toFile)) { source =>
+    val source = Source.fromFile(file.toFile)
+    try {
       source.mkString
-    }.get
+    } finally {
+      source.close()
+    }
   }
 
   /** Writes a sequence of lines into the file */
   def write_lines_to_file(file: Path, lines: Traversable[String]): Unit = {
     Files.createDirectories(file.getParent)
-    Using(new BufferedWriter(new FileWriter(file.toFile))) { writer =>
+    val writer = new BufferedWriter(new FileWriter(file.toFile))
+    try {
       lines.foreach { line =>
         writer.write(line)
         writer.newLine()
       }
-    }.get
+    } finally {
+      writer.close()
+    }
   }
   
   def read_lines_from_file(file: Path): Seq[String] = {
-    Using(Source.fromFile(file.toFile)) { source =>
+    val source = Source.fromFile(file.toFile)
+    try {
       source.getLines().toSeq
-    }.get
+    } finally {
+      source.close()
+    }
   }
   
   /** Write string content to a file */
@@ -77,11 +87,14 @@ trait FileUtils {
   def list_dirs(root_dir: Path): List[Path] = {
     if (!Files.exists(root_dir)) return List.empty
     
-    Using(Files.list(root_dir)) { stream =>
-      stream.asScala
+    val stream = Files.list(root_dir)
+    try {
+      import scala.collection.JavaConverters._
+      stream.collect(Collectors.toList()).asScala.toList
         .filter(Files.isDirectory(_))
-        .toList
-    }.get
+    } finally {
+      stream.close()
+    }
   }
 }
 object FileUtils extends FileUtils

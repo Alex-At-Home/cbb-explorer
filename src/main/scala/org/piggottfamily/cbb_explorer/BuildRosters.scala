@@ -93,7 +93,7 @@ object BuildRosters {
               .list_files(team_dir.resolve(LineupController.teams_dir), Some("html"))
               .take(1)
               .map {
-                _.last.split("[.]")(0)
+                _.getFileName.toString.split("[.]")(0)
               }
               .headOption
             val decoded_team_name =
@@ -125,7 +125,7 @@ object BuildRosters {
       .foreach { case (team_name, (_, roster)) =>
         storage_controller.write_roster(
           roster,
-          Path(out_dir) / s"${gender}_$year" / s"$team_name.json"
+          Paths.get(out_dir).resolve(s"${gender}_$year").resolve(s"$team_name.json")
         )
       }
   }

@@ -104,21 +104,21 @@ object BuildLineups {
     // Iterate over directories
     val subdirs = FileUtils.list_dirs(Paths.get(in_dir))
     val (
-      good_games,
-      lineup_errors,
-      player_events,
-      shot_events
+      good_games: List[LineupEvent],
+      lineup_errors: List[LineupEvent], 
+      player_events: List[PlayerEvent],
+      shot_events: List[ShotEvent]
     ) = subdirs
       .map { subdir =>
         // TODO: add some error validation
         val get_team_id =
           "(.*)(?:_([0-9.]+))?$".r // (from 25/26 the teamid is optional)
-        subdir.last match {
+        subdir.getFileName.toString match {
           case get_team_id(team_name, _)
               if maybe_team_selector.forall(sel =>
                 team_name.contains(sel)
               ) && maybe_team_match.forall(_ == team_name) =>
-            val team_dir = subdir / "stats.ncaa.org"
+            val team_dir = subdir.resolve("stats.ncaa.org")
             val decoded_team_name =
               URLDecoder.decode(team_name.replace("+", " "))
 

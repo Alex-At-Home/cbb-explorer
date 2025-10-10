@@ -40,25 +40,10 @@ object RosterParserTests extends TestSuite with RosterParser {
           lineup_html,
           TeamId("TeamA"),
           version_format = 0
-        ).map(_.take(5))
+        ).map(_.take(6))
       ) {
         case Right(
               List(
-                RosterEntry(
-                  PlayerCodeId(
-                    "DaRogers",
-                    PlayerId("Rogers, Darnell"),
-                    Some("2265903")
-                  ),
-                  "2",
-                  "G",
-                  "5-2",
-                  Some(62),
-                  "Sr",
-                  20,
-                  None,
-                  None
-                ),
                 RosterEntry(
                   PlayerCodeId(
                     "RjEytle-rock",
@@ -69,21 +54,6 @@ object RosterParserTests extends TestSuite with RosterParser {
                   "G",
                   "6-3",
                   Some(75),
-                  "Jr",
-                  20,
-                  None,
-                  None
-                ),
-                RosterEntry(
-                  PlayerCodeId(
-                    "KeKennedy",
-                    PlayerId("Kennedy, Keondre"),
-                    Some("2265883")
-                  ),
-                  "0",
-                  "G",
-                  "6-6",
-                  Some(78),
                   "Jr",
                   20,
                   None,
@@ -106,6 +76,51 @@ object RosterParserTests extends TestSuite with RosterParser {
                 ),
                 RosterEntry(
                   PlayerCodeId(
+                    "DaRogers",
+                    PlayerId("Rogers, Darnell"),
+                    Some("2265903")
+                  ),
+                  "2",
+                  "G",
+                  "5-2",
+                  Some(62),
+                  "Sr",
+                  20,
+                  None,
+                  None
+                ),
+                RosterEntry(
+                  PlayerCodeId(
+                    "KeKennedy",
+                    PlayerId("Kennedy, Keondre"),
+                    Some("2265883")
+                  ),
+                  "0",
+                  "G",
+                  "6-6",
+                  Some(78),
+                  "Jr",
+                  20,
+                  None,
+                  None
+                ),
+                RosterEntry(
+                  PlayerCodeId(
+                    "BrHorvath",
+                    PlayerId("Horvath, Brandon"),
+                    Some("1954159")
+                  ),
+                  "12",
+                  "F",
+                  "6-10",
+                  Some(82),
+                  "Sr",
+                  19,
+                  None,
+                  None
+                ),
+                RosterEntry(
+                  PlayerCodeId(
                     "LjOwens",
                     PlayerId("Owens, L.J."),
                     Some("2081843")
@@ -119,7 +134,6 @@ object RosterParserTests extends TestSuite with RosterParser {
                   None,
                   None
                 )
-
                 // (old roster entries prior to the sort by GP, in case I mess with sort again!)
                 // RosterEntry(PlayerCodeId("DaAkin",PlayerId("Akin, Daniel")),"30","F", "6-9",Some(81),"Sr", 16),
                 // RosterEntry(PlayerCodeId("JaBoonyasith",PlayerId("Boonyasith, Jacob")),"41","G","6-3",Some(75),"Jr", 14),

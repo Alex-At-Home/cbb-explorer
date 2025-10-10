@@ -189,7 +189,6 @@ trait RosterParser {
             )
           }
       )
-
       players <- Right(
         builders
           .player_info_finder(doc)
@@ -244,10 +243,12 @@ trait RosterParser {
               lhs.gp > rhs.gp || ((lhs.gp == rhs.gp) && (lhs.player_code_id.code < rhs.player_code_id.code))
           }
           .foldLeft(Map[LineupEvent.PlayerCodeId, RosterEntry]()) { (acc, v) =>
-            acc.get(v.player_code_id) match {
-              // Can get duplicate names so just
+            val player_code_with_no_ncaa_id =
+              v.player_code_id.copy(ncaa_id = None)
+            acc.get(player_code_with_no_ncaa_id) match {
+              // Can get duplicate names so just ignore them
               case Some(_) => acc
-              case None    => acc + (v.player_code_id -> v)
+              case None    => acc + (player_code_with_no_ncaa_id -> v)
             }
           }
           .values
@@ -259,6 +260,32 @@ trait RosterParser {
       player_codes = players.map(p => p.player_code_id.code)
       _ <-
         if (player_codes.toSet.size != players.size) {
+          val playersByCode = players
+            .groupBy(_.player_code_id.code)
+            .mapValues(_.map(_.player_code_id).reverse)
+          if (include_coach) {
+            // Add some more
+            playersByCode.foreach {
+              case (_, all_dup_players @ (dup_player +: other_dup_players))
+                  if other_dup_players.size == 1 =>
+                val first_last =
+                  ExtractorUtils.v0_box_name_to_first_last(dup_player.id.name)
+                println(
+                  s"""TOFIX1: fix_combos("${first_last._1}", "${first_last._2}") ++"""
+                )
+                all_dup_players.foreach { all_dup_player =>
+                  val first_last_all =
+                    ExtractorUtils.v0_box_name_to_first_last(
+                      all_dup_player.id.name
+                    )
+                  println(
+                    s"""TOFIX2: fix_combos("${first_last_all._1}", "${first_last_all._2}", Some("??")) ++"""
+                  )
+                }
+              case _ =>
+              // (can't fix this case or don't need to)
+            }
+          }
           Left(
             List(
               ParseUtils.build_sub_error(`parent_fills_in`)(

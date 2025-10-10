@@ -48,15 +48,11 @@ object BuildRosters {
       .headOption
       .map(_.split("=", 2)(1))
 
-    val legacy_code_format = args //(use prior to 2025/26 - now we use CBBD ids to dedup the codes)
-      .map(_.trim)
-      .filter(_.startsWith("--legacy-code-format"))
-      .nonEmpty
-
-    val unify_ids_legacy = args //(don't use this any more, we are using CBBD ids now)
-      .map(_.trim)
-      .filter(_.startsWith("--unify-ids-legacy"))
-      .nonEmpty
+    val unify_ids_legacy =
+      args // (don't use this any more, we are using CBBD ids now)
+        .map(_.trim)
+        .filter(_.startsWith("--unify-ids-legacy"))
+        .nonEmpty
 
     // Get year and then conference
 
@@ -82,15 +78,19 @@ object BuildRosters {
       .flatMap { subdir =>
         // TODO: add some error validation
         val get_team_id =
-          "(.*)(?:_([0-9.]+))?$".r // (from 25/26 the teamid is optional)
+          "([^_]*)(?:_([0-9.]+))?$".r // (from 25/26 the teamid is optional)
         subdir.getFileName.toString match {
           case get_team_id(team_name, _)
               if maybe_team_selector.forall(sel => team_name.contains(sel)) =>
             val team_dir =
               if (unify_ids_legacy) subdir.resolve("roster_crawl")
               else subdir.resolve("stats.ncaa.org")
+
             val maybe_team_fileid = FileUtils
-              .list_files(team_dir.resolve(LineupController.teams_dir), Some("html"))
+              .list_files(
+                team_dir.resolve(LineupController.teams_dir),
+                Some("html")
+              )
               .take(1)
               .map {
                 _.getFileName.toString.split("[.]")(0)
@@ -125,7 +125,10 @@ object BuildRosters {
       .foreach { case (team_name, (_, roster)) =>
         storage_controller.write_roster(
           roster,
-          Paths.get(out_dir).resolve(s"${gender}_$year").resolve(s"$team_name.json")
+          Paths
+            .get(out_dir)
+            .resolve(s"${gender}_$year")
+            .resolve(s"$team_name.json")
         )
       }
   }

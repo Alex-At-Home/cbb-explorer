@@ -69,6 +69,14 @@ object ExtractorUtils {
     }
   }
 
+  def v0_box_name_to_first_last(name: String): (String, String) = {
+    name.split(", ") match {
+      case Array(last_name, first_name) => (first_name, last_name)
+      case Array(first_name)            => (first_name, "")
+      case _                            => ("", "")
+    }
+  }
+
   /** Quick decomposition of name represented as initials, returns first name,
     * last name
     */
@@ -292,10 +300,12 @@ object ExtractorUtils {
         }
       }
       def transform_first_name(fragment: String): String = {
-        if (DataQualityIssues.players_with_duplicate_names(name.toLowerCase)) {
-          first_last(fragment)
-        } else {
-          transform(fragment, 2)
+        DataQualityIssues.players_with_duplicate_names.get(
+          name.toLowerCase()
+        ) match {
+          case Some(Some(special_case)) => special_case
+          case Some(None)               => first_last(fragment)
+          case None                     => transform(fragment, 2)
         }
       }
       val code = ((name.split("\\s*,\\s*", 3).toList match {

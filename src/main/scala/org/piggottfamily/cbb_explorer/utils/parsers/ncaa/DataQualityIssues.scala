@@ -34,107 +34,122 @@ object DataQualityIssues {
   )
 
   /** Use first and last letters from first name for these players */
-  val players_with_duplicate_names = Set(
-    (
-      // These caused issues with box/PbP parsing:
+  val players_with_duplicate_names = (
+    // These caused issues with box/PbP parsing:
 
-      // Mitchell brothers (Maryland 19/20 / RI 20/21)
-      combos("Makhi", "Mitchell") ++ combos("Makhel", "Mitchell") ++
-        // Hamilton brothers (BC 18-19/20)
-        combos("Jared", "Hamilton") ++ combos("Jairus", "Hamilton") ++
-        // Wisconsin team-mates, give Jordan "Jn" and Jonathan/Johnny gets "Jo"
+    // Mitchell brothers (Maryland 19/20 / RI 20/21)
+    fix_combos("Makhi", "Mitchell") ++ fix_combos("Makhel", "Mitchell") ++
+      // Hamilton brothers (BC 18-19/20)
+      fix_combos("Jared", "Hamilton") ++ fix_combos("Jairus", "Hamilton") ++
+      // Wisconsin team-mates, give Jordan "Jn" and Jonathan/Johnny gets "Jo"
 // TODO: need to reimport 2020/21 where I did this the other way round for some reason (Jonathan is Jn)
-        combos("Jordan", "Davis") ++
-        // Cumberland relatives (Cinci)
-        // These two have the same name regardless of strategy! Use misspellings to tuncate Jaev's name
-        // (these are both major players so don't have favorites)
+      fix_combos("Jordan", "Davis") ++
+      // Cumberland relatives (Cinci)
+      // These two have the same name regardless of strategy! Use misspellings to tuncate Jaev's name
+      // (these are both major players so don't have favorites)
 //TODO: just to Jaevin -> Jn and simplify misspellings
-        combos("Jaev", "Cumberland") ++ combos("Jarron", "Cumberland") ++
+      fix_combos("Jaev", "Cumberland") ++ fix_combos("Jarron", "Cumberland") ++
 
-        // These caused issues during roster import:
+      // These caused issues during roster import:
 
-        // Men 20/21
+      // Men 20/21
 
-        // Bama 20/21 - Quinerly bros(?) Jahvon and Jaden, leave Jahvon with Ja, Jadon gets Jn
-        combos("Jaden", "Quinerly") ++
-        // Wichita St 20/21 - Trey and Trevin Wade. Trevin gets Tn
-        combos("Trevin", "Wade") ++
-        // Ohio 20/21 - Miles and Michael Brown. Micheal gets  Ml
-        combos("Michael", "Brown") ++
+      // Bama 20/21 - Quinerly bros(?) Jahvon and Jaden, leave Jahvon with Ja, Jadon gets Jn
+      fix_combos("Jaden", "Quinerly") ++
+      // Wichita St 20/21 - Trey and Trevin Wade. Trevin gets Tn
+      fix_combos("Trevin", "Wade") ++
+      // Ohio 20/21 - Miles and Michael Brown. Micheal gets  Ml
+      fix_combos("Michael", "Brown") ++
 
-        // Men 22/23
+      // Men 22/23
 
-        // Arizona St. 2022/23, 2x Cambridge transfers one played ~20mpg at Auburn, other 30mpg at Nevada (change both)
+      // Arizona St. 2022/23, 2x Cambridge transfers one played ~20mpg at Auburn, other 30mpg at Nevada (change both)
 //TODO: will make the history view in hoop-explorer not work
-        combos("Devan", "Cambridge") ++ combos("Desmond", "Cambridge Jr.") ++
+      fix_combos("Devan", "Cambridge") ++ fix_combos(
+        "Desmond",
+        "Cambridge Jr."
+      ) ++
 
-        // Kansas City, 2022/23, Precious and Promise Idiaru ... we'll change both
-        combos("Precious", "Idiaru") ++ combos("Promise", "Idiaru") ++
+      // Kansas City, 2022/23, Precious and Promise Idiaru ... we'll change both
+      fix_combos("Precious", "Idiaru") ++ fix_combos("Promise", "Idiaru") ++
 
-        // CSU Bakersfield 2022/23, Kareem and Kaseem Watson
-        // see also under misspellings, go with Kareem->Ka, Kaseem->Ks
-        combos("Kas", "Watson") ++
+      // CSU Bakersfield 2022/23, Kareem and Kaseem Watson
+      // see also under misspellings, go with Kareem->Ka, Kaseem->Ks
+      fix_combos("Kas", "Watson") ++
 
-        // Seton Hall 2022/23, new! JaQuan Harris, old Jamir Harris
-        combos("JaQuan", "Harris") ++
+      // Seton Hall 2022/23, new! JaQuan Harris, old Jamir Harris
+      fix_combos("JaQuan", "Harris") ++
 
-        // Southern U 2022/23, Jaronn+Jariyon Wilkens, neither played D1 last year
-        // see also under misspellings, go with Jariyon->(Jariy)->Jy, Jaronn can jeep Ja.
-        combos("Jariy", "Wilkens") ++
+      // Southern U 2022/23, Jaronn+Jariyon Wilkens, neither played D1 last year
+      // see also under misspellings, go with Jariyon->(Jariy)->Jy, Jaronn can jeep Ja.
+      fix_combos("Jariy", "Wilkens") ++
 
-        // Men 23/24
+      // Men 23/24
 
-        // Colorado St. 2023/24, Kyle and Kyan Evans. Kyan's a Fr, sorry kid
-        combos("Kyan", "Evans") ++
+      // Colorado St. 2023/24, Kyle and Kyan Evans. Kyan's a Fr, sorry kid
+      fix_combos("Kyan", "Evans") ++
 
-        // Men 24/25
+      // Men 24/25
 
-        // Troy 2023/24 Cooper and Cobi Campbell
-        combos("Cooper", "Campbell") ++
+      // Troy 2023/24 Cooper and Cobi Campbell
+      fix_combos("Cooper", "Campbell") ++
 
-        // CSU Bakersfield 2023/24, "Marvin McGhee III" (Sr) and "Marvin McGhee IV" (So)
-        combos("Marvin", "McGhee IV") ++
+      // CSU Bakersfield 2023/24, "Marvin McGhee III" (Sr) and "Marvin McGhee IV" (So)
+      fix_combos("Marvin", "McGhee IV") ++
 
-        // Coppin St 2023/24 Cam'Ron and Car'Ron Brown, both Jrs who had similar stats
-        combos("Car'Ron", "Brown") ++
+      // Coppin St 2023/24 Cam'Ron and Car'Ron Brown, both Jrs who had similar stats
+      fix_combos("Car'Ron", "Brown") ++
 
-        // Women 18/19
+      // Women 18/19
 
-        // Women 2018 Wash St. Molina - Chanelle v Cherilyn (leave Chanelle else will conflict with 3rd sister Celena!)
-        combos("Cherilyn", "Molina") ++
+      // Women 2018 Wash St. Molina - Chanelle v Cherilyn (leave Chanelle else will conflict with 3rd sister Celena!)
+      fix_combos("Cherilyn", "Molina") ++
 
-        // Women 19/20
+      // Women 19/20
 
-        // Women 2019 Cinci - Scott, Jadyn / Jada
-        combos("Jadyn", "Scott") ++ combos("Jada", "Scott") ++
-        // Women 2019 Memphis - Williams, Lanetta / Lanyce (->Le)
-        combos("Lanyce", "Williams") ++
+      // Women 2019 Cinci - Scott, Jadyn / Jada
+      fix_combos("Jadyn", "Scott") ++ fix_combos("Jada", "Scott") ++
+      // Women 2019 Memphis - Williams, Lanetta / Lanyce (->Le)
+      fix_combos("Lanyce", "Williams") ++
 
-        // Women 20/21
+      // Women 20/21
 
-        // Gonzaga 2020/21 (W) "Truong, Kaylynne" and "Truong, Kayleigh" - Kayleigh is the starter
-        combos("Kaylynne", "Truong") ++
+      // Gonzaga 2020/21 (W) "Truong, Kaylynne" and "Truong, Kayleigh" - Kayleigh is the starter
+      fix_combos("Kaylynne", "Truong") ++
 
-        // Women 21/22
+      // Women 21/22
 
-        // Florida 2021/22 Tatiana and Taliyah Wyche ... make Taliyah be Th because otherwise they are both Ta!
-        combos("Taliyah", "Wyche") ++
-        // Syracuse 2021/22 Christianna and Chrislyn Carr .. both starting! Sorry Chrislyn :)
-        combos("Chrislyn", "Carr") ++
+      // Florida 2021/22 Tatiana and Taliyah Wyche ... make Taliyah be Th because otherwise they are both Ta!
+      fix_combos("Taliyah", "Wyche") ++
+      // Syracuse 2021/22 Christianna and Chrislyn Carr .. both starting! Sorry Chrislyn :)
+      fix_combos("Chrislyn", "Carr") ++
 
-        // Women 22/23
+      // Women 22/23
 
-        // Miami 22/23: Haley and Hannah Cavinder, both from Fresno St so change both since neither in DB currently
-        combos("Haley", "Cavinder") ++ combos("Hannah", "Cavinder") ++
+      // Miami 22/23: Haley and Hannah Cavinder, both from Fresno St so change both since neither in DB currently
+      fix_combos("Haley", "Cavinder") ++ fix_combos("Hannah", "Cavinder") ++
 
-        // Women 23/24
+      // Women 23/24
 
-        // ECU 23/24: as well as gettting the Wyche sisters from Florida we now have Khia and Khloe Miller
-        combos("Khloe", "Miller") ++
+      // ECU 23/24: as well as gettting the Wyche sisters from Florida we now have Khia and Khloe Miller
+      fix_combos("Khloe", "Miller") ++
 
-        Nil
-    ): _*
-  ).map(_.toLowerCase)
+      // From 25/26 on, we're calculating these programmatically:
+      // Women 25/26
+      fix_combos("Stacy", "Utomi") ++
+      fix_combos("Taylor", "Barbot") ++
+      fix_combos("Kallie", "Peppler") ++
+      fix_combos("Chloe", "Gannon") ++
+      fix_combos("Macie", "Warren") ++
+      fix_combos("Hana", "Abdel Aal", Some("Hn")) ++
+      fix_combos("Haya", "Abdel Aal", Some("Hy")) ++
+      // Men 25/26
+      fix_combos("Jayden", "Ross") ++
+      fix_combos("Cooper", "Bowser") ++
+      Nil
+  ).map { case (name, fix) =>
+    (name.toLowerCase, fix)
+  }.toMap
 
   /** Will be in format "LASTNAME,FIRSTNAME" (old box, pbp) or "Lastname,
     * Firstname" (new box) "Firstname Lastname" (new pbp)
@@ -273,6 +288,15 @@ object DataQualityIssues {
       s"$first $last",
       s"${last.toUpperCase},${first.toUpperCase}"
     )
+  }
+
+  /** Generate the 3 different strings: box, PbP, legacy PbP */
+  def fix_combos(
+      first: String,
+      last: String,
+      code_start: Option[String] = None
+  ): Seq[(String, Option[String])] = {
+    combos(first, last).map(_ -> code_start)
   }
 
   /** Generate the 3 different strings: box, PbP, legacy PbP - for use in alias

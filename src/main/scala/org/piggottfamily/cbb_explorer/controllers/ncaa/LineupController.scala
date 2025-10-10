@@ -75,11 +75,17 @@ class LineupController(d: Dependencies = Dependencies()) {
         format_version = 0
       ) match {
         case None => // try with new format
-          build_neutral_games(team_filename.getFileName.toString, team_html, format_version = 1)
+          build_neutral_games(
+            team_filename.getFileName.toString,
+            team_html,
+            format_version = 1
+          )
         case results =>
           results
       }
-      tmp_team_fileid = team_filename.getFileName.toString.split("[.]")(0) // (remove extension)
+      tmp_team_fileid = team_filename.getFileName.toString.split("[.]")(
+        0
+      ) // (remove extension)
 
     } yield format_results -> Some(tmp_team_fileid))
       .take(1)
@@ -228,14 +234,17 @@ class LineupController(d: Dependencies = Dependencies()) {
     ).getOrElse(Nil -> 1) match {
       case (Nil, _) if team_fileid.isDefined =>
         d.file_manager.list_files(
-          root_dir.resolve(teams_dir).resolve(
-            team_fileid.getOrElse("__internal_logic_error__") + ".html"
-          ),
+          root_dir
+            .resolve(teams_dir)
+            .resolve(
+              team_fileid.getOrElse("__internal_logic_error__")
+            ),
           Some("html"),
           None,
           recursive = true
         ) -> 1
-      case other => other
+      case other =>
+        other
     }) match {
       case (file :: _, format_version) =>
         val roster_html = d.file_manager.read_file(file)
@@ -351,9 +360,20 @@ class LineupController(d: Dependencies = Dependencies()) {
           )
         case _ =>
           (
-            root_dir.resolve(contests_dir).resolve(game_id).resolve(v1_pbp_filename),
-            root_dir.resolve(contests_dir).resolve(game_id).resolve(v1_boxscore_filename),
-            Some(root_dir.resolve(contests_dir).resolve(game_id).resolve(v1_shotlocs_filename))
+            root_dir
+              .resolve(contests_dir)
+              .resolve(game_id)
+              .resolve(v1_pbp_filename),
+            root_dir
+              .resolve(contests_dir)
+              .resolve(game_id)
+              .resolve(v1_boxscore_filename),
+            Some(
+              root_dir
+                .resolve(contests_dir)
+                .resolve(game_id)
+                .resolve(v1_shotlocs_filename)
+            )
           )
       }
 

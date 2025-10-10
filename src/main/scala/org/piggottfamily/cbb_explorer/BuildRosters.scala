@@ -123,6 +123,12 @@ object BuildRosters {
         }
       }
       .foreach { case (team_name, (_, roster)) =>
+        if (roster.size < 3) {
+          println(
+            s"[ERROR]: Only [${roster.size}] entries for [${team_name}] ([${in_dir}])"
+          )
+        }
+
         storage_controller.write_roster(
           roster,
           Paths

@@ -154,8 +154,10 @@ libraryDependencies += "me.xdrop" % "fuzzywuzzy" % "1.4.0"
 // sbt assembly
 // java -jar ,/target/scala-2.12/cbb-explorer.jar
 
-assembly / assemblyMergeStrategy := {
+ThisBuild / assemblyMergeStrategy := {
+  case PathList("META-INF", "versions", xs @ _*) => MergeStrategy.discard
   case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+  case "module-info.class" => MergeStrategy.discard
   case x => MergeStrategy.first
 }
 

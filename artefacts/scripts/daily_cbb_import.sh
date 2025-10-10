@@ -81,7 +81,7 @@ if [[ "$DAILY_IMPORT" == "yes" ]]; then
       GAME_BASED_FILTER=
       echo "Downloading all un-downloaded games"
    fi
-   GAME_BASED_FILTER=$GAME_BASED_FILTER PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
+   GAME_BASED_FILTER=$GAME_BASED_FILTER PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" CONFS="_all_" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
 
    # Check for errors (will also alert on old errors, you have to delete import_out.txt to start again)
    cat import_out.txt| grep ERRORS > tmp_alert_file.txt

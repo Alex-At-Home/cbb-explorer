@@ -146,6 +146,8 @@ object DataQualityIssues {
       // Men 25/26
       fix_combos("Jayden", "Ross") ++
       fix_combos("Cooper", "Bowser") ++
+      fix_combos("Cameron", "Boozer", Some("Cm")) ++
+      fix_combos("Cayden", "Boozer", Some("Cy")) ++
       Nil
   ).map { case (name, fix) =>
     (name.toLowerCase, fix)

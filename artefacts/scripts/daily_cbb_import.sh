@@ -61,12 +61,13 @@ source $CBB_CRAWLER_SRC_DIR/.env
 # Add steps here then comment out when finished:
 #
 
-# TEST: Download latest file from KenPom (note I have his permission to do this):
-#CRAWL_PATH=~/Downloads ACADEMIC_YEAR=${SEASON_YEAR} npm --prefix $PBP_CRAWL_PROJECT run kenpom_daily_download
+#echo "Re-download rosters"
+#PING=lping DOWNLOAD=yes PARSE=no UPLOAD=no CURR_YEAR=2025 CURR_YEAR_STR=2025_26 CURR_TIME=0 CONFS=all_men sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
+PING=lping DOWNLOAD=yes PARSE=no UPLOAD=no CURR_YEAR=2025 CURR_YEAR_STR=2025_26 CURR_TIME=0 CONFS=all_women sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
 
-# TODO: Re-enable
+# TODO: Re-enable when season ready to begin
+rmdir $LOCK_DIR
 exit 1
-
 
 
 if [[ "$DAILY_IMPORT" == "yes" ]]; then

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#(the URL is downloaded at 3a via Automator, see artefacts/macos-scripts/efficiency-download, duplicate as a calendar alarm)
+#(the URL is downloaded at 3a via via daily_cbb_import.sh; see also artefacts/macos-scripts/efficiency-download)
 
 TO_UPLOAD=$(ls -t $HOME/Downloads/ | grep -E "^summary26[.]csv" | head -n 1)
 

@@ -1,9 +1,9 @@
 
-export CURR_YEAR_STR=${CURR_YEAR_STR:="2024_25"}
+export CURR_YEAR_STR=${CURR_YEAR_STR:="2025_26"}
 export CURR_YEAR=$(echo $CURR_YEAR_STR | cut -c1-4)
 
-#for i in "2018/9" "2019/20" "2020/21" "2021/22" "2022/23" "2023/24" "2024/25"; do echo $i; CURR_YEAR_STR=$i sh ../../cbb-explorer/artefacts/beats-scripts/players-upload.sh; sleep 2;  done
-#for i in "2021/22" "2022/23" "2023/24" "2024/25"; do echo $i; CURR_YEAR_STR=$i sh ../../cbb-explorer/artefacts/beats-scripts/players-upload.sh; sleep 2;  done
+#for i in "2018/9" "2019/20" "2020/21" "2021/22" "2022/23" "2023/24" "2024/25" "2025_26"; do echo $i; CURR_YEAR_STR=$i sh ../../cbb-explorer/artefacts/beats-scripts/players-upload.sh; sleep 2;  done
+#for i in "2021/22" "2022/23" "2023/24" "2024/25" "2025_26"; do echo $i; CURR_YEAR_STR=$i sh ../../cbb-explorer/artefacts/beats-scripts/players-upload.sh; sleep 2;  done
 # Use GENDER_FILTER="men" || GENDER_FILTER="women" if you want only one gender
 
 export CLOSE_EOF="true"

@@ -200,11 +200,7 @@ if [[ "$BUILD_LEADERBOARDS" == "yes" ]] || [[ "$BUILD_LEADERBOARDS" = "cron" && 
       sleep 180
    fi
    cd $HOOPEXP_SRC_DIR
-   npm run build_leaderboards -- --tier=High
-   npm run build_leaderboards -- --tier=Medium
-   npm run build_leaderboards -- --tier=Low
-   npm run build_leaderboards -- --tier=Combo
-   npm run build_leaderboards -- --gender=Women --tier=High
+   EXTRA=--extra-data YEARS="new" sh rebuild_all_leaderboards.sh
 
    # compress all the files
    for i in $(ls ./public/leaderboards/lineups/*${SEASON_YEAR}_[HLMC]*.json); do
@@ -218,6 +214,10 @@ if [[ "$BUILD_LEADERBOARDS" == "yes" ]] || [[ "$BUILD_LEADERBOARDS" = "cron" && 
 
    # Now need to redeploy _again_ to clear the cache
    sh handle-updated-data.sh
+
+   # Finally upload "extra" player data
+   cd $PBP_OUT_DIR
+   sh $PBP_SRC_ROOT/artefacts/beats-scripts/players-upload.sh
 fi
 
 # Clear out the lock dir

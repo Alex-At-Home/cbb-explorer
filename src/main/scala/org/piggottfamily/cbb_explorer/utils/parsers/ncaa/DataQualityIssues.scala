@@ -143,6 +143,7 @@ object DataQualityIssues {
       fix_combos("Macie", "Warren") ++
       fix_combos("Hana", "Abdel Aal", Some("Hn")) ++
       fix_combos("Haya", "Abdel Aal", Some("Hy")) ++
+      fix_combos("Maliyah", "Johnson") ++
       // Men 25/26
       fix_combos("Jayden", "Ross") ++
       fix_combos("Cooper", "Bowser") ++

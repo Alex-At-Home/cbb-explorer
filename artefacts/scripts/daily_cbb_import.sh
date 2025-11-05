@@ -8,9 +8,9 @@ export SEASON_YEAR="2025"
 export OFFSEASON_YEAR="2025"
 
 #Off season mode: do nothing except keep track of transfers
-export OFFSEASON_MODE="yes"
+export OFFSEASON_MODE="no"
 export INSEASON_PORTAL_TRACKING="no" #(set to "yes" one portal szn starts)
-export PRESEASON_LEADERBOARD_MODE="yes" #(this is "no" until it settles down a bit, maybe as late as June?)
+export PRESEASON_LEADERBOARD_MODE="no" #(this is "no" until it settles down a bit, maybe as late as June?)
 if [[ "$OFFSEASON_MODE" == "yes" ]]; then
    echo "In Off-season mode, will just keep track of transfers"
    export DAILY_IMPORT="no"
@@ -83,7 +83,9 @@ if [[ "$DAILY_IMPORT" == "yes" ]]; then
       echo "Downloading all un-downloaded games"
    fi
    GAME_BASED_FILTER=$GAME_BASED_FILTER PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" CONFS="_all_" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
-
+   #GAME_BASED_FILTER=$GAME_BASED_FILTER PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" CONFS="all_men" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
+   #GAME_BASED_FILTER=$GAME_BASED_FILTER PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" CONFS="all_men" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
+   
    # Check for errors (will also alert on old errors, you have to delete import_out.txt to start again)
    cat import_out.txt| grep ERRORS > tmp_alert_file.txt
    cat import_out.txt| grep "ERROR PlaywrightCrawler" >> tmp_alert_file.txt

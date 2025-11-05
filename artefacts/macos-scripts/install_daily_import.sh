@@ -11,3 +11,6 @@ sudo cp $PBP_SRC_ROOT/artefacts/macos-scripts/com.piggott.cbb_import.plist /Libr
 USERID=$(id -u)
 launchctl bootout gui/$USERID /Library/LaunchAgents/com.piggott.cbb_import.plist 
 launchctl bootstrap gui/$USERID /Library/LaunchAgents/com.piggott.cbb_import.plist 
+
+# Show information to confirm it's been loaded:
+launchctl print gui/$USERID/com.piggott.cbb_import.plist 

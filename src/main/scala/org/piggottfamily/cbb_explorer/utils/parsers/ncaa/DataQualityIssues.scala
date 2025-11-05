@@ -144,11 +144,16 @@ object DataQualityIssues {
       fix_combos("Hana", "Abdel Aal", Some("Hn")) ++
       fix_combos("Haya", "Abdel Aal", Some("Hy")) ++
       fix_combos("Maliyah", "Johnson") ++
+      fix_combos("Alivia", "Cox", Some("Av")) ++
+      fix_combos("Alexis", "Cox", Some("Ax")) ++
+      fix_combos("Makensie", "Charles", Some("Me")) ++
+      fix_combos("Makayla", "Charles", Some("My")) ++
       // Men 25/26
       fix_combos("Jayden", "Ross") ++
       fix_combos("Cooper", "Bowser") ++
       fix_combos("Cameron", "Boozer", Some("Cm")) ++
       fix_combos("Cayden", "Boozer", Some("Cy")) ++
+      fix_combos("Dominykas", "Butka") ++
       Nil
   ).map { case (name, fix) =>
     (name.toLowerCase, fix)

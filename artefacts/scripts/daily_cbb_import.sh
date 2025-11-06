@@ -5,6 +5,7 @@
 #(also don't forget to change the code so that leaderboard stats are read locally instead of GCS)
 #(also don't forget to copy stats_all_Men_${PREV_OFFSEASON_YEAR)_Preseason.json.gz into public/leaderboards/lineups/)
 export SEASON_YEAR="2025"
+export ACADEMIC_YEAR="2026"
 export OFFSEASON_YEAR="2025"
 
 #Off season mode: do nothing except keep track of transfers
@@ -123,7 +124,7 @@ echo "daily_cbb_import: [$(date)] Checking to whether recalculate efficiency pol
 if [[ "$BUILD_EFFICIENCY" == "yes" ]] || [[ "$BUILD_EFFICIENCY" == "cron" && $(date +%u) =~ [1357] ]]; then
    if [[ "$EFF_TRIGGER_UPLOAD" != "" ]]; then
       # Download latest file from KenPom (note I have his permission to do this):
-      CRAWL_PATH=~/Downloads ACADEMIC_YEAR=${SEASON_YEAR} npm --prefix $PBP_CRAWL_PROJECT run kenpom_daily_download
+      CRAWL_PATH=~/Downloads ACADEMIC_YEAR=${ACADEMIC_YEAR} npm --prefix $PBP_CRAWL_PROJECT run kenpom_daily_download
 
       echo "daily_cbb_import: [$(date)] Triggering men's efficiency tracking spreadsheet..."
       sh $PBP_SRC_ROOT/artefacts/scripts/men_efficiency_import.sh

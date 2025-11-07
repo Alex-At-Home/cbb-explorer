@@ -79,13 +79,27 @@ if [[ "$DAILY_IMPORT" == "yes" ]]; then
    if [ "$FULL_TEAM_DOWNLOAD" != "yes" ]; then
       GAME_BASED_FILTER=$(date -v -1d '+%m:%d:%Y')
       echo "Downloading only games from [$GAME_BASED_FILTER]"
+
+      echo "First let's recheck games from yesterday"
+      GAME_BASED_FILTER_YDAY=$(date -v -2d '+%m:%d:%Y')
+      GAME_BASED_FILTER=$GAME_BASED_FILTER_YDAY PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="no" CONFS="_all_" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
    else
       GAME_BASED_FILTER=
       echo "Downloading all un-downloaded games"
    fi
+   echo "[$(date)] Download today's games"
    GAME_BASED_FILTER=$GAME_BASED_FILTER PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" CONFS="_all_" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
-   #GAME_BASED_FILTER=$GAME_BASED_FILTER PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" CONFS="all_men" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
-   #GAME_BASED_FILTER=$GAME_BASED_FILTER PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" CONFS="all_women" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
+   if [ "$FULL_TEAM_DOWNLOAD" != "yes" ]; then
+      if [[ 10#$(date +%H) -lt 7 ]]; then
+         echo "(See if we missed any games: wait 30mins...)"
+         sleep 30m
+      else
+         echo "(See if we missed any games: wait 5mins...)"
+         sleep 5m
+      fi
+      echo "[$(date)] See if we missed any games:"
+      GAME_BASED_FILTER=$GAME_BASED_FILTER PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" CONFS="_all_" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
+   fi
    
    # Check for errors (will also alert on old errors, you have to delete import_out.txt to start again)
    cat import_out.txt| grep ERRORS > tmp_alert_file.txt

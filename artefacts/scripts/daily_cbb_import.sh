@@ -80,25 +80,51 @@ if [[ "$DAILY_IMPORT" == "yes" ]]; then
       GAME_BASED_FILTER=$(date -v -1d '+%m:%d:%Y')
       echo "Downloading only games from [$GAME_BASED_FILTER]"
 
-      echo "First let's recheck games from yesterday"
       GAME_BASED_FILTER_YDAY=$(date -v -2d '+%m:%d:%Y')
-      GAME_BASED_FILTER=$GAME_BASED_FILTER_YDAY PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="no" CONFS="_all_" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
+      GAME_BASED_FILTER_YDAY_SUFFIX=$(echo "$GAME_BASED_FILTER_YDAY" | sed 's/:/_/g')
+      #(only recheck yesterday's game if the state file still exists)
+      if [ -f "ncaa_games_${GAME_BASED_FILTER_YDAY_SUFFIX}_men.txt.DONE" ]; then
+         echo "First let's recheck games from yesterday (men)"
+         CLOSE_EOF="true" USE_CURR_SCHEDULE="yes" GAME_BASED_FILTER=$GAME_BASED_FILTER_YDAY PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" CONFS="all_men" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
+      fi
+      if [ -f "ncaa_games_${GAME_BASED_FILTER_YDAY_SUFFIX}_women.txt.DONE" ]; then
+         echo "First let's recheck games from yesterday (women)"
+         CLOSE_EOF="true" USE_CURR_SCHEDULE="yes" GAME_BASED_FILTER=$GAME_BASED_FILTER_YDAY PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" CONFS="all_women" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
+      fi
    else
       GAME_BASED_FILTER=
       echo "Downloading all un-downloaded games"
    fi
    echo "[$(date)] Download today's games"
    GAME_BASED_FILTER=$GAME_BASED_FILTER PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" CONFS="_all_" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
+
+   #(check if we missed any files - eg games not finished - and retry)
    if [ "$FULL_TEAM_DOWNLOAD" != "yes" ]; then
-      if [[ 10#$(date +%H) -lt 7 ]]; then
-         echo "(See if we missed any games: wait 30mins...)"
-         sleep 30m
-      else
-         echo "(See if we missed any games: wait 5mins...)"
-         sleep 5m
+      GAME_BASED_FILTER_SUFFIX=$(echo "$GAME_BASED_FILTER" | sed 's/:/_/g')
+      MEN_GAMES_DONE=$(wc -l < "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_men.txt.DONE")
+      MEN_GAMES_TODO=$(wc -l < "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_men.txt" )
+      WOMEN_GAMES_DONE=$(wc -l < "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_women.txt.DONE")
+      WOMEN_GAMES_TODO=$(wc -l < "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_women.txt" )
+
+      echo "Men: expected<=[${MEN_GAMES_TODO}], actual=[${MEN_GAMES_DONE}]"
+      echo "Women: expected<=[${WOMEN_GAMES_TODO}], actual=[${WOMEN_GAMES_DONE}]"
+      if [[ "$MEN_GAMES_DONE" -ne "$MEN_GAMES_TODO" ]] || [[ "$WOMEN_GAMES_DONE" -ne "$WOMEN_GAMES_TODO" ]]; then
+         if [[ 10#$(date +%H) -lt 7 ]]; then
+            echo "(See if we missed any games: wait 30mins...)"
+            sleep 30m
+         else
+            echo "(See if we missed any games: wait 5mins...)"
+            sleep 5m
+         fi
       fi
-      echo "[$(date)] See if we missed any games:"
-      GAME_BASED_FILTER=$GAME_BASED_FILTER PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" CONFS="_all_" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
+      if [[ "$WOMEN_GAMES_DONE" -ne "$WOMEN_GAMES_TODO" ]]; then
+         echo "[$(date)] Retry missing games (women):"
+         CLOSE_EOF="true" USE_CURR_SCHEDULE="yes" GAME_BASED_FILTER=$GAME_BASED_FILTER PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" CONFS="all_women" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
+      fi
+      if [[ "$MEN_GAMES_DONE" -ne "$MEN_GAMES_TODO" ]]; then
+         echo "[$(date)] Retry missing games (men):"
+         CLOSE_EOF="true" USE_CURR_SCHEDULE="yes" GAME_BASED_FILTER=$GAME_BASED_FILTER PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" CONFS="all_men" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
+      fi
    fi
    
    # Check for errors (will also alert on old errors, you have to delete import_out.txt to start again)

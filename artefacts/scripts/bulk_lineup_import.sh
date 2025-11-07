@@ -73,14 +73,16 @@ if [ "$DOWNLOAD" == "yes" ]; then
     # Note this is only applicable for a given season, for previous seasons need to use the old download way
     # at start of season need to change the season_divisions id
 
-    CONF_CRAWL_PATH=${PBP_OUT_DIR} \
-      ACADEMIC_YEAR=${ACADEMIC_YEAR} GAME_BASED_FILTER=${GAME_BASED_FILTER} \
-      npm --prefix $PBP_CRAWL_PROJECT run ncaa_schedule_crawl
+    if [ "$USE_CURR_SCHEDULE" != "yes" ]; then
+      CONF_CRAWL_PATH=${PBP_OUT_DIR} \
+        ACADEMIC_YEAR=${ACADEMIC_YEAR} GAME_BASED_FILTER=${GAME_BASED_FILTER} \
+        npm --prefix $PBP_CRAWL_PROJECT run ncaa_schedule_crawl
 
-    cat "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_men.html" | grep -E -o 'src="https:.*/[0-9]+.gif"' | sed -E 's|.*/([0-9]+)[.]gif"|_\1.0_|g' > "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_men.txt"
-    cat "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_women.html" | grep -E -o 'src="https:.*/[0-9]+.gif"' | sed -E 's|.*/([0-9]+)[.]gif"|_\1.0_|g' > "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_women.txt"
+      cat "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_men.html" | grep -E -o 'src="https:.*/[0-9]+.gif"' | sed -E 's|.*/([0-9]+)[.]gif"|_\1.0_|g' > "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_men.txt"
+      cat "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_women.html" | grep -E -o 'src="https:.*/[0-9]+.gif"' | sed -E 's|.*/([0-9]+)[.]gif"|_\1.0_|g' > "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_women.txt"
 
-    echo "Found [$(wc -l "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_men.txt" | awk '{ print $1 }')] for men and [$(wc -l "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_women.txt" | awk '{ print $1 }')] for women"
+      echo "Found [$(wc -l "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_men.txt" | awk '{ print $1 }')] for men and [$(wc -l "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_women.txt" | awk '{ print $1 }')] for women"
+    fi
   fi
 fi
 

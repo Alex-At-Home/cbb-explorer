@@ -303,9 +303,18 @@ trait ShotEventParser {
     )
     field_tuples.mapN((_, _, _, _, _, _, _)) match {
       case Some(
-            (period, time, player, location, score, result, shot_taking_team)
+            (
+              period,
+              time,
+              raw_player,
+              location,
+              score,
+              result,
+              shot_taking_team
+            )
           ) =>
         val is_offensive = box_lineup.team.team.name == shot_taking_team
+        val player = ExtractorUtils.remove_html_encoding(raw_player)
 
         val maybe_player_code_id = if (is_offensive) {
           val (tidier_player_name, _) =

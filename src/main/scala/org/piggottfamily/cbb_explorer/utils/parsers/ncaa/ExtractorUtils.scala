@@ -21,6 +21,11 @@ object ExtractorUtils {
 
   // Top level
 
+  /** Sometimes the PbP contains unexpeted HTML codes, add them here */
+  def remove_html_encoding(html_str: String): String = {
+    html_str.replace("&#39;", "'")
+  }
+
   /** Normalizes accents out of strings - ideally only use as part of
     * build_player_code
     */

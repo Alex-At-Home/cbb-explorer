@@ -9,9 +9,9 @@
     <array>
         <dict>
             <key>Hour</key>
-            <integer>3</integer>
+            <integer>04</integer>
             <key>Minute</key>
-            <integer>00</integer>
+            <integer>30</integer>
         </dict>
     </array>
 
@@ -36,7 +36,7 @@
       <string>yes</string>
 
       <key>BUILD_LEADERBOARDS</key>
-      <string>cron</string>
+      <string>yes</string>
 
       <key>BOTO_CONFIG</key>
       <string>/Users/alex/.boto</string>

@@ -233,9 +233,9 @@ if [[ "$OFFSEASON_MODE" == "yes" ]]; then
    fi
 fi
 
-# cron: before 7a EST
+# cron: before 9a EST
 echo "daily_cbb_import: [$(date)] Checking whether to build leaderboards policy=[$BUILD_LEADERBOARDS] hour=[$(date +%H)]":
-if [[ "$BUILD_LEADERBOARDS" == "yes" ]] || [[ "$BUILD_LEADERBOARDS" = "cron" && 10#$(date +%H) -lt 7 ]]; then
+if [[ "$BUILD_LEADERBOARDS" == "yes" ]] || [[ "$BUILD_LEADERBOARDS" = "cron" && 10#$(date +%H) -lt 9 ]]; then
 
    echo "daily_cbb_import: [$(date)] Building leaderboards"
    if [[ "$DAILY_IMPORT" == "yes" ]]; then

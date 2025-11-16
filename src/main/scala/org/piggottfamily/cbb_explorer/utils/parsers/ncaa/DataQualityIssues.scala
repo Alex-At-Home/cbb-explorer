@@ -231,6 +231,12 @@ object DataQualityIssues {
           alias_combos(("Alexia", "Mobley") -> "Gassett, Alexia")
         ): _*
       ),
+      Option(TeamId("Maryland")) -> Map( // (Big Ten)
+        (
+          // Confusion over name
+          alias_combos(("Guillermo", "Del Pino Luque") -> "Del Pino, Guillermo")
+        ): _*
+      ),
 
       /////////////////////////////////
 

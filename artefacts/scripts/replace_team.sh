@@ -59,6 +59,16 @@ if [[ "$DRY_RUN" != "yes" ]]; then
     }
     }"
 
+    curl -XPOST -H 'Content-Type: application/json' -u "$ELASTIC_USER:$ELASTIC_PASS" "https://$ELASTIC_URL/shot_events${MAYBE_MEN}_${CONF}_${CURR_YEAR}/_delete_by_query" -d "{
+    \"query\": {
+        \"term\": {
+        \"team.team.keyword\": {
+            \"value\": \"$TEAM_NAME\"
+        }
+        }
+    }
+    }"
+
     curl -XPOST -H 'Content-Type: application/json' -u "$ELASTIC_USER:$ELASTIC_PASS" "https://$ELASTIC_URL/bad_lineups_${GENDER}_$CURR_YEAR/_delete_by_query" -d "{
     \"query\": {
         \"term\": {
@@ -78,6 +88,7 @@ else
     echo "(Dry Run)"
     echo "URL1: https://$ELASTIC_URL/${CONF}_${CURR_YEAR}/_delete_by_query"
     echo "URL2: https://$ELASTIC_URL/player_events${MAYBE_MEN}_${CONF}_${CURR_YEAR}/_delete_by_query"
+    echo "URL2: https://$ELASTIC_URL/shot_events${MAYBE_MEN}_${CONF}_${CURR_YEAR}/_delete_by_query"
     echo "URL3: https://$ELASTIC_URL/bad_lineups_${GENDER}_$CURR_YEAR/_delete_by_query"
     echo "Team Name: [$TEAM_NAME]"
     if [[ "$REPROCESS" == "yes" ]]; then

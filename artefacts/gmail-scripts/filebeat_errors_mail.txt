@@ -1,0 +1,6 @@
+From: "Hoop Explorer" <hoop.explorer@gmail.com>
+To: "Hoop Explorer" <hoop.explorer@gmail.com>
+Subject: ALERT! ERRORS uploading imported data
+
+Go check out "cat $ELASTIC_FILEBEAT_LOGS/filebeat* | grep 'ERROR'":
+

@@ -139,7 +139,8 @@ if [ "$UPLOAD" == "yes" ]; then
   if [ "$(pwd)" != "$PBP_OUT_DIR" ]; then
     echo "Warning: need to be in [$PBP_OUT_DIR], currently in $(pwd)"
   fi 
-  $ELASTIC_FILEBEAT_BIN -E PING="$PING" -E CLOSE_EOF="$CLOSE_EOF" -c $ELASTIC_FILEBEAT_CONFIG_ROOT/filebeat_lineups.yaml --once
+  #(used to default to CLOSE_EOF=false, which left files open for 5mins .. can cause "too many open files" error)
+  $ELASTIC_FILEBEAT_BIN -E PING="$PING" -E CLOSE_EOF="true" -c $ELASTIC_FILEBEAT_CONFIG_ROOT/filebeat_lineups.yaml --once
 else
   echo "Skipping upload"
 fi

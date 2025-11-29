@@ -155,6 +155,21 @@ if [[ "$DAILY_IMPORT" == "yes" ]]; then
       rm -f tmp_alert_mail.txt
    fi
    rm -f tmp_alert_file.txt
+   # Check for upload errors:
+   cat $ELASTIC_FILEBEAT_LOGS/filebeat* | grep 'ERROR' | grep -v 'elasticsearch/client.go' | grep -v 'pipeline/output.go' > tmp_alert_file.txt
+   if [ -s tmp_alert_file.txt ]; then
+      echo "daily_cbb_import: [$(date)] ERRORS in the filebeat logs, send e-mail"
+      cat $PBP_SRC_ROOT/artefacts/gmail-scripts/filebeat_errors_mail.txt tmp_alert_file.txt > tmp_alert_mail.txt
+      curl --ssl-reqd \
+         --url 'smtps://smtp.gmail.com:465' \
+         --user "hoop.explorer@gmail.com:$HOOPEXP_GMAIL" \
+         --mail-from 'hoop.explorer@gmail.com' \
+         --mail-rcpt 'hoop.explorer@gmail.com' \
+         --upload-file tmp_alert_mail.txt
+      rm -f tmp_alert_mail.txt
+   fi
+   rm -f tmp_alert_file.txt
+
 else
    echo "daily_cbb_import: [$(date)] Skipping daily import, use DAILY_IMPORT='yes' to include"
 fi

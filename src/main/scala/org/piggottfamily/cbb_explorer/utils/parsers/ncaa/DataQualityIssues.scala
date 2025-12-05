@@ -245,6 +245,14 @@ object DataQualityIssues {
           )
         ): _*
       ),
+      Option(TeamId("Dayton")) -> Map(
+        (
+          // Confusion over name
+          alias_combos(
+            ("Grace", "Talle") -> "Talle, MG"
+          )
+        ): _*
+      ),
 
       /////////////////////////////////
 

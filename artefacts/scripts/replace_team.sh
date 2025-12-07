@@ -14,10 +14,13 @@ CURR_YEAR=$(echo $CURR_YEAR_STR | cut -c1-4)
 if [[ "$REDOWNLOAD" == "yes" ]] && [[ "$CURR_YEAR_STR" == "" ]]; then
     echo "If re-downloading must specify CURR_YEAR_STR"
 fi
+if [[ "$REDOWNLOAD" == "yes" ]] && [[ "$TEAM_NAME_URL" == "" ]]; then
+    echo "If re-downloading must specify TEAM_NAME_URL"
+fi
 
 if [[ "$REPROCESS" == "yes" ]]; then
-    if [[ "$TEAM_NAME" == "" ]] || [[ "$TEAM_NAME_URL" == "" ]] || [[ "$CONF" == "" ]] || [[ "$CURR_TIME" == "" ]] || [[ "$CURR_YEAR_STR" == "" ]] || [[ "$PING" == "" ]]; then
-        echo "Must specify TEAM_NAME [${TEAM_NAME}] and TEAM_NAME_URL [${TEAM_NAME_URL}] and CONF [${CONF}] and CURR_YEAR_STR [${CURR_YEAR_STR}] and CURR_TIME [${CURR_TIME}] and PING [${PING}]"
+    if [[ "$TEAM_NAME" == "" ]] || [[ "$CONF" == "" ]] || [[ "$CURR_TIME" == "" ]] || [[ "$CURR_YEAR_STR" == "" ]] || [[ "$PING" == "" ]]; then
+        echo "Must specify TEAM_NAME [${TEAM_NAME}] and CONF [${CONF}] and CURR_YEAR_STR [${CURR_YEAR_STR}] and CURR_TIME [${CURR_TIME}] and PING [${PING}]"
         exit -1
     fi
 else
@@ -82,7 +85,12 @@ if [[ "$DRY_RUN" != "yes" ]]; then
     if [[ "$REPROCESS" == "yes" ]]; then
         echo "Re-uploading data"
 
-        PING="$PING" CURR_TIME="$CURR_TIME" DOWNLOAD="$REDOWNLOAD" PARSE="yes" UPLOAD="yes" CURR_YEAR_STR="$CURR_YEAR_STR" TEAM_FILTER="=$TEAM_NAME_URL" CONFS="$CONF" CLOSE_EOF=true $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh 
+        if [[ "$REDOWNLOAD" == "yes" ]]; then
+            echo "(includes download)"
+            PING="$PING" CURR_TIME="$CURR_TIME" DOWNLOAD="$REDOWNLOAD" PARSE="yes" UPLOAD="yes" CURR_YEAR_STR="$CURR_YEAR_STR" TEAM_URL_FILTER="$TEAM_NAME_URL" CONFS="$CONF" CLOSE_EOF=true $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
+        else
+            PING="$PING" CURR_TIME="$CURR_TIME" DOWNLOAD="$REDOWNLOAD" PARSE="yes" UPLOAD="yes" CURR_YEAR_STR="$CURR_YEAR_STR" TEAM_FILTER="$TEAM_NAME" CONFS="$CONF" CLOSE_EOF=true $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
+        fi 
     fi
 else
     echo "(Dry Run)"
@@ -92,6 +100,10 @@ else
     echo "URL3: https://$ELASTIC_URL/bad_lineups_${GENDER}_$CURR_YEAR/_delete_by_query"
     echo "Team Name: [$TEAM_NAME]"
     if [[ "$REPROCESS" == "yes" ]]; then
-        echo "PING=\"$PING\" CURR_TIME=\"$CURR_TIME\" DOWNLOAD=\"$REDOWNLOAD\" PARSE=\"yes\" UPLOAD=\"yes\" CURR_YEAR_STR=\"$CURR_YEAR_STR\" TEAM_FILTER=\"=$TEAM_NAME_URL\" CONFS=\"$CONF\""
+        if [[ "$REDOWNLOAD" == "yes" ]]; then
+            echo "PING=\"$PING\" CURR_TIME=\"$CURR_TIME\" DOWNLOAD=\"$REDOWNLOAD\" PARSE=\"yes\" UPLOAD=\"yes\" CURR_YEAR_STR=\"$CURR_YEAR_STR\" TEAM_URL_FILTER=\"$TEAM_NAME_URL\" CONFS=\"$CONF\""
+        else
+            echo "PING=\"$PING\" CURR_TIME=\"$CURR_TIME\" DOWNLOAD=\"$REDOWNLOAD\" PARSE=\"yes\" UPLOAD=\"yes\" CURR_YEAR_STR=\"$CURR_YEAR_STR\" TEAM_FILTER=\"$TEAM_NAME\" CONFS=\"$CONF\""
+        fi
     fi
 fi

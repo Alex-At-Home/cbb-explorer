@@ -21,6 +21,7 @@ object BuildLineups {
         |--in=<<in-dir-up-to-conf-then-year>>
         |--out=<<out-dir-in-which-files-are-placed>>
         |[--team]==<<only include teams matching this string>>
+        |[--opponent]==<<only include opponents matching this string>>
         |[--team]=<<only include teams containing this string>>
         |[--full] (includes player in/out and raw events)
         |[--player-events] (includes player events in a separate file)
@@ -77,6 +78,14 @@ object BuildLineups {
       .filter(_.startsWith("--team=="))
       .headOption
       .map(_.split("==", 2)(1))
+      .filter(_.size > 0)
+
+    val maybe_opponent_match = args // (format [Location:]Opponent)
+      .map(_.trim)
+      .filter(_.startsWith("--opponent=="))
+      .headOption
+      .map(_.split("==", 2)(1))
+      .filter(_.size > 0)
 
     val maybe_team_selector =
       if (maybe_team_match.isEmpty)
@@ -85,6 +94,7 @@ object BuildLineups {
           .filter(_.startsWith("--team="))
           .headOption
           .map(_.split("=", 2)(1))
+          .filter(_.size > 1) // (ignore "=")
       else None
 
     // Get year and then conference
@@ -115,9 +125,12 @@ object BuildLineups {
           "([^_]*)(?:_([0-9.]+))?$".r // (from 25/26 the teamid is optional)
         subdir.getFileName.toString match {
           case get_team_id(team_name, _)
-              if maybe_team_selector.forall(sel =>
-                team_name.contains(sel)
-              ) && maybe_team_match.forall(_ == team_name) =>
+              if maybe_team_selector
+                .forall(sel => team_name.contains(sel)) && maybe_team_match
+                .forall(matcher =>
+                  matcher == team_name || matcher == URLDecoder // (try both URL encoded and decoded)
+                    .decode(team_name.replace("+", " "))
+                ) =>
             val team_dir = subdir.resolve("stats.ncaa.org")
             val decoded_team_name =
               URLDecoder.decode(team_name.replace("+", " "))
@@ -125,7 +138,8 @@ object BuildLineups {
             ncaa_lineup_controller.build_team_lineups(
               team_dir,
               TeamId(decoded_team_name),
-              min_time_filter = maybe_filter.map(_ * 1000) // (convert to ms)
+              min_time_filter = maybe_filter.map(_ * 1000), // (convert to ms)
+              maybe_opponent_match = maybe_opponent_match
             )
 
           case get_team_id(team_name, _) =>

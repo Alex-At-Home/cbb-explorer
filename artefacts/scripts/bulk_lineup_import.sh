@@ -7,6 +7,13 @@
 # To get just the roster and player pages (to get the lowest NCAA id, since there is no UUID)
 # set ROSTER_DOWNLOAD_ONLY=yes
 
+# FILTERS:
+# TEAMID_FILTER filters downloads based on NCAA id
+# TEAM_URL_FILTER filters download based on URL version of name
+# TEAM_FILTER filters processing based on name (exact match)
+# GAME_BASED_FILTER specifies a file with a list of NCAA ids of teams with games
+
+
 if [ "$PING" != "lping" ] && [ "$PING" != "lpong" ] && [ "$PING" != "ltest" ]; then
   echo "Need to specify PING env var as either 'lping' or 'lpong' (or 'ltest'), not '$PING'"
   exit -1
@@ -20,10 +27,6 @@ if [ "$PARSE" != "yes" ] && [ "$PARSE" != "no" ]; then
 fi
 if [ "$UPLOAD" != "yes" ] && [ "$UPLOAD" != "no" ]; then
   echo "Need to specify DOWNLOAD/PARSE/UPLOAD as yes or no [UPLOAD]"
-fi
-# Use + instead of " " in this filter:
-if [ ! -z "$TEAM_FILTER" ]; then
-  export TEAM_FILTER="--team=$TEAM_FILTER"
 fi
 
 export CLOSE_EOF=${CLOSE_EOF:="false"}
@@ -53,7 +56,7 @@ if [ "$CONFS" == "_all_" ]; then
   export CONFS="$MEN_CONFS $WOMEN_CONFS"
 fi
 
-echo ">>>>>>> Extracting from [$CURR_TIME] for [$CURR_YEAR]/[$CURR_YEAR_STR] on [$CONFS] with [$TEAM_FILTER/$TEAMID_FILTER]"
+echo ">>>>>>> Extracting from [$CURR_TIME] for [$CURR_YEAR]/[$CURR_YEAR_STR] on [$CONFS] with [$TEAM_URL_FILTER/$TEAMID_FILTER//$TEAM_FILTER/$OPPO_FILTER]"
 sleep 2
 
 if [ "$PARSE" == "yes" ]; then
@@ -119,7 +122,7 @@ for i in $CONFS; do
       org.piggottfamily.cbb_explorer.BuildLineups \
       --in=$PBP_CRAWL_PATH/${i}/${CURR_YEAR}/ \
       --out=$PBP_OUT_DIR \
-      --player-events --shot-events $TEAM_FILTER \
+      --player-events --shot-events --team=="$TEAM_FILTER" --opponent=="$OPPO_FILTER" \
       --from=$CURR_TIME >> $PBP_OUT_DIR/bulk_import_logs_${CURR_TIME}.log
   else
     echo "Skipping parse"

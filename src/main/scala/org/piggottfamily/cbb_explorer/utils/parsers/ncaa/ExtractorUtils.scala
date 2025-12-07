@@ -336,7 +336,7 @@ object ExtractorUtils {
       } match {
         case head :: tail => // don't ever filter the head
           def name_filter(candidate: String): Boolean =
-            candidate(0).isDigit ||
+            candidate.isEmpty || candidate(0).isDigit ||
               candidate == "the" ||
               candidate == "first" || candidate == "second" || candidate == "third" ||
               candidate == "jr" ||

@@ -26,7 +26,8 @@ class LineupController(d: Dependencies = Dependencies()) {
       root_dir: Path,
       team: TeamId,
       game_id_filter: Option[Regex] = None,
-      min_time_filter: Option[Long] = None
+      min_time_filter: Option[Long] = None,
+      maybe_opponent_match: Option[String] = None
   ): (
       List[LineupEvent],
       List[LineupEvent],
@@ -36,6 +37,8 @@ class LineupController(d: Dependencies = Dependencies()) {
     sealed trait LineupError
     case class FileError(f: Path, ex: Throwable) extends LineupError
     case class ParserError(f: Path, l: List[ParseError]) extends LineupError
+    case class OppoMatchError(f: Path, matchFailure: Option[String])
+        extends LineupError
 
     // Get neutral game dates (and check if we are running vs new or old format games)
     def build_neutral_games(
@@ -158,9 +161,12 @@ class LineupController(d: Dependencies = Dependencies()) {
           team,
           external_roster,
           neutral_games,
-          derived_format_version
+          derived_format_version,
+          maybe_opponent_match
         )
       } match {
+        case Success(res) if res.left.exists(_.isEmpty) =>
+          Left(OppoMatchError(game, maybe_opponent_match))
         case Success(res) => res.left.map { errs => ParserError(game, errs) }
         case Failure(ex)  => Left(FileError(game, ex))
       }
@@ -203,6 +209,9 @@ class LineupController(d: Dependencies = Dependencies()) {
             state
           case Left(ParserError(game, errors)) =>
             d.logger.info(s"Parse error with [$game]: [$errors]")
+            state
+          case Left(OppoMatchError(game, failedMatch)) =>
+            d.logger.info(s"Match ignore with [$game]: [$failedMatch]")
             state
         }
     }
@@ -343,7 +352,8 @@ class LineupController(d: Dependencies = Dependencies()) {
       team: TeamId,
       external_roster: (List[String], List[RosterEntry]),
       neutral_game_dates: Set[String],
-      format_version: Int
+      format_version: Int,
+      maybe_opponent_match: Option[String]
   ): Either[List[
     ParseError
   ], (List[LineupEvent], List[LineupEvent], List[PlayerEvent], List[ShotEvent])] = {
@@ -390,6 +400,22 @@ class LineupController(d: Dependencies = Dependencies()) {
         external_roster,
         neutral_game_dates
       )
+
+      // (skip non-matching opponents)
+      _ <- maybe_opponent_match.map(_.split(":").toList) match {
+        case None =>
+          Right(())
+        case Some(List(name_only))
+            if name_only == tmp_box_lineup.opponent.team.name =>
+          Right(())
+        case Some(List(location, name))
+            if name == tmp_box_lineup.opponent.team.name && tmp_box_lineup.location_type
+              .toString() == location =>
+          Right(())
+        case _ =>
+          Left(Nil)
+      }
+
       sorted_pbp_events <-
         if (format_version > 0) { // (used below in a couple of places)
           d.playbyplay_parser

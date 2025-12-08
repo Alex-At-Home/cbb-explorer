@@ -109,7 +109,9 @@ for i in $CONFS; do
       $PBP_SRC_ROOT/artefacts/httrack-scripts/conf-years/${i}/${CURR_YEAR_STR}/lineups-cli.sh \
       | tee $PBP_OUT_DIR/tmp_download_logs.txt
 
-    #TODO: replace old error checking
+    #TODO: replace old error checking?
+    #(currently have error checking inside crawler, use analyze_ncaa_crawls if game validation in build_leaderboards fails)
+    #(might be sufficient)
   
     rm -f $PBP_OUT_DIR/tmp_download_logs.txt
   else

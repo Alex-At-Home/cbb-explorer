@@ -273,6 +273,23 @@ if [[ "$BUILD_LEADERBOARDS" == "yes" ]] || [[ "$BUILD_LEADERBOARDS" = "cron" && 
    # Now need to redeploy _again_ to clear the cache
    sh handle-updated-data.sh
 
+   # Check for errors:
+   npm run build_leaderboards -- --tier=Combo --gender=Men > tmp_game_validation.txt 
+   npm run build_leaderboards -- --tier=Combo --gender=Women >> tmp_game_validation.txt 
+   cat tmp_game_validation.txt | grep -A 'MISMATCH ERROR' > tmp_alert_file.txt
+   if [ -s tmp_alert_file.txt ]; then
+      echo "daily_cbb_import: [$(date)] Game validation ERRORS, send e-mail"
+      cat $PBP_SRC_ROOT/artefacts/gmail-scripts/game_validation_errors_mail.txt tmp_alert_file.txt > tmp_alert_mail.txt
+      curl --ssl-reqd \
+         --url 'smtps://smtp.gmail.com:465' \
+         --user "hoop.explorer@gmail.com:$HOOPEXP_GMAIL" \
+         --mail-from 'hoop.explorer@gmail.com' \
+         --mail-rcpt 'hoop.explorer@gmail.com' \
+         --upload-file tmp_alert_mail.txt
+      rm -f tmp_alert_mail.txt
+   fi
+   rm -f tmp_game_validation.txt
+
    # Finally upload "extra" player data
    cd $PBP_OUT_DIR
    sh $PBP_SRC_ROOT/artefacts/beats-scripts/players-upload.sh

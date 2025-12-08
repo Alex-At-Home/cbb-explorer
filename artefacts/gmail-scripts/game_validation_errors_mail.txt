@@ -1,0 +1,6 @@
+From: "Hoop Explorer" <hoop.explorer@gmail.com>
+To: "Hoop Explorer" <hoop.explorer@gmail.com>
+Subject: ALERT! Game validation ERRORS
+
+Go check out "cat import_out.txt | grep 'MISMATCH ERROR'":
+

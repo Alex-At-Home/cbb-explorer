@@ -286,9 +286,13 @@ if [[ "$BUILD_LEADERBOARDS" == "yes" ]] || [[ "$BUILD_LEADERBOARDS" = "cron" && 
          --mail-from 'hoop.explorer@gmail.com' \
          --mail-rcpt 'hoop.explorer@gmail.com' \
          --upload-file tmp_alert_mail.txt
+      rm -f tmp_alert_mail.txt
    fi
-   rm -f tmp_alert_mail.txt
+   rm -f tmp_alert_file.txt
    rm -f tmp_game_validation.txt
+
+   # Create dropbox for databallr
+   zip ~/Dropbox/Public/hoop_explorer_players_all_2025_26.zip ./enrichedPlayers/players_*2025*.json
 
    # Finally upload "extra" player data
    cd $PBP_OUT_DIR

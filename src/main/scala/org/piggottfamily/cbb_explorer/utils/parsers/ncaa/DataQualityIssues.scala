@@ -253,6 +253,14 @@ object DataQualityIssues {
           )
         ): _*
       ),
+      Option(TeamId("California Baptist")) -> Map(
+        (
+          // Confusion over name
+          alias_combos(
+            ("Sofia", "Alonso") -> "Alonso Hidalgo, Sofia"
+          )
+        ): _*
+      ),
 
       /////////////////////////////////
 

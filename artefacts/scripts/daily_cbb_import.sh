@@ -142,7 +142,8 @@ if [[ "$DAILY_IMPORT" == "yes" ]]; then
       rm -f tmp_alert_mail.txt
    fi
    rm -f tmp_alert_file.txt
-   cat import_out.txt| grep "ERROR[.]" > tmp_alert_file.txt
+   touch ingest_alert_snooze.txt #(in case it doesn't exist)
+   cat import_out.txt| grep "ERROR[.]" | sort -u | grep -v -F -f ingest_alert_snooze.txt > tmp_alert_file.txt
    if [ -s tmp_alert_file.txt ]; then
       echo "daily_cbb_import: [$(date)] WARNINGS in this file, send e-mail"
       cat $PBP_SRC_ROOT/artefacts/gmail-scripts/import_warnings_mail.txt tmp_alert_file.txt > tmp_alert_mail.txt

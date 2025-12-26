@@ -112,7 +112,13 @@ class LineupController(d: Dependencies = Dependencies()) {
     // Try to get the most accurate canonical list of players
     // First look for a roster - if that doesn't exist (legacy) just get all the box scores
     val (external_roster, derived_format_version) =
-      build_roster(root_dir, team, team_fileid)
+      build_roster(
+        root_dir,
+        team,
+        team_fileid,
+        empty_game_filter = file_filter
+        // (if we are looking for specific games, then if we don't find any, don't bother to unify box/roster)
+      )
 
     // println(s"All_box_roster_players: [$external_roster]")
 
@@ -225,11 +231,15 @@ class LineupController(d: Dependencies = Dependencies()) {
 
   /** Gets a list of Roster Entry objects, plus any box players missing from
     * that list
+    * @param empty_game_filter
+    *   if specified then won't try to unify box/roster if there are no games to
+    *   process (to cut down on false positives)
     */
   def build_roster(
       root_dir: Path,
       team: TeamId,
       team_fileid: Option[String] = None,
+      empty_game_filter: Option[Long => Boolean] = None,
       include_coach: Boolean = false,
       unify_ncaa_ids: Boolean = false
   ): ((List[String], List[RosterEntry]), Int) = {
@@ -306,29 +316,43 @@ class LineupController(d: Dependencies = Dependencies()) {
 
     // Now read all the box scores in to get any missing names:
 
+    def list_files(time_filter: Option[Long => Boolean]) =
+      format_version match {
+        case 0 =>
+          Try(
+            d.file_manager.list_files(
+              root_dir.resolve(boxscore_dir),
+              Some("html"),
+              time_filter
+            )
+          ).getOrElse(Nil).iterator
+        case _ =>
+          Try(
+            d.file_manager.list_files(
+              root_dir.resolve(contests_dir),
+              Some("html"),
+              time_filter,
+              recursive = true
+            )
+          ).getOrElse(Nil).iterator.filter {
+            _.getFileName.toString == v1_boxscore_filename
+          }
+      }
+
+    val empty_games_case = empty_game_filter match {
+      case None   => false
+      case filter => list_files(filter).isEmpty
+    }
+
     val all_box_players =
       (for {
-        box <- format_version match {
-          case 0 =>
-            Try(
-              d.file_manager.list_files(
-                root_dir.resolve(boxscore_dir),
-                Some("html"),
-                None
-              )
-            ).getOrElse(Nil).iterator
-          case _ =>
-            Try(
-              d.file_manager.list_files(
-                root_dir.resolve(contests_dir),
-                Some("html"),
-                None,
-                recursive = true
-              )
-            ).getOrElse(Nil).iterator.filter {
-              _.getFileName.toString == v1_boxscore_filename
-            }
-        }
+        box <-
+          if (empty_games_case)
+            Nil // (ignore box scores since not processing any games anyway)
+          else
+            list_files(time_filter =
+              None
+            ) // (all box scores even if we're ignoring the game itself)
         box_html = d.file_manager.read_file(box)
         box_lineup <- (d.boxscore_parser.get_box_lineup(
           box.getFileName.toString,

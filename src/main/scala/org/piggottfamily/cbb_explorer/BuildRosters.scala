@@ -106,6 +106,7 @@ object BuildRosters {
                     team_dir,
                     TeamId(decoded_team_name),
                     maybe_team_fileid,
+                    empty_game_filter = None,
                     include_coach = true,
                     unify_ncaa_ids = unify_ids_legacy
                   )

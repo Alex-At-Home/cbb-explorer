@@ -293,7 +293,11 @@ if [[ "$BUILD_LEADERBOARDS" == "yes" ]] || [[ "$BUILD_LEADERBOARDS" = "cron" && 
    rm -f tmp_game_validation.txt
 
    # Create dropbox for databallr
-   zip ~/Dropbox/Public/hoop_explorer_players_all_2025_26.zip ./enrichedPlayers/players_*2025*.json
+   #(needs to copy in a specific way so that Dropbox doesn't treat as a delete/re-create which changes the link)
+   rm -f ./hoop_explorer_players_all_2025_26.zip
+   zip ./hoop_explorer_players_all_2025_26.zip ./enrichedPlayers/players_*2025*.json
+   cp ./hoop_explorer_players_all_2025_26.zip ~/Dropbox/Public/
+   rm -f ./hoop_explorer_players_all_2025_26.zip
 
    # Finally upload "extra" player data
    cd $PBP_OUT_DIR

@@ -23,7 +23,13 @@ object ExtractorUtils {
 
   /** Sometimes the PbP contains unexpeted HTML codes, add them here */
   def remove_html_encoding(html_str: String): String = {
-    html_str.replace("&#39;", "'")
+    if (html_str.indexOf("&") >= 0)
+      html_str
+        .replace("&#39;", "'")
+        .replace("&quot;", "\"")
+        .replace("&amp;", "&")
+    else
+      html_str
   }
 
   /** Normalizes accents out of strings - ideally only use as part of

@@ -310,11 +310,13 @@ trait ShotEventParser {
               location,
               score,
               result,
-              shot_taking_team
+              raw_shot_taking_team
             )
           ) =>
-        val is_offensive = box_lineup.team.team.name == shot_taking_team
         val player = ExtractorUtils.remove_html_encoding(raw_player)
+        val shot_taking_team =
+          ExtractorUtils.remove_html_encoding(raw_shot_taking_team)
+        val is_offensive = box_lineup.team.team.name == shot_taking_team
 
         val maybe_player_code_id = if (is_offensive) {
           val (tidier_player_name, _) =

@@ -261,6 +261,14 @@ object DataQualityIssues {
           )
         ): _*
       ),
+      Option(TeamId("Portland")) -> Map(
+        (
+          // Married just before season
+          alias_combos(
+            ("Nicole", "Rodriguez") -> "Anderson, Nicole"
+          )
+        ): _*
+      ),
 
       /////////////////////////////////
 

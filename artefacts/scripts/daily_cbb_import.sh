@@ -127,6 +127,11 @@ if [[ "$DAILY_IMPORT" == "yes" ]]; then
       fi
    fi
    
+   # Archive data (last 12h):
+   ARCHIVE_NAME="./ncaa_games_2025_26_$(date +%Y%m%d).tgz"
+   find $PBP_CRAWL_PATH/*/2025 -type f -mmin -720 | tar -czvf $ARCHIVE_NAME -T -
+   gsutil cp $ARCHIVE_NAME gs://hoop-explorer-archive/ && rm $ARCHIVE_NAME
+
    # Check for errors (will also alert on old errors, you have to delete import_out.txt to start again)
    cat import_out.txt| grep ERRORS > tmp_alert_file.txt
    cat import_out.txt| grep "ERROR PlaywrightCrawler" >> tmp_alert_file.txt

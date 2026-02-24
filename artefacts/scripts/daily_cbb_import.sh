@@ -98,6 +98,32 @@ if [[ "$DAILY_IMPORT" == "yes" ]]; then
    echo "[$(date)] Download today's games"
    GAME_BASED_FILTER=$GAME_BASED_FILTER PING="lping" DOWNLOAD="yes" PARSE="yes" UPLOAD="yes" CONFS="_all_" sh $PBP_SRC_ROOT/artefacts/scripts/bulk_lineup_import.sh
 
+   #(check if there were no men's or women's games, send an alert if so):
+
+   if [ "$FULL_TEAM_DOWNLOAD" != "yes" ]; then
+      rm -f tmp_alert_no_games.txt
+      touch tmp_alert_no_games.txt
+      GAME_BASED_FILTER_SUFFIX=$(echo "$GAME_BASED_FILTER" | sed 's/:/_/g')
+      if [ ! -s "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_men.txt" ]; then
+         echo "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_men.txt" >> tmp_alert_no_games.txt
+      fi
+      if [ ! -s "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_women.txt" ]; then
+         echo "ncaa_games_${GAME_BASED_FILTER_SUFFIX}_women.txt" >> tmp_alert_no_games.txt
+      fi
+      if [ -s "tmp_alert_no_games.txt" ]; then
+         echo "Alerting on missing schedule"
+         cat $PBP_SRC_ROOT/artefacts/gmail-scripts/no_games_mail.txt tmp_alert_no_games.txt > tmp_alert_mail.txt
+         curl --ssl-reqd \
+            --url 'smtps://smtp.gmail.com:465' \
+            --user "hoop.explorer@gmail.com:$HOOPEXP_GMAIL" \
+            --mail-from 'hoop.explorer@gmail.com' \
+            --mail-rcpt 'hoop.explorer@gmail.com' \
+            --upload-file tmp_alert_mail.txt
+         rm -f tmp_alert_mail.txt
+      fi
+      rm -f tmp_alert_no_games.txt
+   fi
+
    #(check if we missed any files - eg games not finished - and retry)
    if [ "$FULL_TEAM_DOWNLOAD" != "yes" ]; then
       GAME_BASED_FILTER_SUFFIX=$(echo "$GAME_BASED_FILTER" | sed 's/:/_/g')

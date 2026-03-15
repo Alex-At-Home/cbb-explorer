@@ -24,197 +24,320 @@ import kantan.csv.generic._
 
 object BuildOnBallDefense {
 
-   def main(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit = {
 
-      // Command line args processing
+    // Command line args processing
 
-      if (args.length < 4) {
-         println("""
+    if (args.length < 4) {
+      println("""
          |--in-team=<<csv-file-to-read-for-team-defense>>
          |--in-player=<<csv-file-to-read-for-player-defense>>
-         |--rosters=<<json-roster-dir>>
+         |--rosters=<<json-roster-dir, including $Gender_$Year>>
          |--out=<<out-dir-in-which-team-filters-are-placed>
          |--year=<<year-in-which-the-season-starts>>
          """)
-         System.exit(-1)
+      System.exit(-1)
+    }
+    val in_team_file = args.toList
+      .map(_.trim)
+      .filter(_.startsWith("--in-team="))
+      .headOption
+      .map(_.split("=", 2)(1))
+      .getOrElse {
+        throw new Exception("--in-team is needed")
       }
-      val in_team_file = args.toList
-         .map(_.trim).filter(_.startsWith("--in-team="))
-         .headOption.map(_.split("=", 2)(1))
-         .getOrElse {
-            throw new Exception("--in-team is needed")
-         }
-      val in_player_file = args.toList
-         .map(_.trim).filter(_.startsWith("--in-player="))
-         .headOption.map(_.split("=", 2)(1))
-         .getOrElse {
-            throw new Exception("--in-player is needed")
-         }
+    val in_player_file = args.toList
+      .map(_.trim)
+      .filter(_.startsWith("--in-player="))
+      .headOption
+      .map(_.split("=", 2)(1))
+      .getOrElse {
+        throw new Exception("--in-player is needed")
+      }
 
-      val out_path = args
-         .map(_.trim).filter(_.startsWith("--out="))
-         .headOption.map(_.split("=", 2)(1))
-         .getOrElse {
-            throw new Exception("--out is needed")
-         }
-      val roster_dir = args
-         .map(_.trim).filter(_.startsWith("--rosters="))
-         .headOption.map(_.split("=", 2)(1))
-         .getOrElse {
-            throw new Exception("--rosters is needed")
-         }
-      val year = args
-         .map(_.trim).filter(_.startsWith("--year="))
-         .headOption.map(_.split("=", 2)(1))
-         .map(_.toInt)
-         .getOrElse {
-            throw new Exception("--year is needed")
-         }
+    val out_path = args
+      .map(_.trim)
+      .filter(_.startsWith("--out="))
+      .headOption
+      .map(_.split("=", 2)(1))
+      .getOrElse {
+        throw new Exception("--out is needed")
+      }
+    val roster_dir = args
+      .map(_.trim)
+      .filter(_.startsWith("--rosters="))
+      .headOption
+      .map(_.split("=", 2)(1))
+      .getOrElse {
+        throw new Exception("--rosters is needed")
+      }
+    val year = args
+      .map(_.trim)
+      .filter(_.startsWith("--year="))
+      .headOption
+      .map(_.split("=", 2)(1))
+      .map(_.toInt)
+      .getOrElse {
+        throw new Exception("--year is needed")
+      }
 
-      // Build team LUT
+    // Build team LUT
 
-      val team_lut_str = Source.fromURL(getClass.getResource("/onball_team_lookup.csv")).mkString         
-      type TeamLutEntry = (String, String)
-      val team_lut: Map[String, String] = team_lut_str.asCsvReader[TeamLutEntry](rfc).toList.flatMap(_.toOption).toMap
+    val team_lut_str =
+      Source.fromURL(getClass.getResource("/onball_team_lookup.csv")).mkString
+    type TeamLutEntry = (String, String)
+    val team_lut: Map[String, String] = team_lut_str
+      .asCsvReader[TeamLutEntry](rfc)
+      .toList
+      .flatMap(_.toOption)
+      .toMap
 
+    // Read in team on-ball defense from file as CSV and enrich with the roster info
 
-      // Read in team on-ball defense from file as CSV and enrich with the roster info
+    val team_file = Paths.get(in_team_file)
+    val team_csv = FileUtils.read_lines_from_file(team_file).mkString("\n")
 
-      val team_file = Paths.get(in_team_file)
-      val team_csv = FileUtils.read_lines_from_file(team_file).mkString("\n")
+    // What you got if you ran this in 22/23:
+    // case class TeamOnBallDefense(
+    //    rank: String, team: String, gp: String, pct_time: String,
+    //    poss: String, points: String, ppp: String, fg_miss: String, fg_made: String, fga: String, fg_pct: String, efg_pct: String,
+    //    sq: String, sqPpp: String, sqM: String,
+    //    to_pct: String, ft_pct: String, pct_score: String, sf_pct: String
+    // )
+    // As of 23/24:
+    case class TeamOnBallDefense(
+        rank: String,
+        team: String,
+        gp: String,
+        poss: String,
+        pct_time: String,
+        points: String,
+        ppp: String,
+        fga: String,
+        fg_made: String,
+        fg_miss: String,
+        fg_pct: String,
+        efg_pct: String,
+        to_pct: String,
+        ft_pct: String,
+        ft_rate: String,
+        sf_pct: String,
+        pct_score: String
+    )
 
-      // What you got if you ran this in 22/23:
-      // case class TeamOnBallDefense(
-      //    rank: String, team: String, gp: String, pct_time: String,
-      //    poss: String, points: String, ppp: String, fg_miss: String, fg_made: String, fga: String, fg_pct: String, efg_pct: String, 
-      //    sq: String, sqPpp: String, sqM: String,
-      //    to_pct: String, ft_pct: String, pct_score: String, sf_pct: String
-      // )
-      // As of 23/24:
-      case class TeamOnBallDefense(
-         rank: String, team: String, gp: String, poss: String, pct_time: String,
-         points: String, ppp: String, fga: String, fg_made: String, fg_miss: String, fg_pct: String, efg_pct: String, 
-         to_pct: String, ft_pct: String, ft_rate: String, sf_pct: String, pct_score: String, 
-      )
+    case class EnrichedTeamOnBallDefense(
+        encoded_team: String,
+        on_ball: TeamOnBallDefense,
+        roster: List[RosterEntry],
+        box_lineup: LineupEvent
+    )
 
-      case class EnrichedTeamOnBallDefense(
-         encoded_team: String,
-         on_ball: TeamOnBallDefense,
-         roster: List[RosterEntry],
-         box_lineup: LineupEvent
-      )
+    val storage_controller = new StorageController()
 
-      val storage_controller = new StorageController()
+    val teams_map = team_csv
+      .asCsvReader[TeamOnBallDefense](rfc.withHeader)
+      .toList
+      .flatMap(_.toOption)
+      .flatMap { entry =>
+        val ncaa_team = team_lut.get(entry.team).getOrElse(entry.team)
+        val encoded_team_name =
+          URLEncoder.encode(ncaa_team, "UTF-8").replace(" ", "+")
+        Try {
+          storage_controller.read_roster(
+            Paths
+              .get(roster_dir)
+              .resolve(s"$encoded_team_name.json")
+          )
+        }.recoverWith { case error =>
+          System.out.println(
+            s"Failed to ingest [${ncaa_team}][$encoded_team_name]: $error"
+          )
+          Failure(error)
+        }.map(roster =>
+          (
+            roster.values,
+            LineupEvent( // Lots of dummy fields, only "players" field is populated
+              DateTime.now(),
+              Game.LocationType.Home,
+              0.0,
+              0.0,
+              0.0,
+              LineupEvent.ScoreInfo.empty,
+              TeamSeasonId(TeamId(ncaa_team), Year(year)),
+              TeamSeasonId(TeamId(ncaa_team), Year(year)),
+              LineupEvent.LineupId("none"),
+              roster.values.toList.map(_.player_code_id),
+              Nil,
+              Nil,
+              Nil,
+              LineupEventStats.empty,
+              LineupEventStats.empty,
+              None
+            )
+          )
+        ).map { case (roster, lineup) =>
+          (
+            ncaa_team,
+            EnrichedTeamOnBallDefense(
+              encoded_team = encoded_team_name,
+              on_ball = entry,
+              roster = roster.toList,
+              box_lineup = lineup
+            )
+          )
+        }.toOption
 
-      val teams_map = team_csv.asCsvReader[TeamOnBallDefense](rfc.withHeader).toList.flatMap(_.toOption).flatMap { entry =>
+      }
+      .toMap
 
-         val ncaa_team = team_lut.get(entry.team).getOrElse(entry.team)
-         val encoded_team_name = URLEncoder.encode(ncaa_team, "UTF-8").replace(" ", "+")
-         Try {
-            storage_controller.read_roster(Paths.get(roster_dir).resolve(s"Men_$year").resolve(s"$encoded_team_name.json"))
-         }.recoverWith {
-            case error =>
-               System.out.println(s"Failed to ingest [${ncaa_team}][$encoded_team_name]: $error")
-               Failure(error)
-         }.map(roster => (roster.values, LineupEvent( //Lots of dummy fields, only "players" field is populated
-            DateTime.now(), Game.LocationType.Home, 0.0, 0.0, 0.0, LineupEvent.ScoreInfo.empty, 
-            TeamSeasonId(TeamId(ncaa_team), Year(year)), TeamSeasonId(TeamId(ncaa_team), Year(year)), LineupEvent.LineupId("none"),
-            roster.values.toList.map(_.player_code_id), 
-            Nil, Nil, Nil, LineupEventStats.empty, LineupEventStats.empty, None
-         ))).map { case (roster, lineup) =>
-            (ncaa_team, EnrichedTeamOnBallDefense(encoded_team = encoded_team_name, on_ball = entry, roster = roster.toList, box_lineup = lineup))
-         }.toOption
-         
-      }.toMap
+    System.out.println(
+      s"BuildOnBallDefense: Ingested [${teams_map.size}] teams"
+    )
 
-     System.out.println(s"BuildOnBallDefense: Ingested [${teams_map.size}] teams")
+    // Read in player on-ball defense from file as CSV
 
-      // Read in player on-ball defense from file as CSV
+    val player_file = Paths.get(in_player_file)
+    val player_csv = FileUtils.read_lines_from_file(player_file).mkString("\n")
 
-      val player_file = Paths.get(in_player_file)
-      val player_csv = FileUtils.read_lines_from_file(player_file).mkString("\n")
+    // What you got if you ran this in 22/23:
+    // case class PlayerOnBallDefense(
+    //    rank: String, player: String, team: String, gp: String, pct_time: String, poss: String, points: String,
+    //    ppp: String, fg_miss: String, fg_made: String, fga: String, fg_pct: String, efg_pct: String,
+    //    sq: String, sqPpp: String, sqM: String,
+    //    to_pct: String, ft_pct: String, pct_score: String, sf_pct: String
+    // )
+    // As of 23/24:
+    case class PlayerOnBallDefense(
+        rank: String,
+        jersey: String,
+        player: String,
+        team: String,
+        gp: String,
+        poss: String,
+        pct_time: String,
+        points: String,
+        ppp: String,
+        fga: String,
+        fg_made: String,
+        fg_miss: String,
+        fg_pct: String,
+        efg_pct: String,
+        to_pct: String,
+        ft_pct: String,
+        ft_rate: String,
+        sf_pct: String,
+        pct_score: String
+    )
+    case class EnrichedPlayerOnBallDefense(
+        encoded_team: String,
+        team: TeamOnBallDefense,
+        player: PlayerOnBallDefense,
+        name_to_use: LineupEvent.PlayerCodeId
+    )
 
-      // What you got if you ran this in 22/23:
-      // case class PlayerOnBallDefense(
-      //    rank: String, player: String, team: String, gp: String, pct_time: String, poss: String, points: String,
-      //    ppp: String, fg_miss: String, fg_made: String, fga: String, fg_pct: String, efg_pct: String, 
-      //    sq: String, sqPpp: String, sqM: String,
-      //    to_pct: String, ft_pct: String, pct_score: String, sf_pct: String
-      // )
-      // As of 23/24:
-      case class PlayerOnBallDefense(
-         rank: String, jersey: String, player: String, team: String, gp: String, poss: String, pct_time: String,
-         points: String, ppp: String, fga: String, fg_made: String, fg_miss: String, fg_pct: String, efg_pct: String, 
-         to_pct: String, ft_pct: String, ft_rate: String, sf_pct: String, pct_score: String, 
-      )
-      case class EnrichedPlayerOnBallDefense(
-         encoded_team: String,
-         team: TeamOnBallDefense,
-         player: PlayerOnBallDefense,
-         name_to_use: String
-      )
+    val players_grouped_by_team =
+      player_csv
+        .asCsvReader[PlayerOnBallDefense](rfc.withHeader)
+        .toList
+        .flatMap(_.toOption)
+        .groupBy { entry =>
+          team_lut.get(entry.team).getOrElse(entry.team)
+        }
 
-      val players_grouped_by_team = 
-         player_csv.asCsvReader[PlayerOnBallDefense](rfc.withHeader).toList.flatMap(_.toOption).groupBy { entry =>
-            team_lut.get(entry.team).getOrElse(entry.team)
-         }
-         
-      val enriched_players_grouped_by_team = players_grouped_by_team.map { case (ncaa_team, entries) =>
+    val enriched_players_grouped_by_team = players_grouped_by_team
+      .map { case (ncaa_team, entries) =>
+        val maybe_enriched_team_entry = teams_map.get(ncaa_team)
 
-         val maybe_enriched_team_entry = teams_map.get(ncaa_team)
+        maybe_enriched_team_entry match {
 
-         maybe_enriched_team_entry match {
+          case Some(enriched_team_entry) =>
+            val tidy_ctx = LineupErrorAnalysisUtils.build_tidy_player_context(
+              enriched_team_entry.box_lineup
+            )
+            (
+              ncaa_team,
+              entries.flatMap { entry =>
+                Try {
 
-            case Some(enriched_team_entry) =>
-
-               val tidy_ctx = LineupErrorAnalysisUtils.build_tidy_player_context(enriched_team_entry.box_lineup)
-               (ncaa_team, entries.flatMap { entry => Try {
-                  
                   // This makes it easier to apply the fuzzy matcher
                   val name_frags = entry.player.split(" ")
                   val tidied_player_name = if (name_frags.size == 2) {
-                     s"${name_frags(0)}, ${name_frags(1)}" //(matches standard roster format)
+                    s"${name_frags(0)}, ${name_frags(1)}" // (matches standard roster format)
                   } else entry.player
 
-                  val (fixed_player, _) = LineupErrorAnalysisUtils.tidy_player(tidied_player_name, tidy_ctx)
+                  val (fixed_player, _) = LineupErrorAnalysisUtils.tidy_player(
+                    tidied_player_name,
+                    tidy_ctx
+                  )
 
-                  val maybe_fixed_player_roster_entry = enriched_team_entry.roster.find(_.player_code_id.id.name == fixed_player)
+                  val maybe_fixed_player_roster_entry =
+                    enriched_team_entry.roster.find(
+                      _.player_code_id.id.name == fixed_player
+                    )
 
-                  maybe_fixed_player_roster_entry.map { roster_entry => 
-                     EnrichedPlayerOnBallDefense(
-                        enriched_team_entry.encoded_team, enriched_team_entry.on_ball, entry, 
-                        s"${roster_entry.player_code_id.code}"
-                     )
+                  maybe_fixed_player_roster_entry.map { roster_entry =>
+                    EnrichedPlayerOnBallDefense(
+                      enriched_team_entry.encoded_team,
+                      enriched_team_entry.on_ball,
+                      entry,
+                      roster_entry.player_code_id
+                    )
                   }
-               }.toOption.flatten.toList})
+                }.toOption.flatten.toList
+              }
+            )
 
-            case None => (ncaa_team, List())
-         }
-      }.filter(_._2.nonEmpty)
-
-      System.out.println(s"BuildOnBallDefense: Ingested [${enriched_players_grouped_by_team.values.flatten.size}] players from [${enriched_players_grouped_by_team.size}]")
-
-      // Now for each team write out a block of text
-
-      enriched_players_grouped_by_team.foreach { case (ncaa_team, entries) =>
-
-         val td = entries.head.team //(must exist by construction)
-         val encoded_team_name = entries.head.encoded_team
-
-         // 22/23-
-         // val team_row = s"${td.rank},Team,Team,${td.gp},100%,${td.poss},${td.points},${td.ppp},${td.fg_miss},${td.fg_made},${td.fga},${td.fg_pct},${td.efg_pct},${td.to_pct},${td.ft_pct},${td.pct_score},${td.sf_pct}"
-         // 23/34+ (some unused cols at the backend because JS hackily uses row size to determine which year it is)
-         val team_row = s"${td.rank},,Team,Team,${td.gp},${td.poss},100%,${td.points},${td.ppp},${td.fga},${td.fg_made},${td.fg_miss},${td.fg_pct},${td.efg_pct},${td.to_pct},${td.ft_pct},${td.ft_rate},${td.sf_pct},${td.pct_score},,,,,,,"
-
-         val entry_rows = entries.map { entry =>
-            val pd = entry.player
-            // 22/23-
-            // s"${pd.rank},${entry.name_to_use},${pd.team},${pd.gp},${pd.pct_time},${pd.poss},${pd.points},${pd.ppp},${pd.fg_miss},${pd.fg_made},${pd.fga},${pd.fg_pct},${pd.efg_pct},${pd.to_pct},${pd.ft_pct},${pd.pct_score},${pd.sf_pct}"
-            // 23/34+ (some unused cols at the backend because JS hackily uses row size to determine which year it is)
-            s"${pd.rank},${pd.jersey},${entry.name_to_use},${pd.team},${pd.gp},${pd.poss},${pd.pct_time},${pd.points},${pd.ppp},${pd.fga},${pd.fg_made},${pd.fg_miss},${pd.fg_pct},${pd.efg_pct},${pd.to_pct},${pd.ft_pct},${pd.ft_rate},${pd.sf_pct},${pd.pct_score},,,,,,,"
-         }
-
-         FileUtils.write_file(Paths.get(out_path).resolve(year.toString).resolve(s"${encoded_team_name}.txt"), (List(team_row) ++ entry_rows).mkString("\n"))
+          case None => (ncaa_team, List())
+        }
       }
-   }
+      .filter(_._2.nonEmpty)
+
+    System.out.println(
+      s"BuildOnBallDefense: Ingested [${enriched_players_grouped_by_team.values.flatten.size}] players from [${enriched_players_grouped_by_team.size}]"
+    )
+
+    // Write out the Team -> Synergy name mapping
+    val synergy_name_mappings = enriched_players_grouped_by_team.flatMap {
+      case (team, entries) =>
+        entries.map { entry =>
+          s"${entry.name_to_use.id.name}\t$team\t${entry.player.player}\t${entry.player.team}"
+        }
+    }
+    FileUtils.write_file(
+      Paths
+        .get(out_path)
+        .resolve(year.toString)
+        .resolve(s"synergy_name_mapping.txt"),
+      (synergy_name_mappings.mkString("\n"))
+    )
+
+    // Now for each team write out a block of text
+
+    enriched_players_grouped_by_team.foreach { case (ncaa_team, entries) =>
+      val td = entries.head.team // (must exist by construction)
+      val encoded_team_name = entries.head.encoded_team
+
+      // 22/23-
+      // val team_row = s"${td.rank},Team,Team,${td.gp},100%,${td.poss},${td.points},${td.ppp},${td.fg_miss},${td.fg_made},${td.fga},${td.fg_pct},${td.efg_pct},${td.to_pct},${td.ft_pct},${td.pct_score},${td.sf_pct}"
+      // 23/34+ (some unused cols at the backend because JS hackily uses row size to determine which year it is)
+      val team_row =
+        s"${td.rank},,Team,Team,${td.gp},${td.poss},100%,${td.points},${td.ppp},${td.fga},${td.fg_made},${td.fg_miss},${td.fg_pct},${td.efg_pct},${td.to_pct},${td.ft_pct},${td.ft_rate},${td.sf_pct},${td.pct_score},,,,,,,"
+
+      val entry_rows = entries.map { entry =>
+        val pd = entry.player
+        // 22/23-
+        // s"${pd.rank},${entry.name_to_use},${pd.team},${pd.gp},${pd.pct_time},${pd.poss},${pd.points},${pd.ppp},${pd.fg_miss},${pd.fg_made},${pd.fga},${pd.fg_pct},${pd.efg_pct},${pd.to_pct},${pd.ft_pct},${pd.pct_score},${pd.sf_pct}"
+        // 23/34+ (some unused cols at the backend because JS hackily uses row size to determine which year it is)
+        s"${pd.rank},${pd.jersey},${entry.name_to_use.code},${pd.team},${pd.gp},${pd.poss},${pd.pct_time},${pd.points},${pd.ppp},${pd.fga},${pd.fg_made},${pd.fg_miss},${pd.fg_pct},${pd.efg_pct},${pd.to_pct},${pd.ft_pct},${pd.ft_rate},${pd.sf_pct},${pd.pct_score},,,,,,,"
+      }
+
+      FileUtils.write_file(
+        Paths
+          .get(out_path)
+          .resolve(year.toString)
+          .resolve(s"${encoded_team_name}.txt"),
+        (List(team_row) ++ entry_rows).mkString("\n")
+      )
+    }
+  }
 }

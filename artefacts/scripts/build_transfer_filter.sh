@@ -48,7 +48,7 @@ else
    fi
 
    if [ "$PROCESS_ONLY" != "yes" ]; then
-      echo '{"name":"","queryTarget":"TRANSFER","transferYear":2025,"transferLevel":"D1","filters":[{"type":"HS_GRAD_YEAR","minValue":-1,"maxValue":5000},{"type":"HEIGHT","minValue":-1,"maxValue":5000},{"type":"WEIGHT","minValue":-1,"maxValue":5000},{"type":"RATING","minValue":-1,"maxValue":5000},{"type":"GPA","minValue":-1,"maxValue":5000},{"type":"PPG","minValue":-1,"maxValue":5000},{"type":"APG","minValue":-1,"maxValue":5000},{"type":"RPG","minValue":-1,"maxValue":5000},{"type":"BPG","minValue":-1,"maxValue":5000},{"type":"SPG","minValue":-1,"maxValue":5000},{"type":"CRAM","minValue":-1,"maxValue":5000},{"type":"RAM","minValue":-1,"maxValue":5000},{"type":"FG_PCT","minValue":-1,"maxValue":5000},{"type":"FT_PCT","minValue":-1,"maxValue":5000},{"type":"THREE_PCT","minValue":-1,"maxValue":5000},{"type":"IS_JUCO","comparand":[]},{"type":"IS_REDSHIRT","comparand":[]},{"type":"POSITION","comparand":[]},{"type":"STATUS","comparand":[]},{"type":"TRANSFER_FROM_TO","comparand":[]},{"type":"TRANSFER_FROM_TO_CONFERENCE","comparand":[]},{"type":"STATE","comparand":[]},{"type":"IS_PLAYER_PLUS","comparand":[]},{"type":"ELIGIBILITY_YEAR","comparand":[]}]}' > ./filter.json
+      echo '{"name":"","queryTarget":"TRANSFER","transferYear":2026,"transferLevel":"D1","filters":[{"type":"HS_GRAD_YEAR","minValue":-1,"maxValue":5000},{"type":"HEIGHT","minValue":-1,"maxValue":5000},{"type":"WEIGHT","minValue":-1,"maxValue":5000},{"type":"RATING","minValue":-1,"maxValue":5000},{"type":"GPA","minValue":-1,"maxValue":5000},{"type":"PPG","minValue":-1,"maxValue":5000},{"type":"APG","minValue":-1,"maxValue":5000},{"type":"RPG","minValue":-1,"maxValue":5000},{"type":"BPG","minValue":-1,"maxValue":5000},{"type":"SPG","minValue":-1,"maxValue":5000},{"type":"CRAM","minValue":-1,"maxValue":5000},{"type":"RAM","minValue":-1,"maxValue":5000},{"type":"FG_PCT","minValue":-1,"maxValue":5000},{"type":"FT_PCT","minValue":-1,"maxValue":5000},{"type":"THREE_PCT","minValue":-1,"maxValue":5000},{"type":"IS_JUCO","comparand":[]},{"type":"IS_REDSHIRT","comparand":[]},{"type":"POSITION","comparand":[]},{"type":"STATUS","comparand":[]},{"type":"TRANSFER_FROM_TO","comparand":[]},{"type":"TRANSFER_FROM_TO_CONFERENCE","comparand":[]},{"type":"STATE","comparand":[]},{"type":"IS_PLAYER_PLUS","comparand":[]},{"type":"ELIGIBILITY_YEAR","comparand":[]}]}' > ./filter.json
       curl -k  \
             -H 'Content-Type: application/json' \
             -H 'Accept: application/json, text/plain, */*' \
@@ -66,8 +66,11 @@ else
             -H 'Sec-Fetch-Dest: empty' \
             -H "$TRANSFER_AUTH_TOKEN"  \
             -XPOST -d @./filter.json \
-         -o $PBP_OUT_DIR/transfers.json 'https://api.verbalcommits.com/vc/players/find/transfers'
+         -o $PBP_OUT_DIR/transfers.json.gz 'https://api.verbalcommits.com/vc/players/find/transfers'
       rm ./filter.json
+      # If it's gzipped, unzip it - else rename it:
+      rm $PBP_OUT_DIR/transfers.json
+      gunzip $PBP_OUT_DIR/transfers.json.gz || mv $PBP_OUT_DIR/transfers.json.gz $PBP_OUT_DIR/transfers.json
    fi
    PREVIOUS_JSON_SIZE=$(stat -f "%z" "$PBP_OUT_DIR/transfers.json.$CURR_YEAR_P1.SAVED")
    TODAY_JSON_SIZE=$(stat -f "%z" "$PBP_OUT_DIR/transfers.json")

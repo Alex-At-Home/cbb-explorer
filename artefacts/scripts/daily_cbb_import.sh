@@ -9,10 +9,10 @@ export ACADEMIC_YEAR="2026"
 export OFFSEASON_YEAR="2025"
 
 # Last few days of the season, normally in conjunction with INSEASON_PORTAL_TRACKING=="yes":
-export NO_GAMES_TODAY="yes"
+export NO_GAMES_TODAY="no"
 #Off season mode: do nothing except keep track of transfers
-export OFFSEASON_MODE="no"
-export INSEASON_PORTAL_TRACKING="yes" #(set to "yes" one portal szn starts)
+export OFFSEASON_MODE="yes"
+export INSEASON_PORTAL_TRACKING="no" #(set to "yes" one portal szn starts)
 export PRESEASON_LEADERBOARD_MODE="no" #(this is "no" until it settles down a bit, maybe as late as June?)
 if [[ "$OFFSEASON_MODE" == "yes" ]] || [[ "$NO_GAMES_TODAY" == "yes" ]]; then
    echo "In Off-season mode, will just keep track of transfers"
@@ -22,7 +22,7 @@ if [[ "$OFFSEASON_MODE" == "yes" ]] || [[ "$NO_GAMES_TODAY" == "yes" ]]; then
 fi
 
 # (set this if we want to re-run this season's leaderboard having made some changes)
-BUILD_LEADERBOARDS="yes"
+BUILD_LEADERBOARDS="no"
 #TODO (have a run all leaderboards option?)
 
 # Use this to rebuild for a given team instead of just getting previous days games

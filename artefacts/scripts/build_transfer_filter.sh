@@ -87,6 +87,9 @@ fi
 if [ "$PROCESS_ONLY" != "yes" ]; then
    echo "" > $PBP_OUT_DIR/nba_declarations_$CURR_YEAR_P1.html
    
+   if [ "$CURR_YEAR_P1" -eq "2026" ]; then
+      curl -k -o $PBP_OUT_DIR/nba_declarations_$CURR_YEAR_P1.html "https://www.hoopsrumors.com/2026/04/2026-nba-draft-early-entrants-list.html"
+   fi
    if [ "$CURR_YEAR_P1" -eq "2025" ]; then
       curl -k -o $PBP_OUT_DIR/nba_declarations_$CURR_YEAR_P1.html "https://www.hoopsrumors.com/2025/04/2025-nba-draft-early-entrants-list.html"
    fi

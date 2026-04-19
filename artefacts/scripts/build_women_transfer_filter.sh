@@ -10,12 +10,25 @@
 
 CURR_YEAR_P1=$((CURR_YEAR+1))
 
+if [ "$PROCESS_ONLY" != "yes" ]; then
+   curl -L -o "$PBP_OUT_DIR/women_transfers.html" 'https://www.on3.com/her/news/on3-2025-26-womens-basketball-transfer-portal-tracker'
+fi
+python3 $CBB_CRAWLER_SRC_DIR/artefacts/scripts/extract_on3_wbb_transfer_csv.py "$PBP_OUT_DIR/women_transfers.html" > "$PBP_OUT_DIR/women_transfers.csv"
+
 TXFER_FILE_TO_PARSE=$PBP_OUT_DIR/women_transfers.csv
 
+PREVIOUS_CSV_SIZE=$(stat -f "%z" "$PBP_OUT_DIR/women_transfers.csv.$CURR_YEAR_P1.SAVED")
+TODAY_CSV_SIZE=$(stat -f "%z" "$PBP_OUT_DIR/women_transfers.csv")
+
+if (( TODAY_CSV_SIZE > PREVIOUS_CSV_SIZE)) ; then
+   cp $PBP_OUT_DIR/women_transfers.csv $PBP_OUT_DIR/women_transfers.csv.$CURR_YEAR_P1.SAVED
+else
+   echo "build_women_transfer_filter: Last good CSV [$PREVIOUS_CSV_SIZE] was bigger than today's [$TODAY_CSV_SIZE] so using that"
+   cp $PBP_OUT_DIR/women_transfers.csv.$CURR_YEAR_P1.SAVED $PBP_OUT_DIR/women_transfers.csv
+fi
+
 NUM_TRANSFERS=$(wc -l $TXFER_FILE_TO_PARSE | awk '{ print $1 }')
-
 echo "build_transfer_filter: [$(date)] Downloaded [$NUM_TRANSFERS] transfers"
-
 
 if [[ $NUM_TRANSFERS -gt 0 ]]; then
    java -cp "$PBP_SRC_ROOT/target/scala-2.12/cbb-explorer-assembly-0.1-deps.jar:$PBP_SRC_ROOT/target/scala-2.12/cbb-explorer_2.12-0.1.jar" \

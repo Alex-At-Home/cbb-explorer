@@ -12,4 +12,5 @@ ensime.sbt
 log*.txt
 .bloop/*
 .metals/*
+tmp
 project/.bloop/*

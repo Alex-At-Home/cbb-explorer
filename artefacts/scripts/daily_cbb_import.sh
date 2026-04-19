@@ -8,16 +8,22 @@ export SEASON_YEAR="2025"
 export ACADEMIC_YEAR="2026"
 export OFFSEASON_YEAR="2025"
 
+# Last few days of the season, normally in conjunction with INSEASON_PORTAL_TRACKING=="yes":
+export NO_GAMES_TODAY="yes"
 #Off season mode: do nothing except keep track of transfers
 export OFFSEASON_MODE="no"
-export INSEASON_PORTAL_TRACKING="no" #(set to "yes" one portal szn starts)
+export INSEASON_PORTAL_TRACKING="yes" #(set to "yes" one portal szn starts)
 export PRESEASON_LEADERBOARD_MODE="no" #(this is "no" until it settles down a bit, maybe as late as June?)
-if [[ "$OFFSEASON_MODE" == "yes" ]]; then
+if [[ "$OFFSEASON_MODE" == "yes" ]] || [[ "$NO_GAMES_TODAY" == "yes" ]]; then
    echo "In Off-season mode, will just keep track of transfers"
    export DAILY_IMPORT="no"
    export BUILD_EFFICIENCY="no"
    export BUILD_LEADERBOARDS="no"
 fi
+
+# (set this if we want to re-run this season's leaderboard having made some changes)
+BUILD_LEADERBOARDS="yes"
+#TODO (have a run all leaderboards option?)
 
 # Use this to rebuild for a given team instead of just getting previous days games
 #export FULL_TEAM_DOWNLOAD="yes"
@@ -323,7 +329,7 @@ if [[ "$BUILD_LEADERBOARDS" == "yes" ]] || [[ "$BUILD_LEADERBOARDS" = "cron" && 
    rm -f tmp_alert_file.txt
    rm -f tmp_game_validation.txt
 
-   # Create dropbox for databallr
+   # Create dropbox for databallr and friends
    #(needs to copy in a specific way so that Dropbox doesn't treat as a delete/re-create which changes the link)
    rm -f ./hoop_explorer_players_all_2025_26.zip
    zip ./hoop_explorer_players_all_2025_26.zip ./enrichedPlayers/players_*2025*.json
